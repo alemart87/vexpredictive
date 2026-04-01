@@ -3,7 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Vex People Predictive</title>
+    <title>Vex People Predictive - Plataforma SaaS BPO</title>
+
+    <!-- OpenGraph -->
+    <meta property="og:title" content="Vex People Predictive">
+    <meta property="og:description" content="Plataforma SaaS de entrenamiento y evaluacion predictiva del talento para operaciones BPO. Simulaciones con IA, perfiles de competencias multidimensionales, analytics en tiempo real y gestion multi-operativa. Desarrollado por VEX I+D / Voicenter.">
+    <meta property="og:image" content="{{ url_for('static', filename='img/og-card.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Vex People Predictive by Voicenter">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Vex People Predictive">
+    <meta name="twitter:description" content="Plataforma SaaS de entrenamiento y evaluacion predictiva del talento para operaciones BPO.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/og-card.png', _external=True) }}">
+    <meta name="description" content="Vex People Predictive - Plataforma SaaS de entrenamiento con IA y evaluacion predictiva para BPO y Contact Centers.">
+
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">

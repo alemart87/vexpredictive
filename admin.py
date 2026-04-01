@@ -553,8 +553,7 @@ def review_resolve(review_id):
     return redirect(url_for('admin.review_list'))
 
 
-# --- System Guide (SuperAdmin only) ---
+# --- System Guide (public) ---
 @admin_bp.route('/guide')
-@superadmin_required
 def system_guide():
     return render_template('admin/system_guide.html')

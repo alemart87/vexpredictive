@@ -222,15 +222,19 @@
     <h1>Guia del Sistema</h1>
     <p style="color:var(--gris-meta);margin-top:-8px;margin-bottom:20px">Referencia completa de la plataforma VEX People Predictive</p>
 
+    {% if current_user.is_authenticated and current_user.can_manage_content %}
     <div class="admin-nav">
         <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
         <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
         <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorias</a>
         <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
         <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
+        {% if current_user.is_superadmin %}
         <a href="{{ url_for('admin.operativa_list') }}" class="btn btn-secondary">Operativas</a>
+        {% endif %}
         <a href="{{ url_for('admin.system_guide') }}" class="btn btn-primary">Guia del Sistema</a>
     </div>
+    {% endif %}
 
     <!-- Section 1: Role Hierarchy -->
     <div class="guide-card">
