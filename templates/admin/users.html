@@ -36,7 +36,7 @@
                     <option value="operador">Operador</option>
                     <option value="supervisor">Supervisor</option>
                     {% if current_user.is_superadmin %}
-                    <option value="coordinador">Coordinador</option>
+                    <option value="coordinador">Coordinador / Gerente / SubGerente</option>
                     {% endif %}
                 </select>
             </div>
@@ -61,8 +61,11 @@
                 </select>
             </div>
             {% endif %}
-            <div class="form-group" style="align-self:end">
-                <label><input type="checkbox" name="is_active" checked> Activo</label>
+            <div class="form-group">
+                <label>&nbsp;</label>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer">
+                    <input type="checkbox" name="is_active" checked style="width:18px;height:18px"> Activo
+                </label>
             </div>
         </div>
         <button type="submit" class="btn btn-primary">Crear Usuario</button>
@@ -127,7 +130,7 @@
                     <option value="operador">Operador</option>
                     <option value="supervisor">Supervisor</option>
                     {% if current_user.is_superadmin %}
-                    <option value="coordinador">Coordinador</option>
+                    <option value="coordinador">Coordinador / Gerente / SubGerente</option>
                     {% endif %}
                 </select>
             </div>

@@ -310,20 +310,21 @@ nav .nav-logout { color: #ffcccc; }
 .form-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
 
 /* ===== Login Page ===== */
-.login-page { background: linear-gradient(135deg, var(--purpura-vex), var(--cyan-vex)); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.login-page { background: var(--blanco); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 .login-container { width: 100%; max-width: 400px; padding: 20px; }
 .login-card {
     background: var(--blanco);
     border-radius: var(--radius-md);
     padding: 32px 24px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border: 1px solid #e8e8e8;
     text-align: center;
 }
 .login-card h1 { color: var(--rojo-vex); font-size: 2em; margin-bottom: 4px; }
 .login-card .login-logo { max-width: 200px; margin: 0 auto 16px; display: block; }
 .login-subtitle { color: var(--gris-meta); margin-bottom: 24px; }
 .login-card .form-group { text-align: left; }
-.login-footer { text-align: center; color: rgba(255,255,255,0.6); margin-top: 20px; font-size: 13px; }
+.login-footer { text-align: center; color: var(--gris-meta); margin-top: 20px; font-size: 13px; }
 
 /* ===== Admin ===== */
 .admin-container { max-width: 1200px; margin: 0 auto; }
