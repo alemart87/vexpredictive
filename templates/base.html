@@ -9,6 +9,7 @@
     {% if current_user.is_authenticated %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
     {% endif %}
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     {% if op_primary %}
     <style>:root { --rojo-vex: {{ op_primary }};{% if op_secondary %} --cyan-vex: {{ op_secondary }};{% endif %} }</style>
     {% endif %}
