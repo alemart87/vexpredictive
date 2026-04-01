@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Perfil Vex - {{ profile.user.name }}{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/training.css') }}">
+<style>
+@media print {
+    header, nav, footer, .chat-mascot, .chat-panel, .btn, .admin-nav, .no-print { display: none !important; }
+    body { background: #fff !important; }
+    main { padding: 0 !important; max-width: 100% !important; }
+    .print-header { display: block !important; }
+    .vex-card { break-inside: avoid; page-break-inside: avoid; }
+}
+.print-header { display: none; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #00B2BF; padding-bottom: 16px; }
+.print-header h1 { color: #00B2BF; margin: 0; }
+.print-header p { color: #888; margin: 4px 0 0; }
+</style>
+{% endblock %}
+
+{% set cat_colors = {'elite': '#2e7d32', 'alto': '#00B2BF', 'desarrollo': '#e65100', 'refuerzo': '#c62828'} %}
+{% set cat_labels = {'elite': 'Elite', 'alto': 'Alto Rendimiento', 'desarrollo': 'En Desarrollo', 'refuerzo': 'Requiere Refuerzo'} %}
+{% set rec_colors = {'recomendado': '#2e7d32', 'observaciones': '#e65100', 'no_recomendado': '#c62828'} %}
+{% set rec_labels = {'recomendado': 'Recomendado', 'observaciones': 'Con Observaciones', 'no_recomendado': 'No Recomendado'} %}
+{% set cat_color = cat_colors.get(profile.profile_category, '#888') %}
+
+{% block content %}
+<!-- Print Header -->
+<div class="print-header">
+    <h1>Vex People Skill Predictive</h1>
+    <p>Informe de Evaluación Predictiva — Generado: {{ profile.last_updated.strftime('%d/%m/%Y') if profile.last_updated else 'N/A' }}</p>
+</div>
+
+<div class="admin-container">
+    <div class="admin-nav no-print">
+        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">&larr; Volver</a>
+        <a href="{{ url_for('training.vex_methodology') }}" class="btn btn-secondary">📖 Metodología</a>
+        <button class="btn btn-primary" onclick="window.print()">Exportar PDF</button>
+    </div>
+
+    <!-- Profile Header -->
+    <div class="vex-card" style="background:#fff;border-radius:16px;padding:30px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px">
+        <div>
+            <h1 style="margin:0;color:#00B2BF">{{ profile.user.name }}</h1>
+            <p style="margin:4px 0 0;color:#888">{{ profile.user.role | title }} — {{ profile.sessions_analyzed }} sesiones analizadas</p>
+            <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+                <span style="padding:6px 16px;border-radius:20px;font-weight:700;font-size:14px;color:#fff;background:{{ cat_color }}">{{ cat_labels.get(profile.profile_category, '') }}</span>
+                <span style="padding:6px 16px;border-radius:20px;font-weight:700;font-size:14px;color:#fff;background:{{ rec_colors.get(profile.recommendation, '#888') }}">{{ rec_labels.get(profile.recommendation, '') }}</span>
+            </div>
+        </div>
+        <div style="text-align:center">
+            <div style="font-size:56px;font-weight:800;color:{{ cat_color }};line-height:1">{{ profile.overall_score }}</div>
+            <div style="font-size:13px;color:#888">Score General /10</div>
+            <div style="font-size:24px;font-weight:700;color:#00B2BF;margin-top:4px">{{ profile.predictive_index }}%</div>
+            <div style="font-size:11px;color:#888">Índice Predictivo</div>
+        </div>
+    </div>
+
+    <!-- Hexagon Chart -->
+    <div class="vex-card" style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px">
+        <h2 style="color:#00B2BF;margin:0 0 16px">Hexágono de Rendimiento</h2>
+        <div style="max-width:500px;margin:0 auto">
+            <canvas id="hexChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Dimension Details -->
+    <div class="vex-card" style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px">
+        <h2 style="color:#00B2BF;margin:0 0 16px">Detalle por Dimensión</h2>
+        {% set dims = [
+            ('Comunicación Escrita', profile.communication_score, 'Calidad gramatical, claridad y profesionalismo', '#E6332A'),
+            ('Empatía & Trato', profile.empathy_score, 'Reconocimiento emocional y personalización', '#00B2BF'),
+            ('Resolución de Problemas', profile.resolution_score, 'Eficacia para resolver el caso correctamente', '#2e7d32'),
+            ('Velocidad & Productividad', profile.speed_score, 'Rapidez de respuesta (WPM) y tiempo de resolución', '#e65100'),
+            ('Adaptabilidad', profile.adaptability_score, 'Mejora progresiva y diversidad de escenarios', '#7b1fa2'),
+            ('Cumplimiento & Calidad', profile.compliance_score, 'Adherencia a procedimientos y calidad', '#0277bd')
+        ] %}
+        {% for name, score, desc, color in dims %}
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #f0f0f0">
+            <div style="width:50px;height:50px;border-radius:50%;background:{{ color }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0">{{ score }}</div>
+            <div style="flex:1">
+                <strong style="color:#333">{{ name }}</strong>
+                <p style="margin:2px 0 0;font-size:12px;color:#888">{{ desc }}</p>
+            </div>
+            <div style="width:150px;height:8px;background:#eee;border-radius:4px;overflow:hidden;flex-shrink:0">
+                <div style="width:{{ score * 10 }}%;height:100%;background:{{ color }};border-radius:4px"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Session History -->
+    <div class="vex-card" style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px">
+        <h2 style="color:#00B2BF;margin:0 0 16px">Historial de Sesiones</h2>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead><tr><th>Escenario</th><th>NPS</th><th>WPM</th><th>Correcta</th><th>Errores</th><th>Duración</th><th>Fecha</th><th></th></tr></thead>
+                <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td>{{ s.scenario.title }}</td>
+                    <td><strong class="{% if s.nps_score >= 9 %}nps-promoter{% elif s.nps_score >= 7 %}nps-passive{% else %}nps-detractor{% endif %}">{{ s.nps_score or '-' }}</strong></td>
+                    <td>{{ s.words_per_minute or '-' }}</td>
+                    <td>{{ '✅' if s.response_correct else '❌' }}</td>
+                    <td>{{ s.spelling_errors or 0 }}</td>
+                    <td>{{ (s.duration_seconds or 0) // 60 }}:{{ '%02d' % ((s.duration_seconds or 0) % 60) }}</td>
+                    <td>{{ s.created_at.strftime('%d/%m/%Y') if s.created_at else '-' }}</td>
+                    <td><button class="btn btn-sm btn-secondary" onclick="viewSession({{ s.id }})">Ver Detalles</button></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('training.vex_profile', user_id=profile.user_id, page=pagination.prev_num) }}" class="btn btn-sm btn-secondary">&larr; Anterior</a>
+            {% endif %}
+
+            {% for p_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if p_num %}
+                    <a href="{{ url_for('training.vex_profile', user_id=profile.user_id, page=p_num) }}" class="btn btn-sm {{ 'btn-primary' if p_num == pagination.page else 'btn-secondary' }}" style="min-width:36px;text-align:center">{{ p_num }}</a>
+                {% else %}
+                    <span style="color:#888">...</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('training.vex_profile', user_id=profile.user_id, page=pagination.next_num) }}" class="btn btn-sm btn-secondary">Siguiente &rarr;</a>
+            {% endif %}
+
+            <span style="color:#888;font-size:13px;margin-left:12px">{{ pagination.total }} sesiones</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Scientific Documentation -->
+    <div class="vex-card" style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px">
+        <h2 style="color:#00B2BF;margin:0 0 16px">Metodología de Evaluación</h2>
+
+        <div style="font-size:13px;line-height:1.7;color:#444">
+            <h3 style="color:#00B2BF;font-size:15px">¿Qué es Vex People Skill Predictive?</h3>
+            <p>Sistema de evaluación predictiva de habilidades para asesores de canales digitales. Analiza el rendimiento en sesiones de entrenamiento simuladas con IA para generar un perfil de competencias basado en metodologías científicas de evaluación de personal.</p>
+
+            <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Descripción del Algoritmo</h3>
+            <ol>
+                <li><strong>Recolección:</strong> Se registran mensajes, tiempos, WPM, errores ortográficos y evaluación IA (NPS 0-10, respuesta correcta, feedback).</li>
+                <li><strong>Agregación:</strong> Se promedian datos de todas las sesiones completadas (mínimo 2). Esto captura rendimiento consistente.</li>
+                <li><strong>Normalización:</strong> Escala Sten (1-10) basada en Anastasi & Urbina (1997). Fórmula: Sten = round(raw/10), acotado 1-10.</li>
+                <li><strong>Scoring:</strong> 6 dimensiones con fórmulas ponderadas combinando métricas cuantitativas y cualitativas.</li>
+                <li><strong>Índice Predictivo:</strong> Score compuesto ponderado — Resolución 25%, Empatía 20%, Comunicación 20%, Velocidad 15%, Adaptabilidad 10%, Cumplimiento 10%. Pesos basados en validez criterial (Dawes, 1979).</li>
+                <li><strong>Clasificación:</strong> Patrón Operativo + Recomendación de incorporación.</li>
+            </ol>
+
+            <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Justificación Científica por Dimensión</h3>
+
+            <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
+                <strong>1. Comunicación Escrita</strong> — Spitzberg & Cupach (1984)
+                <p style="margin:4px 0 0">Errores ortográficos reducen percepción de calidad 15-20% (Köhler et al., 2011). Se calcula: tasa inversa de errores (50%) + evaluación IA (50%).</p>
+            </div>
+            <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
+                <strong>2. Empatía & Trato</strong> — Davis IRI (1983), Spreng TEQ (2009)
+                <p style="margin:4px 0 0">Deep acting correlaciona con satisfacción del cliente (Grandey, 2000). Se calcula: NPS promedio (100%) — el NPS captura integralmente la experiencia del cliente incluyendo tono y empatía.</p>
+            </div>
+            <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
+                <strong>3. Resolución de Problemas</strong> — Feinberg et al. (2000)
+                <p style="margin:4px 0 0">FCR tiene correlación r=.55-.65 con CSAT. Se calcula: tasa de respuestas correctas (70%) + NPS (30%).</p>
+            </div>
+            <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
+                <strong>4. Velocidad & Productividad</strong> — Tezcan & Zhang (2014), LiveChat, Chatway
+                <p style="margin:4px 0 0">Benchmark: 30 WPM efectivo (equivale a ~50-60 WPM tipeo puro). Se calcula: WPM efectivo normalizado (60%) + duración inversa (40%).</p>
+            </div>
+            <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
+                <strong>5. Adaptabilidad & Aprendizaje</strong> — Bartram (2005), SHL UCF
+                <p style="margin:4px 0 0">Learning Agility predice éxito a largo plazo. Se calcula: tendencia NPS entre sesiones (50%) + diversidad de escenarios (50%).</p>
+            </div>
+            <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
+                <strong>6. Cumplimiento & Calidad</strong> — COPC CX Standard (2019), ISO 18295
+                <p style="margin:4px 0 0">Verificación de habilidades es requisito operativo. Se calcula: tasa de correctas (60%) + tasa inversa errores (40%).</p>
+            </div>
+
+            <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Escala de Interpretación</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">
+                <tr style="background:#00B2BF;color:#fff"><th style="padding:8px">Sten</th><th style="padding:8px">Percentil</th><th style="padding:8px">Clasificación</th><th style="padding:8px">Interpretación</th></tr>
+                <tr style="background:#e8f5e9"><td style="padding:6px 8px">9-10</td><td>96-100%</td><td>Sobresaliente</td><td>Rendimiento excepcional</td></tr>
+                <tr><td style="padding:6px 8px">7-8</td><td>77-95%</td><td>Superior</td><td>Supera expectativas</td></tr>
+                <tr style="background:#f5f5f5"><td style="padding:6px 8px">5-6</td><td>40-76%</td><td>Promedio</td><td>Dentro de lo esperado</td></tr>
+                <tr><td style="padding:6px 8px">3-4</td><td>11-39%</td><td>Inferior</td><td>Requiere capacitación</td></tr>
+                <tr style="background:#fce4ec"><td style="padding:6px 8px">1-2</td><td>0-10%</td><td>Crítico</td><td>Acción inmediata</td></tr>
+            </table>
+
+            <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Índice Predictivo de Incorporación</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">
+                <tr style="background:#00B2BF;color:#fff"><th style="padding:8px">Rango</th><th style="padding:8px">Clasificación</th><th style="padding:8px">Significado</th></tr>
+                <tr style="background:#e8f5e9"><td style="padding:6px 8px">≥ 70%</td><td>Recomendado</td><td>Perfil apto para incorporación</td></tr>
+                <tr style="background:#fff3e0"><td style="padding:6px 8px">50-69%</td><td>Con Observaciones</td><td>Requiere acompañamiento</td></tr>
+                <tr style="background:#fce4ec"><td style="padding:6px 8px">< 50%</td><td>No Recomendado</td><td>No sugerido sin capacitación previa</td></tr>
+            </table>
+
+            <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Disclaimer</h3>
+            <p style="font-size:11px;color:#888;font-style:italic">Este informe es una herramienta de apoyo para la toma de decisiones. Los resultados se basan en sesiones de entrenamiento simuladas y no sustituyen evaluaciones presenciales, entrevistas estructuradas, ni otros métodos de selección. Se recomienda utilizar como componente de un proceso integral de evaluación. Las métricas se actualizan con cada nueva sesión.</p>
+
+            <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Referencias Bibliográficas</h3>
+            <ul style="font-size:11px;color:#666">
+                <li>Anastasi, A. & Urbina, S. (1997). <em>Psychological Testing</em> (7th ed.). Prentice Hall.</li>
+                <li>Bartram, D. (2005). The Great Eight Competencies. <em>J. of Applied Psychology</em>, 90(6).</li>
+                <li>COPC Inc. (2019). <em>COPC CX Standard for Contact Centers, Release 7.0</em>.</li>
+                <li>Davis, M.H. (1983). Measuring individual differences in empathy. <em>J. of Personality and Social Psychology</em>, 44(1).</li>
+                <li>Dawes, R.M. (1979). The robust beauty of improper linear models. <em>American Psychologist</em>, 34(7).</li>
+                <li>Feinberg, R.A. et al. (2000). Operational determinants of caller satisfaction. <em>Int. J. of Service Industry Management</em>, 11(2).</li>
+                <li>Grandey, A.A. (2000). Emotion regulation in the workplace. <em>J. of Occupational Health Psychology</em>, 5(1).</li>
+                <li>Köhler, T. et al. (2011). Effects of spelling errors on business communication perception.</li>
+                <li>Spitzberg, B.H. & Cupach, W.R. (1984). <em>Interpersonal Communication Competence</em>. Sage.</li>
+                <li>Spreng, R.N. et al. (2009). Toronto Empathy Questionnaire. <em>J. of Personality Assessment</em>, 91(1).</li>
+                <li>Tezcan, T. & Zhang, J. (2014). Optimal concurrent chat capacity. <em>Operations Research</em>.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Session Detail Modal -->
+<div id="sessionModal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:800px;max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 id="smTitle" style="margin:0;color:#00B2BF">Detalle del Entrenamiento</h2>
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('sessionModal').style.display='none'" style="font-size:18px;padding:4px 12px">&times;</button>
+        </div>
+        <div id="smMetrics" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
+        <div id="smFeedback"></div>
+        <h3 style="color:#00B2BF;font-size:15px;margin:16px 0 10px">Conversación</h3>
+        <div id="smMessages" style="max-height:45vh;overflow-y:auto;padding:4px"></div>
+        <div style="text-align:right;margin-top:16px">
+            <button class="btn btn-secondary" onclick="document.getElementById('sessionModal').style.display='none'">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+async function viewSession(sid) {
+    var res = await fetch('/admin/training/session/' + sid + '/detail');
+    var d = await res.json();
+    document.getElementById('smTitle').textContent = d.scenario + ' — ' + d.user;
+
+    var npsClass = d.nps >= 9 ? 'nps-promoter' : d.nps >= 7 ? 'nps-passive' : 'nps-detractor';
+    var dur = Math.floor((d.duration||0) / 60) + ':' + ('0' + (d.duration||0) % 60).slice(-2);
+    document.getElementById('smMetrics').innerHTML =
+        '<div style="flex:1;text-align:center;background:#f8f9fa;padding:12px;border-radius:10px"><div style="font-size:24px;font-weight:700" class="' + npsClass + '">' + (d.nps||'-') + '</div><div style="font-size:11px;color:#888">NPS</div></div>' +
+        '<div style="flex:1;text-align:center;background:#f8f9fa;padding:12px;border-radius:10px"><div style="font-size:24px;font-weight:700;color:#00B2BF">' + (d.wpm||'-') + '</div><div style="font-size:11px;color:#888">WPM</div></div>' +
+        '<div style="flex:1;text-align:center;background:#f8f9fa;padding:12px;border-radius:10px"><div style="font-size:24px">' + (d.correct ? '✅' : '❌') + '</div><div style="font-size:11px;color:#888">Correcta</div></div>' +
+        '<div style="flex:1;text-align:center;background:#f8f9fa;padding:12px;border-radius:10px"><div style="font-size:24px;font-weight:700;color:#e65100">' + (d.spelling_errors||0) + '</div><div style="font-size:11px;color:#888">Errores</div></div>' +
+        '<div style="flex:1;text-align:center;background:#f8f9fa;padding:12px;border-radius:10px"><div style="font-size:24px;font-weight:700;color:#333">' + dur + '</div><div style="font-size:11px;color:#888">Duración</div></div>';
+
+    var fb = d.feedback || {};
+    var fbHtml = '';
+    if (fb.feedback) fbHtml += '<div style="background:#f8f9fa;padding:14px;border-radius:10px;font-size:13px;margin-bottom:8px"><strong style="color:#00B2BF">Feedback:</strong> ' + fb.feedback + '</div>';
+    if (fb.strengths) fbHtml += '<div style="background:#e8f5e9;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:8px"><strong style="color:#2e7d32">Fortalezas:</strong> ' + fb.strengths + '</div>';
+    if (fb.improvements) fbHtml += '<div style="background:#fff3e0;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:8px"><strong style="color:#e65100">Áreas de mejora:</strong> ' + fb.improvements + '</div>';
+    document.getElementById('smFeedback').innerHTML = fbHtml;
+
+    document.getElementById('smMessages').innerHTML = d.messages.map(function(m) {
+        var isUser = m.role === 'user';
+        return '<div style="margin-bottom:10px;padding:10px 14px;border-radius:12px;max-width:80%;' +
+            (isUser ? 'background:#e8f0fe;margin-left:auto' : 'background:#f5f5f5;margin-right:auto') + '">' +
+            '<div style="font-size:10px;color:#888;margin-bottom:3px">' + (isUser ? '🎧 Asesor' : '👤 Cliente') + ' • ' + m.created_at + '</div>' +
+            '<div style="font-size:13px;line-height:1.5">' + m.content + '</div></div>';
+    }).join('');
+
+    document.getElementById('sessionModal').style.display = 'flex';
+}
+
+new Chart(document.getElementById('hexChart'), {
+    type: 'radar',
+    data: {
+        labels: ['Comunicación', 'Empatía', 'Resolución', 'Velocidad', 'Adaptabilidad', 'Cumplimiento'],
+        datasets: [{
+            label: '{{ profile.user.name }}',
+            data: [{{ profile.communication_score }}, {{ profile.empathy_score }}, {{ profile.resolution_score }}, {{ profile.speed_score }}, {{ profile.adaptability_score }}, {{ profile.compliance_score }}],
+            backgroundColor: 'rgba(230, 51, 42, 0.15)',
+            borderColor: '#E6332A',
+            borderWidth: 2,
+            pointBackgroundColor: '#E6332A',
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            r: {
+                min: 0, max: 10,
+                ticks: { stepSize: 2, font: { size: 11 } },
+                pointLabels: { font: { size: 13, weight: 'bold' }, color: '#00B2BF' },
+                grid: { color: 'rgba(0,0,0,0.08)' }
+            }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

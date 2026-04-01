@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Contenidos - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Gestión de Contenidos</h1>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('admin.content_list') }}" class="btn btn-primary">Contenidos</a>
+        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorías</a>
+        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
+        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Entrenamiento</a>
+        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">Vex Predictive</a>
+    </div>
+
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.content_new') }}" class="btn btn-primary">+ Nuevo Contenido</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Título</th>
+                    <th>Categoría</th>
+                    <th>Slug</th>
+                    <th>Actualizado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in contents %}
+                <tr>
+                    <td>{{ item.title }}</td>
+                    <td>{{ item.category.name if item.category else '-' }}</td>
+                    <td><code>{{ item.slug }}</code></td>
+                    <td>{{ item.updated_at.strftime('%d/%m/%Y') if item.updated_at else '-' }}</td>
+                    <td class="actions">
+                        <a href="{{ url_for('view_content', slug=item.slug) }}" class="btn btn-sm" target="_blank">Ver</a>
+                        <a href="{{ url_for('admin.content_edit', content_id=item.id) }}" class="btn btn-sm btn-primary">Editar</a>
+                        <form method="POST" action="{{ url_for('admin.content_delete', content_id=item.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar este contenido?')">
+                            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

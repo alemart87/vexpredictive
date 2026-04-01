@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}Insights AI de Mejora - Admin{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Insights AI de Mejora</h1>
+    <p style="color:#888;margin-top:-8px;margin-bottom:20px">Panel de decisiones para capacitación y mejora continua</p>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
+        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorías</a>
+        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-primary">Insights AI</a>
+        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Entrenamiento</a>
+        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">Vex Predictive</a>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="date-filter" style="background:#fff;padding:14px 20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:20px">
+        <label>Desde: <input type="date" id="dateFrom"></label>
+        <label>Hasta: <input type="date" id="dateTo"></label>
+        <button class="btn btn-primary" onclick="loadInsights()">Filtrar</button>
+        <button class="btn btn-secondary" onclick="setQuickRange(1)">24h</button>
+        <button class="btn btn-secondary" onclick="setQuickRange(7)">7 días</button>
+        <button class="btn btn-secondary" onclick="setQuickRange(30)">30 días</button>
+        <button class="btn btn-secondary" onclick="setQuickRange(0)">Todo</button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr)">
+        <div class="stat-card">
+            <h3 id="sConvs">-</h3>
+            <p>Conversaciones</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="sMsgs">-</h3>
+            <p>Consultas</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="sUsers">-</h3>
+            <p>Usuarios Activos</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="sTokens">-</h3>
+            <p>Tokens IA</p>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="chart-card" style="margin-bottom:20px;border-left:4px solid #E6332A">
+        <h3 style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:24px">💡</span> Recomendaciones de Capacitación
+        </h3>
+        <div id="recommendations" style="margin-top:12px">
+            <p style="color:#888">Cargando análisis...</p>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Consultas por Día</h3>
+            <canvas id="chartConvsDay" style="max-height:280px"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Temas Más Consultados</h3>
+            <canvas id="chartTopics" style="max-height:280px"></canvas>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Cobertura por Categoría</h3>
+            <canvas id="chartCoverage" style="max-height:280px"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Actividad por Usuario</h3>
+            <div id="usersList" class="data-list" style="max-height:280px"></div>
+        </div>
+    </div>
+
+    <!-- Word Cloud / Frequent terms -->
+    <div class="chart-card" style="margin-bottom:20px">
+        <h3>Términos Más Frecuentes en Consultas</h3>
+        <div id="wordCloud" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 0"></div>
+    </div>
+
+    <!-- Conversations Table -->
+    <div class="chart-card">
+        <h3>Conversaciones Recientes</h3>
+        <div class="table-responsive">
+            <table class="admin-table" id="convsTable">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Tema</th>
+                        <th>Msgs</th>
+                        <th>Tokens</th>
+                        <th>Fecha</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="convsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Conversation Detail Modal -->
+<div id="convModal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:700px">
+        <h2 id="convModalTitle">Conversación</h2>
+        <p id="convModalUser" style="color:#888;margin-top:-8px"></p>
+        <div id="convModalBody" style="max-height:50vh;overflow-y:auto"></div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('convModal').style.display='none'">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+let chartConvsDay, chartTopics, chartCoverage;
+
+function setQuickRange(days) {
+    const to = new Date();
+    document.getElementById('dateTo').value = to.toISOString().split('T')[0];
+    if (days === 0) {
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+    } else {
+        const from = new Date(to.getTime() - days * 86400000);
+        document.getElementById('dateFrom').value = from.toISOString().split('T')[0];
+    }
+    loadInsights();
+}
+
+async function loadInsights() {
+    const from = document.getElementById('dateFrom').value;
+    const to = document.getElementById('dateTo').value;
+    let url = '/admin/api/insights?';
+    if (from) url += 'from=' + from + '&';
+    if (to) url += 'to=' + to;
+
+    const res = await fetch(url);
+    const d = await res.json();
+
+    // Stats
+    document.getElementById('sConvs').textContent = d.stats.total_conversations.toLocaleString();
+    document.getElementById('sMsgs').textContent = d.stats.total_messages.toLocaleString();
+    document.getElementById('sUsers').textContent = d.stats.unique_users.toLocaleString();
+    document.getElementById('sTokens').textContent = d.stats.total_tokens.toLocaleString();
+
+    // Recommendations
+    const recEl = document.getElementById('recommendations');
+    if (d.recommendations.length === 0) {
+        recEl.innerHTML = '<p style="color:#888">Aún no hay suficientes datos para generar recomendaciones. Se necesitan más consultas.</p>';
+    } else {
+        const prColors = {alta:'#fff0e0;border-left:4px solid #E6332A', media:'#f0f4ff;border-left:4px solid #00B2BF', info:'#f0faf0;border-left:4px solid #28a745'};
+        recEl.innerHTML = d.recommendations.map(r => {
+            const bg = prColors[r.priority] || prColors.info;
+            return '<div style="display:flex;gap:12px;padding:14px;background:' + bg + ';border-radius:10px;margin-bottom:8px">' +
+            '<span style="font-size:28px;flex-shrink:0">' + r.icon + '</span>' +
+            '<div><strong style="color:#00B2BF">' + r.title + '</strong>' +
+            '<p style="margin:4px 0 0;font-size:13px;color:#555;line-height:1.5">' + r.desc + '</p></div></div>';
+        }).join('');
+    }
+
+    // Conversations per day
+    if (chartConvsDay) chartConvsDay.destroy();
+    chartConvsDay = new Chart(document.getElementById('chartConvsDay'), {
+        type: 'line',
+        data: {
+            labels: d.convs_per_day.map(x => x.date),
+            datasets: [{
+                label: 'Consultas',
+                data: d.convs_per_day.map(x => x.count),
+                borderColor: '#E6332A',
+                backgroundColor: 'rgba(230,51,42,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#E6332A'
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    // Top topics
+    if (chartTopics) chartTopics.destroy();
+    const topics = d.top_topics.slice(0, 8);
+    chartTopics = new Chart(document.getElementById('chartTopics'), {
+        type: 'bar',
+        data: {
+            labels: topics.map(t => t.word),
+            datasets: [{
+                label: 'Menciones',
+                data: topics.map(t => t.count),
+                backgroundColor: topics.map((_, i) => i === 0 ? '#E6332A' : '#00B2BF'),
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Category coverage
+    if (chartCoverage) chartCoverage.destroy();
+    const catNames = Object.keys(d.category_coverage);
+    const catValues = Object.values(d.category_coverage);
+    chartCoverage = new Chart(document.getElementById('chartCoverage'), {
+        type: 'doughnut',
+        data: {
+            labels: catNames,
+            datasets: [{
+                data: catValues.map(v => v || 0.5),
+                backgroundColor: ['#E6332A', '#00B2BF', '#F39200', '#662483', '#888', '#f4a261']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 12 } } }
+            }
+        }
+    });
+
+    // Users list
+    const usersEl = document.getElementById('usersList');
+    if (d.top_users.length === 0) {
+        usersEl.innerHTML = '<p style="padding:16px;color:#888;text-align:center">Sin datos</p>';
+    } else {
+        usersEl.innerHTML = d.top_users.map(u =>
+            '<div class="data-item">' +
+            '<span><strong>' + u.name + '</strong> <small style="color:#888">(' + u.role + ')</small></span>' +
+            '<span class="badge" style="background:#E6332A;color:#fff">' + u.convs + ' consultas</span>' +
+            '</div>'
+        ).join('');
+    }
+
+    // Word cloud
+    const wcEl = document.getElementById('wordCloud');
+    const maxCount = d.frequent_questions.length > 0 ? d.frequent_questions[0].count : 1;
+    wcEl.innerHTML = d.frequent_questions.map(w => {
+        const size = Math.max(12, Math.min(28, 12 + (w.count / maxCount) * 16));
+        const opacity = Math.max(0.5, w.count / maxCount);
+        return '<span style="font-size:' + size + 'px;color:#00B2BF;opacity:' + opacity + ';padding:4px 8px;background:#f0f4f8;border-radius:8px;font-weight:600">' + w.word + '</span>';
+    }).join('');
+
+    // Conversations table
+    const tbody = document.getElementById('convsBody');
+    tbody.innerHTML = d.recent_conversations.map(c =>
+        '<tr>' +
+        '<td>' + c.user + '</td>' +
+        '<td><span class="badge badge-' + c.role + '">' + c.role + '</span></td>' +
+        '<td>' + c.title + '</td>' +
+        '<td>' + c.messages + '</td>' +
+        '<td>' + c.tokens.toLocaleString() + '</td>' +
+        '<td>' + c.date + '</td>' +
+        '<td><button class="btn btn-sm btn-primary" onclick="viewConv(' + c.id + ')">Ver</button></td>' +
+        '</tr>'
+    ).join('');
+}
+
+async function viewConv(convId) {
+    const res = await fetch('/admin/chat/' + convId + '/detail');
+    const data = await res.json();
+
+    document.getElementById('convModalTitle').textContent = data.title || 'Conversación';
+    document.getElementById('convModalUser').textContent = data.user || '';
+    const body = document.getElementById('convModalBody');
+    body.innerHTML = data.messages.map(function(m) {
+        const isUser = m.role === 'user';
+        return '<div style="margin-bottom:12px;padding:10px 14px;border-radius:12px;' +
+            (isUser ? 'background:#e8f0fe;margin-left:20%' : 'background:#fff4e5;margin-right:20%') + '">' +
+            '<div style="font-size:11px;color:#888;margin-bottom:4px">' +
+            (isUser ? '👤 Usuario' : '🤖 VEX AI') + ' • ' + (m.created_at || '') + '</div>' +
+            '<div style="font-size:14px;line-height:1.5;white-space:pre-wrap">' + m.content + '</div></div>';
+    }).join('');
+
+    document.getElementById('convModal').style.display = 'flex';
+}
+
+// Default: load all data (no date filter) on first load
+loadInsights();
+</script>
+{% endblock %}
+{% endblock %}

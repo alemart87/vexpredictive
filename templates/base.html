@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vex People Predictive{% endblock %}</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% if current_user.is_authenticated %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+    {% endif %}
+    {% if op_primary %}
+    <style>:root { --rojo-vex: {{ op_primary }};{% if op_secondary %} --cyan-vex: {{ op_secondary }};{% endif %} }</style>
+    {% endif %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Loader -->
+    <div id="loader" class="loader-overlay">
+        <div class="loader-dots">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-content">
+            <a href="{{ url_for('index') }}" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo-voicenter.png') }}" alt="Vex People Predictive" class="header-logo">
+            </a>
+            <p>Plataforma Predictiva de Gestion del Talento</p>
+        </div>
+        <button class="hamburger" id="hamburger" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+    </header>
+
+    <nav id="mainNav">
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}">Inicio</a>
+            {% if current_user.is_authenticated %}
+                {% for cat in nav_categories %}
+                <a href="{{ url_for('view_category', slug=cat.slug) }}">{{ cat.name }}</a>
+                {% endfor %}
+
+                <!-- Entrenamiento dropdown -->
+                <div class="nav-dropdown">
+                    <button class="nav-dropdown-btn">Entrenamiento &#9662;</button>
+                    <div class="nav-dropdown-menu">
+                        <a href="{{ url_for('training.index') }}">Mis Entrenamientos</a>
+                        {% if current_user.is_superadmin or current_user.role == 'coordinador' %}
+                        <a href="{{ url_for('training.admin_scenarios') }}">Crear Escenarios</a>
+                        <a href="{{ url_for('training.admin_dashboard') }}">CX Dashboard</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if current_user.is_superadmin or current_user.role == 'coordinador' %}
+                <!-- Vex Predictive dropdown -->
+                <div class="nav-dropdown">
+                    <button class="nav-dropdown-btn">Vex Predictive &#9662;</button>
+                    <div class="nav-dropdown-menu">
+                        <a href="{{ url_for('training.vex_dashboard') }}">Resultados</a>
+                        <a href="{{ url_for('training.vex_methodology') }}">Metodologia</a>
+                    </div>
+                </div>
+
+                <!-- Admin dropdown -->
+                <div class="nav-dropdown">
+                    <button class="nav-dropdown-btn nav-admin">Admin &#9662;</button>
+                    <div class="nav-dropdown-menu">
+                        <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+                        <a href="{{ url_for('admin.content_list') }}">Contenidos</a>
+                        <a href="{{ url_for('admin.category_list') }}">Categorias</a>
+                        <a href="{{ url_for('admin.user_list') }}">Usuarios</a>
+                        <a href="{{ url_for('admin.chat_analytics') }}">Insights AI</a>
+                        {% if current_user.is_superadmin %}
+                        <a href="{{ url_for('admin.operativa_list') }}">Operativas</a>
+                        <a href="{{ url_for('admin.system_guide') }}">Guia del Sistema</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('logout') }}" class="nav-logout">Salir</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 VEX I+D - Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        // Hamburger menu toggle
+        document.getElementById('hamburger').addEventListener('click', function() {
+            document.getElementById('mainNav').classList.toggle('open');
+            this.classList.toggle('active');
+        });
+
+        // Loader: hide on page load
+        window.addEventListener('load', function() {
+            var loader = document.getElementById('loader');
+            loader.classList.add('hidden');
+            setTimeout(function() { loader.style.display = 'none'; }, 400);
+        });
+
+        // Nav dropdowns
+        document.querySelectorAll('.nav-dropdown-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var dd = btn.parentElement;
+                document.querySelectorAll('.nav-dropdown').forEach(function(d) {
+                    if (d !== dd) d.classList.remove('open');
+                });
+                dd.classList.toggle('open');
+            });
+        });
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.nav-dropdown').forEach(function(d) {
+                d.classList.remove('open');
+            });
+        });
+    </script>
+
+    {% if current_user.is_authenticated %}
+    <!-- Chat Widget -->
+    <script>window.VEX_USER = {name: "{{ current_user.name }}", role: "{{ current_user.role }}"};</script>
+    <button class="chat-mascot" id="chatMascot" aria-label="Chat con VEX AI">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="38" fill="white" opacity="0.95"/>
+            <circle cx="50" cy="50" r="34" fill="white" stroke="#E6332A" stroke-width="2"/>
+            <circle cx="38" cy="42" r="6" fill="#00B2BF">
+                <animate attributeName="r" values="6;5;6" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="62" cy="42" r="6" fill="#00B2BF">
+                <animate attributeName="r" values="6;5;6" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="36" cy="40" r="2" fill="white"/>
+            <circle cx="60" cy="40" r="2" fill="white"/>
+            <path d="M36 58 Q50 70 64 58" stroke="#E6332A" stroke-width="3" fill="none" stroke-linecap="round">
+                <animate attributeName="d" values="M36 58 Q50 70 64 58;M36 56 Q50 66 64 56;M36 58 Q50 70 64 58" dur="4s" repeatCount="indefinite"/>
+            </path>
+            <line x1="50" y1="16" x2="50" y2="8" stroke="#E6332A" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="50" cy="6" r="3" fill="#F39200">
+                <animate attributeName="fill" values="#F39200;#E6332A;#F39200" dur="2s" repeatCount="indefinite"/>
+            </circle>
+        </svg>
+    </button>
+
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <div class="chat-header-avatar">
+                <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="16" fill="white" opacity="0.3"/><circle cx="15" cy="17" r="2.5" fill="white"/><circle cx="25" cy="17" r="2.5" fill="white"/><path d="M13 25 Q20 31 27 25" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+            </div>
+            <div class="chat-header-info">
+                <h3>VEX AI</h3>
+                <span>Asistente virtual</span>
+            </div>
+            <div class="chat-header-actions">
+                <button id="chatNew" title="Nueva conversacion">+</button>
+                <button id="chatHistory" title="Historial">&#9776;</button>
+                <button id="chatClose" title="Cerrar">&times;</button>
+            </div>
+        </div>
+        <!-- Tabs -->
+        <div class="chat-tabs">
+            <button class="chat-tab active" data-tab="chat">
+                <span class="chat-tab-icon">&#128172;</span>Chat
+            </button>
+            <button class="chat-tab" data-tab="stats">
+                <span class="chat-tab-icon">&#128202;</span>Mi Actividad
+            </button>
+        </div>
+
+        <!-- Chat Tab -->
+        <div class="chat-tab-content active" data-tab="chat">
+            <div class="chat-convs" id="chatConvs"></div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-welcome">
+                    <h4>Hola! Soy VEX AI</h4>
+                    <p>Tu asistente virtual inteligente.</p>
+                </div>
+            </div>
+            <div class="chat-typing" id="chatTyping"><span></span><span></span><span></span></div>
+        </div>
+
+        <!-- Stats Tab -->
+        <div class="chat-tab-content" data-tab="stats">
+            <div class="chat-stats" id="chatStatsContent">
+                <p style="padding:20px;text-align:center;color:#888">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- Input (always visible) -->
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Escribe tu pregunta..." autocomplete="off">
+            <button id="chatSend" aria-label="Enviar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="white"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/tracking.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    {% endif %}
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

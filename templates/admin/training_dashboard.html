@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}CX Dashboard - Entrenamiento{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/training.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>CX Dashboard — Resultados de Entrenamiento</h1>
+    <p style="color:#888;margin-top:-8px;margin-bottom:20px">Análisis de rendimiento y oportunidades de mejora del equipo</p>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-primary">CX Dashboard</a>
+        {% if current_user.is_superadmin %}
+        <a href="{{ url_for('training.admin_scenarios') }}" class="btn btn-secondary">Escenarios</a>
+        {% endif %}
+    </div>
+
+    <!-- Guide -->
+    <details style="background:#fff;border-radius:12px;padding:14px 20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <summary style="cursor:pointer;font-weight:700;color:#00B2BF;font-size:14px">📖 ¿Cómo interpretar los resultados?</summary>
+        <div style="margin-top:12px;font-size:12px;color:#555;line-height:1.7;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div><strong>NPS (0-10):</strong><br>9-10 Promotor ✅<br>7-8 Pasivo ⚠️<br>0-6 Detractor ❌</div>
+            <div><strong>WPM:</strong><br>30+ Excelente 🚀<br>20-30 Aceptable ✅<br>&lt;20 Mejorar ⚠️</div>
+            <div><strong>Indicadores:</strong><br>NPS bajo + WPM alto → Capacitar empatía<br>NPS alto + WPM bajo → Practicar agilidad<br>Errores altos → Reforzar escritura</div>
+        </div>
+    </details>
+
+    <!-- Live Monitor -->
+    <div class="chart-card" style="margin-bottom:20px;border-left:4px solid #2e7d32">
+        <h3 style="display:flex;align-items:center;gap:8px"><span style="color:#2e7d32;font-size:12px">●</span> En Vivo</h3>
+        <div id="liveMonitor"><p style="color:#888">Cargando...</p></div>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="date-filter" style="background:#fff;padding:14px 20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:20px">
+        <label>Desde: <input type="date" id="dateFrom"></label>
+        <label>Hasta: <input type="date" id="dateTo"></label>
+        <button class="btn btn-primary" onclick="loadData()">Filtrar</button>
+        <button class="btn btn-secondary" onclick="setRange(7)">7 días</button>
+        <button class="btn btn-secondary" onclick="setRange(30)">30 días</button>
+        <button class="btn btn-secondary" onclick="setRange(0)">Todo</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card"><h3 id="kSessions">-</h3><p>Sesiones</p></div>
+        <div class="stat-card"><h3 id="kNps">-</h3><p>NPS Promedio</p></div>
+        <div class="stat-card"><h3 id="kCorrect">-</h3><p>% Correctas</p></div>
+        <div class="stat-card"><h3 id="kWpm">-</h3><p>WPM Promedio</p></div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="chart-card" style="margin-bottom:20px;border-left:4px solid #E6332A">
+        <h3>💡 Recomendaciones de Capacitación</h3>
+        <div id="recommendations" style="margin-top:12px"><p style="color:#888">Cargando...</p></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+        <div class="chart-card"><h3>NPS por Día</h3><canvas id="chartNpsDay" style="max-height:280px"></canvas></div>
+        <div class="chart-card"><h3>Distribución NPS</h3><canvas id="chartNpsDist" style="max-height:280px"></canvas></div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card"><h3>Ranking de Asesores</h3><div id="rankingList" class="data-list" style="max-height:300px"></div></div>
+        <div class="chart-card"><h3>Escenarios</h3><canvas id="chartScenarios" style="max-height:280px"></canvas></div>
+    </div>
+
+    {% if current_user.is_superadmin %}
+    <!-- Permissions -->
+    <div class="chart-card" style="margin-bottom:20px">
+        <h3>🔐 Permisos de Supervisores</h3>
+        <div id="permissionsList" style="margin-top:12px"></div>
+    </div>
+    {% endif %}
+
+    <!-- Sessions Table -->
+    <div class="chart-card">
+        <h3>Sesiones Recientes</h3>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead><tr><th>Asesor</th><th>Escenario</th><th>NPS</th><th>WPM</th><th>Correcta</th><th>Duración</th><th>Fecha</th><th></th></tr></thead>
+                <tbody id="sessionsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Session Detail Modal -->
+<div id="sessionModal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:750px">
+        <h2 id="smTitle">Sesión</h2>
+        <div id="smMetrics" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap"></div>
+        <div id="smFeedback" style="margin-bottom:16px"></div>
+        <div id="smMessages" style="max-height:40vh;overflow-y:auto"></div>
+        <div class="form-actions"><button class="btn btn-secondary" onclick="document.getElementById('sessionModal').style.display='none'">Cerrar</button></div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+let c1, c2, c3;
+
+function setRange(days) {
+    var to = new Date();
+    document.getElementById('dateTo').value = to.toISOString().split('T')[0];
+    if (days === 0) { document.getElementById('dateFrom').value = ''; document.getElementById('dateTo').value = ''; }
+    else { var f = new Date(to.getTime() - days * 86400000); document.getElementById('dateFrom').value = f.toISOString().split('T')[0]; }
+    loadData();
+}
+
+async function loadData() {
+    var from = document.getElementById('dateFrom').value;
+    var to = document.getElementById('dateTo').value;
+    var url = '/admin/api/training/insights?';
+    if (from) url += 'from=' + from + '&';
+    if (to) url += 'to=' + to;
+
+    var res = await fetch(url);
+    var d = await res.json();
+
+    // KPIs
+    document.getElementById('kSessions').textContent = d.stats.total_sessions;
+    document.getElementById('kNps').textContent = d.stats.avg_nps;
+    document.getElementById('kCorrect').textContent = d.stats.correct_rate + '%';
+    document.getElementById('kWpm').textContent = d.stats.avg_wpm;
+
+    // Recommendations
+    var recEl = document.getElementById('recommendations');
+    var prColors = {alta:'#fff0e0;border-left:4px solid #E6332A', media:'#f0f4ff;border-left:4px solid #00B2BF', info:'#f0faf0;border-left:4px solid #28a745'};
+    if (d.recommendations.length === 0) {
+        recEl.innerHTML = '<p style="color:#888">Sin recomendaciones. Se necesitan más sesiones completadas.</p>';
+    } else {
+        recEl.innerHTML = d.recommendations.map(function(r) {
+            return '<div style="display:flex;gap:12px;padding:14px;background:' + (prColors[r.priority]||prColors.info) + ';border-radius:10px;margin-bottom:8px">' +
+                '<span style="font-size:28px;flex-shrink:0">' + r.icon + '</span><div><strong style="color:#00B2BF">' + r.title + '</strong>' +
+                '<p style="margin:4px 0 0;font-size:13px;color:#555">' + r.desc + '</p></div></div>';
+        }).join('');
+    }
+
+    // NPS per day
+    if (c1) c1.destroy();
+    c1 = new Chart(document.getElementById('chartNpsDay'), {
+        type: 'line',
+        data: {
+            labels: d.nps_per_day.map(function(x){return x.date}),
+            datasets: [{label:'NPS Promedio', data: d.nps_per_day.map(function(x){return x.avg_nps}),
+                borderColor:'#E6332A', backgroundColor:'rgba(230,51,42,0.1)', fill:true, tension:0.3, pointRadius:5, pointBackgroundColor:'#E6332A'}]
+        },
+        options: {responsive:true, maintainAspectRatio:false, scales:{y:{min:0,max:10}}, plugins:{legend:{display:false}}}
+    });
+
+    // NPS Distribution
+    if (c2) c2.destroy();
+    var dist = d.nps_distribution;
+    c2 = new Chart(document.getElementById('chartNpsDist'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(dist),
+            datasets: [{label:'Sesiones', data: Object.values(dist),
+                backgroundColor: Object.keys(dist).map(function(k){return parseInt(k)>=9?'#2e7d32':parseInt(k)>=7?'#e65100':'#c62828'}),
+                borderRadius:4}]
+        },
+        options: {responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
+    });
+
+    // Rankings
+    var rkEl = document.getElementById('rankingList');
+    rkEl.innerHTML = d.rankings.length ? d.rankings.map(function(r,i) {
+        var medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        var npsColor = r.avg_nps>=9?'#2e7d32':r.avg_nps>=7?'#e65100':'#c62828';
+        return '<div class="data-item"><span>' + medal + ' <strong>' + r.name + '</strong> <small>(' + r.role + ')</small></span>' +
+            '<span style="display:flex;gap:8px">' +
+            '<span class="badge" style="background:' + npsColor + ';color:#fff">NPS ' + r.avg_nps + '</span>' +
+            '<span class="badge">WPM ' + r.avg_wpm + '</span>' +
+            '<span class="badge">' + r.correct_rate + '% ✓</span></span></div>';
+    }).join('') : '<p style="padding:16px;color:#888;text-align:center">Sin datos</p>';
+
+    // Scenarios
+    if (c3) c3.destroy();
+    if (d.scenarios.length) {
+        c3 = new Chart(document.getElementById('chartScenarios'), {
+            type: 'bar',
+            data: {
+                labels: d.scenarios.map(function(s){return s.title.substring(0,25)}),
+                datasets: [{label:'NPS Prom', data: d.scenarios.map(function(s){return s.avg_nps}),
+                    backgroundColor:'#00B2BF', borderRadius:4}]
+            },
+            options: {responsive:true, maintainAspectRatio:false, indexAxis:'y', scales:{x:{min:0,max:10}}, plugins:{legend:{display:false}}}
+        });
+    }
+
+    {% if current_user.is_superadmin %}
+    // Permissions
+    var permEl = document.getElementById('permissionsList');
+    if (d.supervisors.length) {
+        permEl.innerHTML = d.supervisors.map(function(s) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0">' +
+                '<span>' + s.name + '</span>' +
+                '<form method="POST" action="/admin/training/permissions" style="display:inline">' +
+                '<input type="hidden" name="supervisor_id" value="' + s.id + '">' +
+                '<input type="hidden" name="action" value="' + (s.has_access ? 'revoke' : 'grant') + '">' +
+                '<button type="submit" class="btn btn-sm ' + (s.has_access ? 'btn-danger' : 'btn-primary') + '">' +
+                (s.has_access ? 'Revocar' : 'Dar Acceso') + '</button></form></div>';
+        }).join('');
+    } else { permEl.innerHTML = '<p style="color:#888">No hay supervisores registrados</p>'; }
+    {% endif %}
+
+    // Sessions table
+    var tbody = document.getElementById('sessionsBody');
+    tbody.innerHTML = d.recent_sessions.map(function(s) {
+        var npsColor = s.nps>=9?'nps-promoter':s.nps>=7?'nps-passive':'nps-detractor';
+        var dur = Math.floor(s.duration/60) + ':' + ('0' + s.duration%60).slice(-2);
+        return '<tr><td>' + s.user + '</td><td>' + s.scenario + '</td>' +
+            '<td><strong class="' + npsColor + '">' + (s.nps||'-') + '</strong></td>' +
+            '<td>' + (s.wpm||'-') + '</td>' +
+            '<td>' + (s.correct?'✅':'❌') + '</td>' +
+            '<td>' + dur + '</td><td>' + s.date + '</td>' +
+            '<td><button class="btn btn-sm btn-primary" onclick="viewSession(' + s.id + ')">Ver</button></td></tr>';
+    }).join('');
+}
+
+async function viewSession(sid) {
+    var res = await fetch('/admin/training/session/' + sid + '/detail');
+    var d = await res.json();
+    document.getElementById('smTitle').textContent = d.scenario + ' — ' + d.user;
+    document.getElementById('smMetrics').innerHTML =
+        '<div class="result-metric" style="flex:1"><div class="rm-value ' + (d.nps>=9?'nps-promoter':d.nps>=7?'nps-passive':'nps-detractor') + '">' + (d.nps||'-') + '</div><div class="rm-label">NPS</div></div>' +
+        '<div class="result-metric" style="flex:1"><div class="rm-value">' + (d.wpm||'-') + '</div><div class="rm-label">WPM</div></div>' +
+        '<div class="result-metric" style="flex:1"><div class="rm-value">' + (d.correct?'✅':'❌') + '</div><div class="rm-label">Correcta</div></div>' +
+        '<div class="result-metric" style="flex:1"><div class="rm-value">' + (d.spelling_errors||0) + '</div><div class="rm-label">Errores</div></div>';
+
+    var fb = d.feedback || {};
+    document.getElementById('smFeedback').innerHTML = fb.feedback ? '<div style="background:#f8f9fa;padding:12px;border-radius:8px;font-size:13px"><strong>Feedback:</strong> ' + fb.feedback + '</div>' : '';
+
+    document.getElementById('smMessages').innerHTML = d.messages.map(function(m) {
+        var isUser = m.role === 'user';
+        return '<div style="margin-bottom:10px;padding:10px 14px;border-radius:12px;' +
+            (isUser ? 'background:#e8f0fe;margin-left:15%' : 'background:#f5f5f5;margin-right:15%') + '">' +
+            '<div style="font-size:10px;color:#888;margin-bottom:3px">' + (isUser?'🎧 Asesor':'👤 Cliente') + ' • ' + m.created_at + '</div>' +
+            '<div style="font-size:13px">' + m.content + '</div></div>';
+    }).join('');
+
+    document.getElementById('sessionModal').style.display = 'flex';
+}
+
+loadData();
+
+// Live Monitor
+async function loadLive() {
+    try {
+        var res = await fetch('/admin/api/training/live');
+        var d = await res.json();
+        var el = document.getElementById('liveMonitor');
+        if (d.active_batches.length === 0) {
+            el.innerHTML = '<p style="color:#888;font-size:13px">No hay sesiones activas en este momento</p>';
+        } else {
+            el.innerHTML = d.active_batches.map(function(b) {
+                var pct = b.interactions_total > 0 ? Math.round(b.interactions_completed / b.max_concurrent * 100) : 0;
+                var min = Math.floor(b.elapsed_seconds / 60);
+                return '<div class="live-card">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                    '<div><strong>' + b.user_name + '</strong> <small style="color:#888">— ' + b.scenario + '</small></div>' +
+                    '<span style="font-size:13px;color:#888">' + min + ' min</span></div>' +
+                    '<div style="display:flex;gap:12px;margin-top:8px;font-size:12px">' +
+                    '<span style="color:#2e7d32">✅ ' + b.interactions_completed + ' resueltas</span>' +
+                    '<span style="color:#E6332A">🟢 ' + b.interactions_active + ' activas</span>' +
+                    '<span style="color:#888">⏳ ' + b.interactions_pending + ' pendientes</span>' +
+                    '<span>/ ' + b.max_concurrent + ' total</span></div>' +
+                    '<div class="live-progress"><div class="live-progress-bar" style="width:' + pct + '%;background:linear-gradient(90deg,#2e7d32,#E6332A)"></div></div></div>';
+            }).join('');
+        }
+    } catch(e) {}
+}
+loadLive();
+setInterval(loadLive, 10000);
+</script>
+{% endblock %}
+{% endblock %}

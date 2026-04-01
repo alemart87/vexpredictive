@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Entrenamiento - Batch {{ batch.id }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/training.css') }}">{% endblock %}
+
+{% block content %}
+<div class="batch-container">
+    <!-- Indicador de asignación aleatoria -->
+    <div class="random-case-indicator" id="randomCaseIndicator">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px">
+            <path d="M17.65 6.35A7.96 7.96 0 0012 4C7.58 4 4.01 7.58 4.01 12S7.58 20 12 20c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/>
+        </svg>
+        Asignando casos aleatorios
+    </div>
+
+    <!-- Header -->
+    <div class="batch-header">
+        <div>
+            <h2>Sesión #{{ batch.id }} — {{ batch.scenario.title }}</h2>
+            <span class="badge-difficulty badge-{{ batch.scenario.difficulty }}">{{ batch.scenario.difficulty }}</span>
+            <span style="color:rgba(255,255,255,0.7);font-size:13px;margin-left:8px">{{ batch.max_concurrent }} interacciones simultáneas</span>
+        </div>
+        <div class="training-metrics">
+            <div class="training-metric"><span class="metric-value" id="gTimer">0:00</span><span class="metric-label">Tiempo</span></div>
+            <div class="training-metric"><span class="metric-value" id="gResolved">0/{{ batch.max_concurrent }}</span><span class="metric-label">Resueltas</span></div>
+            <div class="training-metric"><span class="metric-value" id="gActive">1</span><span class="metric-label">Activas</span></div>
+        </div>
+    </div>
+
+    <div class="batch-body">
+        <!-- Sidebar -->
+        <div class="batch-sidebar" id="trainSidebar">
+            <div class="sidebar-title">Interacciones</div>
+            <div id="trainList"></div>
+            <div class="sidebar-stats" id="sidebarStats"></div>
+        </div>
+
+        <!-- Main chat area -->
+        <div class="batch-main">
+            <div class="batch-chat-header" id="trainHeader">Selecciona una interacción</div>
+            <div class="training-messages" id="trainChatMessages">
+                <div class="training-typing" id="trainTyping"><span></span><span></span><span></span></div>
+            </div>
+            <div class="training-input-area" id="trainInputArea">
+                <div class="emoji-picker" id="emojiPicker" style="display:none"></div>
+                <button class="btn-emoji" id="emojiBtn" type="button" title="Emojis">😊</button>
+                <input type="text" id="trainInput" placeholder="Escribe tu respuesta..." autocomplete="off" autofocus>
+                <button class="btn-send" id="trainSend" aria-label="Enviar">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="white"/></svg>
+                </button>
+                <button class="btn-end" id="trainEnd">Cerrar Interacción</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+window.BATCH_ID = {{ batch.id }};
+window.MAX_CONCURRENT = {{ batch.max_concurrent }};
+window.BATCH_INTERACTIONS = [
+    {% for s in batch.sessions %}
+    {
+        session_id: {{ s.id }},
+        interaction_number: {{ s.interaction_number }},
+        status: '{{ s.status }}',
+        messages: [{% for m in s.messages %}{role:'{{ m.role }}',content:{{ m.content|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+</script>
+<script>
+// Auto-hide random case indicator after 4 seconds
+setTimeout(function() {
+    var indicator = document.getElementById('randomCaseIndicator');
+    if (indicator) {
+        indicator.classList.add('fade-out');
+        setTimeout(function() { indicator.remove(); }, 600);
+    }
+}, 4000);
+</script>
+<script src="{{ url_for('static', filename='js/training.js') }}"></script>
+{% endblock %}

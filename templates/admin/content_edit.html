@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if content else 'Nuevo' }} Contenido - Admin{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>{{ 'Editar' if content else 'Nuevo' }} Contenido</h1>
+
+    <form method="POST" id="contentForm">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="title">Título</label>
+                <input type="text" id="title" name="title" required value="{{ content.title if content else '' }}"
+                       oninput="if(!document.getElementById('slug').dataset.manual) document.getElementById('slug').value = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')">
+            </div>
+            <div class="form-group">
+                <label for="slug">Slug (URL)</label>
+                <input type="text" id="slug" name="slug" required value="{{ content.slug if content else '' }}"
+                       oninput="this.dataset.manual='1'">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="category_id">Categoría</label>
+                <select id="category_id" name="category_id">
+                    <option value="">Sin categoría</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if content and content.category_id == cat.id %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="keywords">Keywords (separadas por coma)</label>
+                <input type="text" id="keywords" name="keywords" value="{{ content.keywords if content else '' }}"
+                       placeholder="pin, token, activar">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Descripción breve</label>
+            <input type="text" id="description" name="description" value="{{ content.description if content else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>Contenido HTML</label>
+            <div id="editor" style="min-height: 400px;">{{ content.html_content|safe if content else '' }}</div>
+            <input type="hidden" name="html_content" id="html_content">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<script>
+const quill = new Quill('#editor', {
+    theme: 'snow',
+    modules: {
+        toolbar: [
+            [{'header': [1, 2, 3, false]}],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{'color': []}, {'background': []}],
+            [{'list': 'ordered'}, {'list': 'bullet'}],
+            ['link', 'image'],
+            ['blockquote', 'code-block'],
+            ['clean']
+        ]
+    }
+});
+
+// Image upload handler
+quill.getModule('toolbar').addHandler('image', function() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async function() {
+        const file = input.files[0];
+        if (!file) return;
+        const fd = new FormData();
+        fd.append('image', file);
+        const res = await fetch('/admin/upload-image', {method: 'POST', body: fd});
+        const data = await res.json();
+        if (data.url) {
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', data.url);
+        }
+    };
+    input.click();
+});
+
+document.getElementById('contentForm').addEventListener('submit', function() {
+    document.getElementById('html_content').value = quill.root.innerHTML;
+});
+</script>
+{% endblock %}
+{% endblock %}

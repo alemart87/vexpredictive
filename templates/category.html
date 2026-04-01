@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category.name }} - Vex People Predictive{% endblock %}
+
+{% block content %}
+<section class="category-page">
+    <h1>{{ category.name }}</h1>
+    {% if category.description %}
+    <p class="category-desc">{{ category.description }}</p>
+    {% endif %}
+
+    <div class="card-grid">
+        {% for item in contents %}
+        <a href="{{ url_for('view_content', slug=item.slug) }}" class="card">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.description or '' }}</p>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% if not contents %}
+    <p class="no-results">No hay contenidos en esta categoría.</p>
+    {% endif %}
+</section>
+
+<a href="{{ url_for('index') }}" class="fixed-back-btn">Volver al Inicio</a>
+{% endblock %}

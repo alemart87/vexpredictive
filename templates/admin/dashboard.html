@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Admin{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Dashboard de Analytics</h1>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">Dashboard</a>
+        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
+        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorías</a>
+        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
+        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Entrenamiento</a>
+        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">Vex Predictive</a>
+    </div>
+
+    <div class="date-filter">
+        <label>Desde: <input type="date" id="dateFrom"></label>
+        <label>Hasta: <input type="date" id="dateTo"></label>
+        <button class="btn btn-primary" onclick="loadDashboard()">Filtrar</button>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3 id="totalViews">0</h3>
+            <p>Visitas Totales</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="totalClicks">0</h3>
+            <p>Clicks Totales</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="totalSearches">0</h3>
+            <p>Búsquedas</p>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Visitas por Día</h3>
+            <canvas id="viewsChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Páginas Más Visitadas</h3>
+            <canvas id="pagesChart"></canvas>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Búsquedas Más Frecuentes</h3>
+            <div id="searchesList" class="data-list"></div>
+        </div>
+        <div class="chart-card">
+            <h3>Actividad por Usuario</h3>
+            <div id="usersList" class="data-list"></div>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+let viewsChart, pagesChart;
+
+async function loadDashboard() {
+    const from = document.getElementById('dateFrom').value;
+    const to = document.getElementById('dateTo').value;
+    let url = '/api/analytics/overview?';
+    if (from) url += 'from=' + from + '&';
+    if (to) url += 'to=' + to;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    document.getElementById('totalViews').textContent = data.total_views.toLocaleString();
+    document.getElementById('totalClicks').textContent = data.total_clicks.toLocaleString();
+    document.getElementById('totalSearches').textContent = data.total_searches.toLocaleString();
+
+    // Views per day chart
+    if (viewsChart) viewsChart.destroy();
+    viewsChart = new Chart(document.getElementById('viewsChart'), {
+        type: 'line',
+        data: {
+            labels: data.views_per_day.map(d => d.date),
+            datasets: [{
+                label: 'Visitas',
+                data: data.views_per_day.map(d => d.views),
+                borderColor: '#E6332A',
+                backgroundColor: 'rgba(230,51,42,0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Top pages chart
+    if (pagesChart) pagesChart.destroy();
+    const topPages = data.top_pages.slice(0, 8);
+    pagesChart = new Chart(document.getElementById('pagesChart'), {
+        type: 'bar',
+        data: {
+            labels: topPages.map(p => p.path.split('/').pop() || p.path),
+            datasets: [{
+                label: 'Visitas',
+                data: topPages.map(p => p.views),
+                backgroundColor: '#00B2BF'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y'
+        }
+    });
+
+    // Top searches
+    const searchesList = document.getElementById('searchesList');
+    searchesList.innerHTML = data.top_searches.length
+        ? data.top_searches.map(s =>
+            '<div class="data-item"><span>' + s.query + '</span><span class="badge">' + s.count + '</span></div>'
+        ).join('')
+        : '<p>Sin datos</p>';
+
+    // Load user stats
+    const usersRes = await fetch('/api/analytics/users');
+    const usersData = await usersRes.json();
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = usersData.length
+        ? usersData.map(u =>
+            '<div class="data-item"><span>' + u.name + ' <small>(' + u.role + ')</small></span><span class="badge">' + u.views + ' visitas</span></div>'
+        ).join('')
+        : '<p>Sin datos</p>';
+}
+
+loadDashboard();
+</script>
+{% endblock %}
+{% endblock %}

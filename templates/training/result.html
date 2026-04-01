@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Resultado - Sesión {{ session.id }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/training.css') }}">{% endblock %}
+
+{% block content %}
+<div class="result-container">
+    <h1 style="color:#00B2BF;text-align:center">Resultado del Entrenamiento</h1>
+    <p style="text-align:center;color:#888;margin-bottom:24px">Sesión {{ session.id }} — {{ session.scenario.title }}</p>
+
+    <!-- NPS Score -->
+    <div class="result-nps">
+        {% set nps = session.nps_score or 0 %}
+        <div class="nps-number {% if nps >= 9 %}nps-promoter{% elif nps >= 7 %}nps-passive{% else %}nps-detractor{% endif %}">
+            {{ nps }}
+        </div>
+        <div class="nps-label">
+            NPS Score /10 —
+            {% if nps >= 9 %}Promotor (Excelente)
+            {% elif nps >= 7 %}Pasivo (Aceptable)
+            {% else %}Detractor (Necesita mejora){% endif %}
+        </div>
+    </div>
+
+    <!-- Correct/Incorrect -->
+    <div style="text-align:center;margin-bottom:16px">
+        {% if session.response_correct %}
+        <span class="result-correct yes">✅ Respuesta Correcta</span>
+        {% else %}
+        <span class="result-correct no">❌ Respuesta Incorrecta</span>
+        {% endif %}
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="result-metrics">
+        <div class="result-metric">
+            <div class="rm-value">{{ session.words_per_minute or 0 }}</div>
+            <div class="rm-label">Palabras/Min</div>
+        </div>
+        <div class="result-metric">
+            <div class="rm-value">{{ (session.duration_seconds or 0) // 60 }}:{{ '%02d' % ((session.duration_seconds or 0) % 60) }}</div>
+            <div class="rm-label">Duración</div>
+        </div>
+        <div class="result-metric">
+            <div class="rm-value">{{ session.total_messages or 0 }}</div>
+            <div class="rm-label">Mensajes</div>
+        </div>
+        <div class="result-metric">
+            <div class="rm-value">{{ session.spelling_errors or 0 }}</div>
+            <div class="rm-label">Errores Ortográficos</div>
+        </div>
+    </div>
+
+    <!-- AI Feedback -->
+    {% set feedback = {} %}
+    {% if session.ai_feedback %}
+    {% set feedback = session.ai_feedback | tojson | safe %}
+    {% endif %}
+    <div class="result-feedback" id="feedbackContainer">
+        <h3>💡 Retroalimentación de IA</h3>
+        <div id="feedbackContent">Cargando...</div>
+    </div>
+
+    <div style="text-align:center;margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="{{ url_for('training.index') }}" class="btn btn-primary">Volver a Entrenar</a>
+        <a href="{{ url_for('training.index') }}" class="btn btn-secondary">Ver Otros Escenarios</a>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+try {
+    var raw = {{ session.ai_feedback | tojson | safe if session.ai_feedback else '"{}"' }};
+    var fb = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    var html = '';
+    if (fb.feedback) html += '<p style="margin-bottom:12px">' + fb.feedback + '</p>';
+    if (fb.strengths) html += '<div style="background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:8px"><strong style="color:#2e7d32">✅ Fortalezas:</strong><p style="margin:4px 0 0">' + fb.strengths + '</p></div>';
+    if (fb.improvements) html += '<div style="background:#fff3e0;padding:12px;border-radius:8px"><strong style="color:#e65100">📈 Áreas de Mejora:</strong><p style="margin:4px 0 0">' + fb.improvements + '</p></div>';
+    if (!html) html = '<p>' + (fb.feedback || raw || 'Sin retroalimentación disponible.') + '</p>';
+    document.getElementById('feedbackContent').innerHTML = html;
+} catch(e) {
+    document.getElementById('feedbackContent').innerHTML = '<p>{{ session.ai_feedback or "Sin retroalimentación" }}</p>';
+}
+</script>
+{% endblock %}
+{% endblock %}

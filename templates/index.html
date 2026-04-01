@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="search-section">
+    <div class="search-bar">
+        <form id="searchForm">
+            <input type="text" placeholder="Buscar..." id="searchInput" autocomplete="off">
+            <button type="submit">Buscar</button>
+        </form>
+    </div>
+</section>
+
+<div id="searchResults" class="card-grid" style="display:none;"></div>
+
+<section class="categories-section">
+    <h2>Categorías</h2>
+    <div class="card-grid">
+        {% for cat in categories %}
+        <a href="{{ url_for('view_category', slug=cat.slug) }}" class="card">
+            <h3>{{ cat.name }}</h3>
+            <p>{{ cat.description or '' }}</p>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+{% if featured %}
+<section class="featured-section">
+    <h2>Contenido Reciente</h2>
+    <div class="card-grid">
+        {% for item in featured %}
+        <a href="{{ url_for('view_content', slug=item.slug) }}" class="card">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.description or '' }}</p>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% block extra_scripts %}
+<script>
+const searchForm = document.getElementById('searchForm');
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+
+searchForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const q = searchInput.value.trim();
+    if (!q) return;
+
+    const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+
+    // Track search
+    fetch('/api/track/search', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, results_count: data.length})
+    });
+
+    if (data.length === 0) {
+        searchResults.innerHTML = '<p class="no-results">No se encontraron resultados para: ' + q + '</p>';
+    } else {
+        searchResults.innerHTML = data.map(item =>
+            '<a href="/content/' + item.slug + '" class="card result-card">' +
+            '<h3>' + item.title + '</h3>' +
+            '<p>' + item.description + '</p>' +
+            '<span class="badge">' + item.category + '</span>' +
+            '</a>'
+        ).join('');
+    }
+    searchResults.style.display = 'grid';
+});
+</script>
+{% endblock %}
+{% endblock %}

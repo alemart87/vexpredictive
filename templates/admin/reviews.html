@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Revisiones de Documentos - Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+    .review-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: var(--radius-lg);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .review-badge-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .review-badge-in_review {
+        background: #cce5ff;
+        color: #004085;
+    }
+    .review-badge-approved {
+        background: #d4edda;
+        color: #155724;
+    }
+    .review-badge-rejected {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .review-actions-form {
+        display: flex;
+        gap: 8px;
+        align-items: start;
+        flex-wrap: wrap;
+    }
+    .review-actions-form textarea {
+        width: 100%;
+        min-width: 200px;
+        padding: 8px 10px;
+        border: 2px solid #ddd;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 60px;
+    }
+    .review-actions-form textarea:focus {
+        border-color: var(--rojo-vex);
+        outline: none;
+    }
+    .review-actions-btns {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+    }
+    .review-notes {
+        font-size: 12px;
+        color: var(--gris-meta);
+        margin-top: 4px;
+        font-style: italic;
+    }
+    .review-meta {
+        font-size: 12px;
+        color: var(--gris-meta);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Revisiones de Documentos</h1>
+    <p style="color:var(--gris-meta);margin-top:-8px;margin-bottom:20px">Solicitudes de revision de contenido por parte de supervisores</p>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
+        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorias</a>
+        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
+        {% if current_user.is_superadmin %}
+        <a href="{{ url_for('admin.operativa_list') }}" class="btn btn-secondary">Operativas</a>
+        <a href="{{ url_for('admin.system_guide') }}" class="btn btn-secondary">Guia del Sistema</a>
+        {% endif %}
+    </div>
+
+    {% if reviews %}
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Contenido</th>
+                    <th>Solicitado por</th>
+                    <th>Operativa</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in reviews %}
+                <tr>
+                    <td>
+                        {% if review.content %}
+                        <a href="{{ url_for('view_content', slug=review.content.slug) }}" style="color:var(--cyan-vex);font-weight:600">
+                            {{ review.content.title }}
+                        </a>
+                        {% else %}
+                        <span style="color:var(--gris-meta)">Contenido eliminado</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if review.requester %}
+                        {{ review.requester.name }}
+                        <br><span class="review-meta">{{ review.requester.role }}</span>
+                        {% else %}
+                        <span style="color:var(--gris-meta)">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if review.operativa %}
+                        {{ review.operativa.name }}
+                        {% else %}
+                        <span style="color:var(--gris-meta)">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="review-badge review-badge-{{ review.status }}">
+                            {% if review.status == 'pending' %}Pendiente
+                            {% elif review.status == 'in_review' %}En Revision
+                            {% elif review.status == 'approved' %}Aprobada
+                            {% elif review.status == 'rejected' %}Rechazada
+                            {% else %}{{ review.status }}
+                            {% endif %}
+                        </span>
+                        {% if review.notes %}
+                        <div class="review-notes">{{ review.notes }}</div>
+                        {% endif %}
+                        {% if review.reviewer %}
+                        <div class="review-meta" style="margin-top:4px">Revisado por: {{ review.reviewer.name }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="white-space:nowrap">{{ review.created_at.strftime('%d/%m/%Y') if review.created_at else '-' }}</span>
+                        <br><span class="review-meta">{{ review.created_at.strftime('%H:%M') if review.created_at else '' }}</span>
+                        {% if review.resolved_at %}
+                        <br><span class="review-meta">Resuelto: {{ review.resolved_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if review.status == 'pending' or review.status == 'in_review' %}
+                        <form method="POST" action="{{ url_for('admin.review_resolve', review_id=review.id) }}" class="review-actions-form">
+                            <div style="width:100%">
+                                <textarea name="notes" placeholder="Notas de la revision (opcional)..."></textarea>
+                                <div class="review-actions-btns">
+                                    <button type="submit" name="action" value="approved" class="btn btn-sm" style="background:#28a745;color:var(--blanco)">Aprobar</button>
+                                    <button type="submit" name="action" value="rejected" class="btn btn-sm btn-danger">Rechazar</button>
+                                </div>
+                            </div>
+                        </form>
+                        {% else %}
+                        <span style="color:var(--gris-meta);font-size:13px">Resuelta</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:50px 20px;background:var(--blanco);border-radius:var(--radius-md);box-shadow:var(--sombra-sm)">
+        <div style="font-size:48px;margin-bottom:12px;opacity:0.3">&#128196;</div>
+        <p style="color:var(--gris-meta);font-size:16px;margin:0">No hay revisiones de documentos.</p>
+        <p style="color:var(--gris-meta);font-size:14px;margin-top:8px">Las revisiones apareceran cuando los supervisores las soliciten desde las paginas de contenido.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

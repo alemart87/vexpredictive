@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion de Operativas - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Gestion de Operativas</h1>
+    <p style="color:var(--gris-meta);margin-top:-8px;margin-bottom:20px">Administracion de cuentas y operativas del sistema</p>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
+        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorias</a>
+        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
+        <a href="{{ url_for('admin.operativa_list') }}" class="btn btn-primary">Operativas</a>
+        <a href="{{ url_for('admin.system_guide') }}" class="btn btn-secondary">Guia del Sistema</a>
+    </div>
+
+    <!-- Create Form -->
+    <h2 style="color:var(--purpura-vex)">Nueva Operativa</h2>
+    <form method="POST" action="{{ url_for('admin.operativa_save') }}" enctype="multipart/form-data" class="inline-form">
+        <div class="form-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" name="name" required placeholder="Nombre de la operativa">
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" required placeholder="nombre-operativa">
+                <small style="color:var(--gris-meta);font-size:11px">Identificador unico, sin espacios</small>
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+                <label>Descripcion</label>
+                <input type="text" name="description" placeholder="Descripcion breve de la operativa">
+            </div>
+            <div class="form-group">
+                <label>Color Primario</label>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <input type="color" name="primary_color" value="#E6332A" style="width:50px;height:40px;padding:2px;border:2px solid #ddd;border-radius:var(--radius-sm);cursor:pointer">
+                    <span class="color-preview-label" style="font-size:13px;color:var(--gris-meta)">Primario</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Color Secundario</label>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <input type="color" name="secondary_color" value="#00B2BF" style="width:50px;height:40px;padding:2px;border:2px solid #ddd;border-radius:var(--radius-sm);cursor:pointer">
+                    <span class="color-preview-label" style="font-size:13px;color:var(--gris-meta)">Secundario</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Color de Acento</label>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <input type="color" name="accent_color" value="#662483" style="width:50px;height:40px;padding:2px;border:2px solid #ddd;border-radius:var(--radius-sm);cursor:pointer">
+                    <span class="color-preview-label" style="font-size:13px;color:var(--gris-meta)">Acento</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Logo</label>
+                <input type="file" name="logo" accept="image/*" style="font-size:14px">
+                <small style="color:var(--gris-meta);font-size:11px">PNG, JPG, GIF o WebP</small>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:12px">Crear Operativa</button>
+    </form>
+
+    <!-- Operativas Table -->
+    <h2 style="color:var(--purpura-vex)">Operativas Existentes</h2>
+
+    {% if operativas %}
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Slug</th>
+                    <th>Descripcion</th>
+                    <th>Colores</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operativas %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            {% if op.logo_url %}
+                            <img src="{{ url_for('static', filename=op.logo_url.lstrip('/')) }}" alt="{{ op.name }}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--gris-claro)">
+                            {% else %}
+                            <div style="width:32px;height:32px;border-radius:50%;background:{{ op.primary_color or '#E6332A' }};display:flex;align-items:center;justify-content:center;color:var(--blanco);font-weight:700;font-size:14px">{{ op.name[0] }}</div>
+                            {% endif %}
+                            <strong>{{ op.name }}</strong>
+                        </div>
+                    </td>
+                    <td><code>{{ op.slug }}</code></td>
+                    <td>{{ op.description or '-' }}</td>
+                    <td>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <div title="Primario: {{ op.primary_color or 'N/A' }}" style="width:24px;height:24px;border-radius:50%;background:{{ op.primary_color or '#ccc' }};border:2px solid var(--blanco);box-shadow:var(--sombra-sm)"></div>
+                            <div title="Secundario: {{ op.secondary_color or 'N/A' }}" style="width:24px;height:24px;border-radius:50%;background:{{ op.secondary_color or '#ccc' }};border:2px solid var(--blanco);box-shadow:var(--sombra-sm)"></div>
+                            <div title="Acento: {{ op.accent_color or 'N/A' }}" style="width:24px;height:24px;border-radius:50%;background:{{ op.accent_color or '#ccc' }};border:2px solid var(--blanco);box-shadow:var(--sombra-sm)"></div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if op.is_active %}
+                        <span style="display:inline-block;padding:4px 12px;border-radius:var(--radius-lg);background:#d4edda;color:#155724;font-size:13px;font-weight:600">Activa</span>
+                        {% else %}
+                        <span style="display:inline-block;padding:4px 12px;border-radius:var(--radius-lg);background:#f8d7da;color:#721c24;font-size:13px;font-weight:600">Inactiva</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space:nowrap">
+                        <button class="btn btn-sm btn-primary" onclick="editOp({{ op.id }}, '{{ op.name }}', '{{ op.slug }}', '{{ op.description or '' }}', '{{ op.primary_color or '#E6332A' }}', '{{ op.secondary_color or '#00B2BF' }}', '{{ op.accent_color or '#662483' }}')">Editar</button>
+                        <form method="POST" action="{{ url_for('admin.operativa_toggle', op_id=op.id) }}" style="display:inline">
+                            {% if op.is_active %}
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Desactivar esta operativa?')">Desactivar</button>
+                            {% else %}
+                            <button type="submit" class="btn btn-sm btn-secondary">Activar</button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:40px;background:var(--blanco);border-radius:var(--radius-md);box-shadow:var(--sombra-sm)">
+        <p style="color:var(--gris-meta);font-size:16px">No hay operativas registradas. Crea la primera usando el formulario de arriba.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:550px">
+        <h2>Editar Operativa</h2>
+        <form method="POST" action="{{ url_for('admin.operativa_save') }}" enctype="multipart/form-data">
+            <input type="hidden" name="id" id="editId">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" name="name" id="editName" required>
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" id="editSlug" required>
+            </div>
+            <div class="form-group">
+                <label>Descripcion</label>
+                <input type="text" name="description" id="editDesc">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+                <div class="form-group">
+                    <label>Color Primario</label>
+                    <input type="color" name="primary_color" id="editPrimary" style="width:100%;height:40px;padding:2px;border:2px solid #ddd;border-radius:var(--radius-sm);cursor:pointer">
+                </div>
+                <div class="form-group">
+                    <label>Color Secundario</label>
+                    <input type="color" name="secondary_color" id="editSecondary" style="width:100%;height:40px;padding:2px;border:2px solid #ddd;border-radius:var(--radius-sm);cursor:pointer">
+                </div>
+                <div class="form-group">
+                    <label>Color de Acento</label>
+                    <input type="color" name="accent_color" id="editAccent" style="width:100%;height:40px;padding:2px;border:2px solid #ddd;border-radius:var(--radius-sm);cursor:pointer">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Logo (dejar vacio para no cambiar)</label>
+                <input type="file" name="logo" accept="image/*" style="font-size:14px">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('editModal').style.display='none'">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+function editOp(id, name, slug, desc, primary, secondary, accent) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editName').value = name;
+    document.getElementById('editSlug').value = slug;
+    document.getElementById('editDesc').value = desc;
+    document.getElementById('editPrimary').value = primary;
+    document.getElementById('editSecondary').value = secondary;
+    document.getElementById('editAccent').value = accent;
+    document.getElementById('editModal').style.display = 'flex';
+}
+</script>
+{% endblock %}
+{% endblock %}

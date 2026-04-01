@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Resultado Batch {{ batch.id }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/training.css') }}">{% endblock %}
+
+{% block content %}
+<div class="result-container">
+    <h1 style="color:#00B2BF;text-align:center">Resultado del Entrenamiento</h1>
+    <p style="text-align:center;color:#888;margin-bottom:24px">Batch #{{ batch.id }} — {{ batch.scenario.title }} — {{ sessions|length }} interacciones</p>
+
+    <!-- Overall NPS -->
+    <div class="result-nps">
+        {% set nps = batch.overall_nps or 0 %}
+        <div class="nps-number {% if nps >= 9 %}nps-promoter{% elif nps >= 7 %}nps-passive{% else %}nps-detractor{% endif %}">
+            {{ nps }}
+        </div>
+        <div class="nps-label">NPS Promedio — {% if nps >= 9 %}Promotor{% elif nps >= 7 %}Pasivo{% else %}Detractor{% endif %}</div>
+        <div style="margin-top:8px;font-size:14px;color:#888">
+            Tasa de acierto: <strong>{{ batch.overall_correct_rate or 0 }}%</strong> |
+            Duración: <strong>{{ (batch.duration_seconds or 0) // 60 }}:{{ '%02d' % ((batch.duration_seconds or 0) % 60) }}</strong>
+        </div>
+    </div>
+
+    <!-- Per-interaction results -->
+    <h2 style="color:#00B2BF;margin-top:24px;border-bottom:2px solid #E6332A;padding-bottom:8px">Detalle por Interacción</h2>
+    {% for s in sessions %}
+    <div style="background:#fff;border-radius:12px;padding:20px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-left:4px solid {% if s.nps_score and s.nps_score >= 9 %}#2e7d32{% elif s.nps_score and s.nps_score >= 7 %}#e65100{% else %}#c62828{% endif %}">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+            <div>
+                <strong>Interacción #{{ s.interaction_number }}</strong>
+                <span style="margin-left:8px">{{ '✅' if s.response_correct else '❌' }}</span>
+            </div>
+            <div style="display:flex;gap:16px;font-size:14px">
+                <span><strong class="{% if s.nps_score and s.nps_score >= 9 %}nps-promoter{% elif s.nps_score and s.nps_score >= 7 %}nps-passive{% else %}nps-detractor{% endif %}">NPS {{ s.nps_score or '-' }}</strong></span>
+                <span>WPM: {{ s.words_per_minute or '-' }}</span>
+                <span>Errores: {{ s.spelling_errors or 0 }}</span>
+                <span>{{ (s.duration_seconds or 0) // 60 }}:{{ '%02d' % ((s.duration_seconds or 0) % 60) }}</span>
+            </div>
+        </div>
+        {% if s.ai_feedback %}
+        {% set fb = s.ai_feedback %}
+        <div style="margin-top:10px;font-size:13px;color:#555" id="fb{{ s.id }}"></div>
+        <script>
+        try {
+            var raw = {{ s.ai_feedback|tojson|safe }};
+            var fb = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            document.getElementById('fb{{ s.id }}').innerHTML = (fb.feedback || '') + (fb.strengths ? '<br><strong style="color:#2e7d32">Fortalezas:</strong> ' + fb.strengths : '') + (fb.improvements ? '<br><strong style="color:#e65100">Mejora:</strong> ' + fb.improvements : '');
+        } catch(e) { document.getElementById('fb{{ s.id }}').textContent = '{{ s.ai_feedback }}'; }
+        </script>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <div style="text-align:center;margin-top:24px;display:flex;gap:12px;justify-content:center">
+        <a href="{{ url_for('training.index') }}" class="btn btn-primary">Volver a Entrenar</a>
+    </div>
+</div>
+{% endblock %}

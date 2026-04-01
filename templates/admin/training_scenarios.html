@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Escenarios de Entrenamiento - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Escenarios de Entrenamiento</h1>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Dashboard</a>
+        <a href="{{ url_for('training.admin_scenarios') }}" class="btn btn-primary">Escenarios</a>
+    </div>
+
+    <!-- Guide -->
+    <details style="background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <summary style="cursor:pointer;font-weight:700;color:#00B2BF;font-size:15px">📖 ¿Cómo crear un buen entrenamiento?</summary>
+        <div style="margin-top:12px;font-size:13px;color:#555;line-height:1.7">
+            <p><strong>Casos múltiples:</strong> Podés crear varios casos dentro de un escenario. Cada caso tiene su propia personalidad de cliente y resolución esperada. Durante el entrenamiento, cada interacción recibe un caso diferente.</p>
+            <p><strong>Persona del Cliente:</strong> Describí nombre, estado emocional, problema específico, datos ficticios.<br>
+            <em>Ejemplo: "Sos María González, 45 años, llamás enojada porque te cobraron dos veces la cuota. CI 3.456.789, tarjeta terminada en 4521."</em></p>
+            <p><strong>Resolución Esperada:</strong> Pasos que el asesor debe seguir.<br>
+            <em>Ejemplo: "1) Verificar identidad, 2) Revisar débito en SAC.COM, 3) Iniciar devolución, 4) Informar plazo 48-72hs."</em></p>
+            <p><strong>Mejorar con IA:</strong> Escribí un borrador y clickeá "✨ Mejorar con IA" para que la IA genere una instrucción más detallada y profesional.</p>
+        </div>
+    </details>
+
+    <!-- New Scenario Form -->
+    <div class="inline-form" id="scenarioForm">
+        <h2>Nuevo Escenario</h2>
+        <form method="POST" action="{{ url_for('training.admin_scenario_save') }}" id="mainForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Título</label>
+                    <input type="text" name="title" required placeholder="Ej: Doble cobro en tarjeta de crédito">
+                </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <input type="text" name="category" placeholder="Ej: Tarjetas, Cuentas, Reclamos">
+                </div>
+                <div class="form-group">
+                    <label>Dificultad</label>
+                    <select name="difficulty">
+                        <option value="facil">Fácil</option>
+                        <option value="medio" selected>Medio</option>
+                        <option value="dificil">Difícil</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Descripción breve (visible para los asesores)</label>
+                <input type="text" name="description" placeholder="Descripción del escenario">
+            </div>
+
+            <!-- Cases Section -->
+            <div style="background:#f8f9fa;border-radius:12px;padding:20px;margin:16px 0;border:2px dashed #ddd">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                    <h3 style="margin:0;color:#00B2BF">Casos del Escenario</h3>
+                    <button type="button" class="btn-add-case" onclick="addCase()">+ Agregar Caso</button>
+                </div>
+                <p style="color:#888;font-size:12px;margin-top:-8px;margin-bottom:16px">Crea la cantidad de casos que necesites. Cada interacción del entrenamiento recibirá un caso diferente. Abajo de cada caso aparece el campo para la resolución esperada.</p>
+
+                <div id="casesContainer">
+                    <!-- Case 1 (default) -->
+                    <div class="case-card" data-case="0">
+                        <div class="case-header">
+                            <strong>Caso 1</strong>
+                        </div>
+                        <div class="form-group">
+                            <label>Persona del Cliente (instrucciones para la IA)
+                                <button type="button" class="btn-enhance" onclick="enhanceText(this, 'persona')">✨ Mejorar con IA</button>
+                            </label>
+                            <textarea class="case-persona" rows="3" placeholder="Describí la personalidad, situación y datos del cliente simulado..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Resolución Esperada (criterio de evaluación del Caso 1)
+                                <button type="button" class="btn-enhance" onclick="enhanceText(this, 'response')">✨ Mejorar con IA</button>
+                            </label>
+                            <textarea class="case-response" rows="2" placeholder="¿Qué pasos debe seguir el asesor para resolver este caso?"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden fields for JSON -->
+            <input type="hidden" name="client_persona" id="hiddenPersonas">
+            <input type="hidden" name="expected_response" id="hiddenResponses">
+
+            <button type="submit" class="btn btn-primary" onclick="prepareSubmit()">Crear Escenario</button>
+        </form>
+    </div>
+
+    <!-- Existing Scenarios -->
+    <h2>Escenarios Existentes</h2>
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr><th>Título</th><th>Categoría</th><th>Dificultad</th><th>Casos</th><th>Sesiones</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for s in scenarios %}
+                <tr style="{% if not s.is_active %}opacity:0.5{% endif %}">
+                    <td>
+                        <strong>{{ s.title }}</strong>
+                        {% if not s.is_active %}<span style="color:#c62828;font-size:11px;font-weight:700"> (OCULTO)</span>{% endif %}
+                        <br><small style="color:#888">{{ s.description or '' }}</small>
+                    </td>
+                    <td>{{ s.category or '-' }}</td>
+                    <td><span class="badge-difficulty badge-{{ s.difficulty }}">{{ s.difficulty }}</span></td>
+                    <td>{{ s.client_persona | count_cases }}</td>
+                    <td>{{ s.sessions|length }}</td>
+                    <td class="actions">
+                        <button class="btn btn-sm btn-primary" onclick='editScenario({{ s.id }}, {{ s | scenario_json }})'>Editar</button>
+                        {% if s.is_active %}
+                        <form method="POST" action="{{ url_for('training.admin_scenario_toggle', s_id=s.id) }}" style="display:inline" onsubmit="return confirm('¿Ocultar este escenario?')">
+                            <input type="hidden" name="action" value="hide">
+                            <button type="submit" class="btn btn-sm" style="background:#888;color:#fff">Ocultar</button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('training.admin_scenario_toggle', s_id=s.id) }}" style="display:inline">
+                            <input type="hidden" name="action" value="show">
+                            <button type="submit" class="btn btn-sm" style="background:#2e7d32;color:#fff">Mostrar</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:800px;max-height:90vh;overflow-y:auto">
+        <h2>Editar Escenario</h2>
+        <form method="POST" action="{{ url_for('training.admin_scenario_save') }}" id="editForm">
+            <input type="hidden" name="id" id="editId">
+            <div class="form-row">
+                <div class="form-group"><label>Título</label><input type="text" name="title" id="editTitle" required></div>
+                <div class="form-group"><label>Categoría</label><input type="text" name="category" id="editCategory"></div>
+                <div class="form-group"><label>Dificultad</label>
+                    <select name="difficulty" id="editDiff"><option value="facil">Fácil</option><option value="medio">Medio</option><option value="dificil">Difícil</option></select>
+                </div>
+            </div>
+            <div class="form-group"><label>Descripción</label><input type="text" name="description" id="editDesc"></div>
+
+            <div id="editCasesContainer" style="background:#f8f9fa;border-radius:12px;padding:16px;margin:12px 0">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <h3 style="margin:0;color:#00B2BF;font-size:15px">Casos</h3>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="addEditCase()">+ Agregar</button>
+                </div>
+                <div id="editCasesList"></div>
+            </div>
+
+            <input type="hidden" name="client_persona" id="editHiddenPersonas">
+            <input type="hidden" name="expected_response" id="editHiddenResponses">
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" onclick="prepareEditSubmit()">Guardar</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('editModal').style.display='none'">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.case-card {
+    background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px;
+    border: 1px solid #e0e0e0; position: relative;
+}
+.case-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; color: #00B2BF;
+}
+.case-card textarea {
+    width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;
+    font-family: inherit; font-size: 14px; resize: vertical;
+}
+.case-card textarea:focus { border-color: #E6332A; outline: none; }
+.btn-remove-case {
+    background: #dc3545; color: #fff; border: none; border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+.btn-enhance {
+    background: linear-gradient(135deg, #E6332A, #F39200); color: #fff;
+    border: none; border-radius: 12px; padding: 3px 10px; cursor: pointer;
+    font-size: 11px; margin-left: 8px; transition: opacity 0.2s;
+}
+.btn-enhance:hover { opacity: 0.85; }
+.btn-enhance:disabled { opacity: 0.5; cursor: wait; }
+.btn-add-case {
+    background: linear-gradient(135deg, #E6332A, #F39200);
+    color: #fff; border: none; border-radius: 25px;
+    padding: 12px 24px; font-size: 15px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 15px rgba(230, 51, 42, 0.4);
+    animation: btnPulse 2s ease-in-out infinite;
+    transition: transform 0.2s;
+}
+.btn-add-case:hover { transform: scale(1.05); }
+@keyframes btnPulse {
+    0%, 100% { box-shadow: 0 4px 15px rgba(230, 51, 42, 0.4); }
+    50% { box-shadow: 0 4px 25px rgba(230, 51, 42, 0.7), 0 0 40px rgba(230, 51, 42, 0.2); }
+}
+</style>
+
+{% block extra_scripts %}
+<script>
+var caseCount = 1;
+
+function addCase() {
+    caseCount++;
+    var html = '<div class="case-card" data-case="' + (caseCount-1) + '">' +
+        '<div class="case-header"><strong>Caso ' + caseCount + '</strong>' +
+        '<button type="button" class="btn-remove-case" onclick="this.closest(\'.case-card\').remove()">Eliminar</button></div>' +
+        '<div class="form-group"><label>Persona del Cliente ' +
+        '<button type="button" class="btn-enhance" onclick="enhanceText(this, \'persona\')">✨ Mejorar con IA</button></label>' +
+        '<textarea class="case-persona" rows="3" placeholder="Describí la personalidad del cliente para este caso..."></textarea></div>' +
+        '<div class="form-group"><label>Resolución Esperada del Caso ' + caseCount +
+        ' <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
+        '<textarea class="case-response" rows="2" placeholder="Pasos que el asesor debe seguir..."></textarea></div></div>';
+    document.getElementById('casesContainer').insertAdjacentHTML('beforeend', html);
+}
+
+function prepareSubmit() {
+    var personas = [], responses = [];
+    document.querySelectorAll('#casesContainer .case-card').forEach(function(card, i) {
+        var p = card.querySelector('.case-persona').value.trim();
+        var r = card.querySelector('.case-response').value.trim();
+        if (p) {
+            personas.push({label: 'Caso ' + (i+1), text: p});
+            responses.push({case: i+1, text: r});
+        }
+    });
+    document.getElementById('hiddenPersonas').value = JSON.stringify(personas);
+    document.getElementById('hiddenResponses').value = JSON.stringify(responses);
+}
+
+// Edit modal
+var editCaseCount = 0;
+
+function editScenario(id, data) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editTitle').value = data.title;
+    document.getElementById('editDesc').value = data.description || '';
+    document.getElementById('editDiff').value = data.difficulty;
+    document.getElementById('editCategory').value = data.category || '';
+
+    // Load cases
+    var container = document.getElementById('editCasesList');
+    container.innerHTML = '';
+    editCaseCount = 0;
+
+    var cases = data.cases || [{persona: data.client_persona, expected: data.expected_response}];
+    cases.forEach(function(c, i) {
+        editCaseCount++;
+        container.insertAdjacentHTML('beforeend',
+            '<div class="case-card" data-case="' + i + '">' +
+            '<div class="case-header"><strong>Caso ' + (i+1) + '</strong>' +
+            (i > 0 ? '<button type="button" class="btn-remove-case" onclick="this.closest(\'.case-card\').remove()">Eliminar</button>' : '') + '</div>' +
+            '<div class="form-group"><label>Persona <button type="button" class="btn-enhance" onclick="enhanceText(this, \'persona\')">✨ Mejorar con IA</button></label>' +
+            '<textarea class="case-persona" rows="3">' + escHtml(c.persona) + '</textarea></div>' +
+            '<div class="form-group"><label>Resolución <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
+            '<textarea class="case-response" rows="2">' + escHtml(c.expected) + '</textarea></div></div>');
+    });
+
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function addEditCase() {
+    editCaseCount++;
+    document.getElementById('editCasesList').insertAdjacentHTML('beforeend',
+        '<div class="case-card"><div class="case-header"><strong>Caso ' + editCaseCount + '</strong>' +
+        '<button type="button" class="btn-remove-case" onclick="this.closest(\'.case-card\').remove()">Eliminar</button></div>' +
+        '<div class="form-group"><label>Persona <button type="button" class="btn-enhance" onclick="enhanceText(this, \'persona\')">✨ Mejorar con IA</button></label>' +
+        '<textarea class="case-persona" rows="3" placeholder="Persona del cliente..."></textarea></div>' +
+        '<div class="form-group"><label>Resolución <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
+        '<textarea class="case-response" rows="2" placeholder="Pasos esperados..."></textarea></div></div>');
+}
+
+function prepareEditSubmit() {
+    var personas = [], responses = [];
+    document.querySelectorAll('#editCasesList .case-card').forEach(function(card, i) {
+        var p = card.querySelector('.case-persona').value.trim();
+        var r = card.querySelector('.case-response').value.trim();
+        if (p) {
+            personas.push({label: 'Caso ' + (i+1), text: p});
+            responses.push({case: i+1, text: r});
+        }
+    });
+    document.getElementById('editHiddenPersonas').value = JSON.stringify(personas);
+    document.getElementById('editHiddenResponses').value = JSON.stringify(responses);
+}
+
+// Enhance with AI
+async function enhanceText(btn, type) {
+    var textarea = btn.closest('.form-group').querySelector('textarea');
+    var text = textarea.value.trim();
+    if (!text || text.length < 10) { alert('Escribí al menos un borrador de 10 caracteres para mejorar.'); return; }
+
+    btn.disabled = true;
+    var origText = btn.textContent;
+    btn.textContent = '⏳ Mejorando...';
+
+    try {
+        var res = await fetch('/admin/api/training/enhance', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text: text, type: type})
+        });
+        var data = await res.json();
+        if (data.enhanced) {
+            textarea.value = data.enhanced;
+            textarea.style.borderColor = '#2e7d32';
+            setTimeout(function() { textarea.style.borderColor = ''; }, 2000);
+        } else {
+            alert(data.error || 'Error al mejorar');
+        }
+    } catch(e) { alert('Error de conexión'); }
+
+    btn.disabled = false;
+    btn.textContent = origText;
+}
+
+function escHtml(t) {
+    var d = document.createElement('div');
+    d.textContent = t || '';
+    return d.innerHTML;
+}
+</script>
+{% endblock %}
+{% endblock %}

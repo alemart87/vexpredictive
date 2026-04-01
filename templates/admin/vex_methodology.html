@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}Metodología Vex People Skill Predictive{% endblock %}
+{% block extra_head %}
+<style>
+.doc-container { max-width: 900px; margin: 0 auto; }
+.doc-section { background: #fff; border-radius: 12px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+.doc-section h2 { color: #00B2BF; font-size: 20px; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 2px solid #E6332A; }
+.doc-section h3 { color: #00B2BF; font-size: 16px; margin: 20px 0 8px; }
+.doc-section p, .doc-section li { font-size: 14px; line-height: 1.8; color: #444; }
+.doc-section ul, .doc-section ol { padding-left: 20px; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+.doc-table th { background: #00B2BF; color: #fff; padding: 10px 14px; text-align: left; }
+.doc-table td { padding: 10px 14px; border-bottom: 1px solid #eee; }
+.doc-table tr:nth-child(even) td { background: #f8f9fa; }
+.dim-card { background: #f8f9fa; border-radius: 10px; padding: 18px 20px; margin-bottom: 12px; border-left: 4px solid #00B2BF; }
+.dim-card h4 { margin: 0 0 6px; color: #00B2BF; font-size: 15px; }
+.dim-card .dim-meta { font-size: 12px; color: #888; margin-bottom: 8px; }
+.dim-card p { margin: 0; font-size: 13px; line-height: 1.7; }
+.formula-box { background: #f0f4f8; border: 1px solid #d0d8e0; border-radius: 8px; padding: 12px 16px; font-family: 'Courier New', monospace; font-size: 13px; margin: 8px 0; color: #333; }
+.ref-item { font-size: 13px; line-height: 1.7; color: #555; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+.ref-item em { color: #00B2BF; }
+@media print {
+    header, nav, footer, .chat-mascot, .chat-panel, .no-print { display: none !important; }
+    body { background: #fff !important; }
+    main { padding: 0 !important; max-width: 100% !important; }
+    .doc-section { box-shadow: none; border: 1px solid #eee; break-inside: avoid; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="doc-container">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px" class="no-print">
+        <div>
+            <h1 style="color:#00B2BF;margin:0">Metodología Vex People Skill Predictive</h1>
+            <p style="color:#888;margin:4px 0 0">Documentación completa del sistema de evaluación predictiva</p>
+        </div>
+        <div>
+            <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">&larr; Dashboard</a>
+            <button class="btn btn-primary" onclick="window.print()">Imprimir / PDF</button>
+        </div>
+    </div>
+
+    <!-- 1. Overview -->
+    <div class="doc-section">
+        <h2>1. ¿Qué es Vex People Skill Predictive?</h2>
+        <p><strong>Vex People Skill Predictive</strong> es un sistema de evaluación predictiva de habilidades diseñado específicamente para asesores de canales digitales en operaciones de BPO (Business Process Outsourcing). El sistema analiza el rendimiento de cada persona en sesiones de entrenamiento simuladas con Inteligencia Artificial y genera un perfil de competencias multidimensional basado en metodologías científicas de evaluación de personal.</p>
+
+        <h3>Objetivo</h3>
+        <p>Proporcionar información <strong>objetiva, cuantificable y respaldada científicamente</strong> para la toma de decisiones en:</p>
+        <ul>
+            <li><strong>Incorporación:</strong> Determinar si un candidato está listo para la operativa</li>
+            <li><strong>Capacitación:</strong> Identificar áreas específicas de mejora por persona</li>
+            <li><strong>Desarrollo:</strong> Monitorear evolución y detectar talento</li>
+            <li><strong>Gestión:</strong> Asignar agentes a canales según sus fortalezas</li>
+        </ul>
+
+        <h3>Principio fundamental</h3>
+        <p>El sistema evalúa el <strong>comportamiento observable</strong> en simulaciones controladas, no opiniones subjetivas. Cada métrica se deriva de datos concretos: velocidad de tipeo, errores ortográficos, calidad de resolución, empatía demostrada, y capacidad de mejora progresiva.</p>
+    </div>
+
+    <!-- 2. Architecture -->
+    <div class="doc-section">
+        <h2>2. Arquitectura del Sistema</h2>
+
+        <h3>Flujo de datos</h3>
+        <ol>
+            <li><strong>El SuperAdmin crea escenarios</strong> con la personalidad del cliente simulado, el problema a resolver, y los criterios de respuesta correcta.</li>
+            <li><strong>El asesor inicia una sesión</strong> de entrenamiento y chatea con un cliente simulado por IA (GPT-4o-mini).</li>
+            <li><strong>Durante la sesión</strong> se registran: cada mensaje, tiempos de respuesta, palabras por minuto, y cantidad de interacciones.</li>
+            <li><strong>Al finalizar</strong>, la IA evalúa la conversación completa: asigna NPS (0-10), determina si la resolución fue correcta, detecta errores ortográficos, y genera retroalimentación cualitativa.</li>
+            <li><strong>El algoritmo Vex</strong> procesa TODAS las sesiones completadas del usuario (mínimo 2) y calcula el perfil de 6 dimensiones.</li>
+        </ol>
+
+        <h3>Requisito mínimo de datos</h3>
+        <p>Se requieren <strong>al menos 2 sesiones completadas</strong> para generar un perfil. Esto reduce el impacto de la variabilidad de una sesión individual. A mayor cantidad de sesiones, mayor confiabilidad del perfil.</p>
+
+        <table class="doc-table">
+            <tr><th>Sesiones</th><th>Confiabilidad</th><th>Recomendación</th></tr>
+            <tr><td>2-3</td><td>Preliminar</td><td>Usar como indicador inicial, no como decisión final</td></tr>
+            <tr><td>4-6</td><td>Moderada</td><td>Suficiente para decisiones de capacitación</td></tr>
+            <tr><td>7+</td><td>Alta</td><td>Confiable para decisiones de incorporación</td></tr>
+        </table>
+    </div>
+
+    <!-- 3. Model -->
+    <div class="doc-section">
+        <h2>3. Modelo de 6 Dimensiones</h2>
+        <p>El modelo evalúa 6 competencias clave para la atención al cliente en canales digitales. Cada dimensión está respaldada por investigación científica publicada en journals académicos revisados por pares.</p>
+
+        <div class="dim-card" style="border-left-color:#E6332A">
+            <h4>1. Comunicación Escrita</h4>
+            <div class="dim-meta">Base: Spitzberg & Cupach (1984) · Köhler et al. (2011)</div>
+            <p><strong>Qué evalúa:</strong> Calidad gramatical, claridad expositiva, estructura de las respuestas y profesionalismo en la comunicación escrita con el cliente.</p>
+            <p><strong>Por qué importa:</strong> La investigación de Köhler et al. (2011) demostró que los errores ortográficos en comunicación de servicio <strong>reducen la percepción de calidad entre un 15% y 20%</strong>, incluso cuando la solución proporcionada es correcta. En canales digitales, la comunicación escrita es el único canal de interacción, por lo que su calidad impacta directamente en la experiencia del cliente.</p>
+            <p><strong>Cómo se calcula:</strong></p>
+            <div class="formula-box">Comunicación = (1 - tasa_errores_ortográficos) × 50% + evaluación_IA_calidad × 50%</div>
+            <p><strong>Fuente principal:</strong> Spitzberg, B.H. & Cupach, W.R. (1984). <em>Interpersonal Communication Competence</em>. Sage Publications.</p>
+        </div>
+
+        <div class="dim-card" style="border-left-color:#00B2BF">
+            <h4>2. Empatía & Trato al Cliente</h4>
+            <div class="dim-meta">Base: Davis IRI (1983) · Spreng TEQ (2009) · Grandey (2000)</div>
+            <p><strong>Qué evalúa:</strong> Capacidad de reconocer las emociones del cliente, personalizar las respuestas según la situación, y manejar interacciones con clientes frustrados o molestos de manera profesional.</p>
+            <p><strong>Por qué importa:</strong> La investigación seminal de Grandey (2000) sobre "emotional labor" demostró que el <strong>"deep acting" (empatía genuina)</strong> se correlaciona positivamente con satisfacción del cliente, mientras que el "surface acting" (empatía fingida) se correlaciona con agotamiento emocional. En canales digitales, la empatía se manifiesta a través de personalización, reconocimiento emocional y tono apropiado (Hennig-Thurau et al., 2006).</p>
+            <p><strong>Cómo se calcula:</strong></p>
+            <div class="formula-box">Empatía = NPS_promedio_evaluación_IA × 100%</div>
+            <p><strong>Nota:</strong> El NPS (0-10) asignado por la IA evaluadora captura de forma integral la experiencia del cliente, incluyendo tono, personalización y reconocimiento emocional. Al ser una evaluación holística desde la perspectiva del cliente, el NPS ya incorpora implícitamente los elementos de trato y empatía, por lo que se utiliza como indicador único de esta dimensión.</p>
+            <p><strong>Fuentes:</strong> Davis, M.H. (1983). <em>J. of Personality and Social Psychology</em>, 44(1). · Spreng, R.N. et al. (2009). <em>J. of Personality Assessment</em>, 91(1). · Grandey, A.A. (2000). <em>J. of Occupational Health Psychology</em>, 5(1).</p>
+        </div>
+
+        <div class="dim-card" style="border-left-color:#2e7d32">
+            <h4>3. Resolución de Problemas</h4>
+            <div class="dim-meta">Base: Feinberg et al. (2000) · SQM Group (2019)</div>
+            <p><strong>Qué evalúa:</strong> Eficacia para identificar, analizar y resolver el problema del cliente correctamente, siguiendo los procedimientos establecidos.</p>
+            <p><strong>Por qué importa:</strong> La Resolución en Primer Contacto (FCR — First Contact Resolution) tiene la <strong>correlación más fuerte con satisfacción del cliente (r = .55 a .65)</strong> según múltiples estudios. La investigación del SQM Group (2019) con datos de más de 500 contact centers demostró que por cada 1% de mejora en FCR, hay 1% de mejora en CSAT. Es la métrica operativa más importante.</p>
+            <p><strong>Cómo se calcula:</strong></p>
+            <div class="formula-box">Resolución = tasa_respuestas_correctas × 70% + NPS_promedio × 30%</div>
+            <p><strong>Fuente principal:</strong> Feinberg, R.A., Kim, I.S., Hokama, L., de Ruyter, K. & Keen, C. (2000). "Operational determinants of caller satisfaction in the call center." <em>International Journal of Service Industry Management</em>, 11(2), 131-141.</p>
+        </div>
+
+        <div class="dim-card" style="border-left-color:#e65100">
+            <h4>4. Velocidad & Productividad</h4>
+            <div class="dim-meta">Base: Tezcan & Zhang (2014) · LiveChat (2025) · Wonderlic (2025) · Call Centre Helper · Chatway (2025)</div>
+            <p><strong>Qué evalúa:</strong> Rapidez de respuesta medida en palabras por minuto (WPM) y tiempo total de resolución del caso.</p>
+            <p><strong>Por qué importa:</strong> En canales digitales, la tolerancia del cliente es de aproximadamente <strong>60 segundos para la respuesta inicial</strong> y 90 segundos para respuestas subsiguientes. Sin embargo, investigación de Aksin et al. (2007) demostró que <strong>velocidad sin calidad no mejora la satisfacción</strong> — es un trade-off que los mejores agentes resuelven efectivamente.</p>
+
+            <h4 style="margin-top:18px;color:#e65100">⚠ Distinción clave: WPM de tipeo puro vs. WPM efectivo</h4>
+            <p>Es fundamental entender que existen <strong>dos métricas diferentes</strong> de palabras por minuto:</p>
+
+            <table class="doc-table">
+                <tr><th>Concepto</th><th>WPM de Tipeo Puro</th><th>WPM Efectivo (usado por Vex)</th></tr>
+                <tr><td><strong>Qué mide</strong></td><td>Velocidad de escritura en un test de tipeo (copiar texto)</td><td>Palabras producidas por minuto incluyendo lectura, análisis y composición de respuesta</td></tr>
+                <tr><td><strong>Benchmark industria</strong></td><td>40-80 WPM para agentes de chat</td><td>~25-35 WPM en contexto real de atención</td></tr>
+                <tr><td><strong>Qué incluye</strong></td><td>Solo el acto de escribir</td><td>Leer mensaje del cliente + analizar situación + consultar procedimiento + redactar respuesta</td></tr>
+            </table>
+
+            <p><strong>Benchmarks de tipeo puro de la industria</strong> (fuentes verificables):</p>
+            <table class="doc-table">
+                <tr><th>Fuente</th><th>WPM recomendado</th><th>Contexto</th></tr>
+                <tr><td><a href="https://www.livechat.com/success/what-is-a-good-typing-speed/" target="_blank">LiveChat.com</a></td><td>50-70 WPM</td><td>Agentes de live chat, tipeo puro esperado</td></tr>
+                <tr><td><a href="https://wonderlic.com/blog/assessments/skills/what-is-a-good-typing-speed-by-profession/" target="_blank">Wonderlic</a></td><td>50-70 WPM</td><td>Customer service & admin roles</td></tr>
+                <tr><td><a href="https://www.wecreateproblems.com/blog/good-typing-speed" target="_blank">WeCP</a></td><td>60-80 WPM</td><td>Customer support agents (live chat/email)</td></tr>
+                <tr><td><a href="https://www.callcentrehelper.com/should-we-teach-contact-centre-staff-to-touch-type-92128.htm" target="_blank">Call Centre Helper</a></td><td>40 WPM (promedio), 65-75 (touch typing)</td><td>Contact centre staff general</td></tr>
+                <tr><td><a href="https://chatway.app/blog/strategies-for-improving-writing-speed-in-live-chat-free-tools" target="_blank">Chatway</a></td><td>55-70 WPM (intermedio), 75-90+ (avanzado)</td><td>Live chat agents, noting agents must "read, think, and type at the same time"</td></tr>
+            </table>
+
+            <p><strong>Por qué Vex usa 30 WPM como benchmark (WPM efectivo):</strong></p>
+            <p>Nuestro sistema mide el <strong>WPM efectivo</strong>: el intervalo entre que el cliente envía su mensaje y el asesor envía su respuesta. Este tiempo incluye lectura, comprensión, análisis y redacción. Como señala <a href="https://chatway.app/blog/strategies-for-improving-writing-speed-in-live-chat-free-tools" target="_blank">Chatway</a>: <em>"Live chat requires agents to read, think, and type at the same time while the customer waits on the screen"</em>. Si un agente tiene 50 WPM de tipeo puro pero dedica ~40-50% de su tiempo de respuesta a leer y pensar, su WPM efectivo será de ~25-30 WPM. El benchmark de 30 WPM refleja esta realidad operativa.</p>
+
+            <p><strong>Cómo se calcula:</strong></p>
+            <div class="formula-box">Velocidad = WPM_efectivo_normalizado_contra_30WPM × 60% + duración_inversa × 40%</div>
+            <p><strong>Cálculo técnico del WPM efectivo:</strong> Para cada mensaje del asesor, se mide el intervalo entre la respuesta del cliente (timestamp) y el envío del mensaje del asesor. Se aplica un tope de 120 segundos por mensaje para evitar inflación por inactividad (el asesor dejó la sesión abierta sin responder). El WPM se calcula como: <code>total_palabras_asesor / tiempo_activo_total_minutos</code>.</p>
+
+            <p><strong>Escala de WPM Efectivo (Vex):</strong></p>
+            <table class="doc-table">
+                <tr><th>WPM Efectivo</th><th>Nivel</th><th>Interpretación</th><th>Equivalente tipeo puro aprox.</th></tr>
+                <tr><td>&lt; 10</td><td>Bajo</td><td>Necesita mejorar velocidad de respuesta</td><td>&lt; 20 WPM</td></tr>
+                <tr><td>10-20</td><td>Aceptable</td><td>Cumple mínimo operativo</td><td>20-40 WPM</td></tr>
+                <tr><td>20-30</td><td>Proficiente</td><td>Buen nivel para canales digitales</td><td>40-60 WPM</td></tr>
+                <tr><td>30+</td><td>Experto</td><td>Velocidad óptima</td><td>60+ WPM</td></tr>
+            </table>
+        </div>
+
+        <div class="dim-card" style="border-left-color:#7b1fa2">
+            <h4>5. Adaptabilidad & Aprendizaje</h4>
+            <div class="dim-meta">Base: Bartram (2005) · SHL Universal Competency Framework</div>
+            <p><strong>Qué evalúa:</strong> Capacidad de mejorar el rendimiento entre sesiones sucesivas y de manejar diferentes tipos de escenarios y situaciones.</p>
+            <p><strong>Por qué importa:</strong> El concepto de <strong>Learning Agility</strong> (agilidad de aprendizaje) es uno de los predictores más fuertes de éxito a largo plazo según la investigación de Bartram (2005) con el SHL Universal Competency Framework, basada en análisis de más de 200 modelos de competencias. Agentes que demuestran mejora progresiva tienen mayor probabilidad de retención y desarrollo profesional.</p>
+            <p><strong>Cómo se calcula:</strong></p>
+            <div class="formula-box">Adaptabilidad = tendencia_NPS_entre_sesiones (regresión lineal) × 50% + diversidad_escenarios_completados × 50%</div>
+            <p><strong>Nota técnica:</strong> La tendencia se calcula como la pendiente de una regresión lineal simple sobre los NPS scores ordenados cronológicamente. Una pendiente positiva indica mejora progresiva.</p>
+            <p><strong>Fuente principal:</strong> Bartram, D. (2005). "The Great Eight Competencies: A Criterion-Centric Approach to Validation." <em>Journal of Applied Psychology</em>, 90(6), 1185-1203.</p>
+        </div>
+
+        <div class="dim-card" style="border-left-color:#0277bd">
+            <h4>6. Cumplimiento & Calidad</h4>
+            <div class="dim-meta">Base: COPC CX Standard Release 7.0 (2019) · ISO 18295</div>
+            <p><strong>Qué evalúa:</strong> Adherencia a los procedimientos correctos, precisión en la información proporcionada, y calidad general del trabajo.</p>
+            <p><strong>Por qué importa:</strong> El estándar <strong>COPC CX Standard</strong> (la certificación más reconocida en gestión de contact centers a nivel mundial) establece que la verificación de habilidades a intervalos definidos es un requisito operativo. La norma <strong>ISO 18295</strong> requiere monitoreo de calidad continuo. El cumplimiento no es solo seguir reglas — es garantizar que el cliente recibe información correcta y que los procesos se ejecutan sin errores.</p>
+            <p><strong>Cómo se calcula:</strong></p>
+            <div class="formula-box">Cumplimiento = tasa_respuestas_correctas × 60% + (1 - tasa_errores_ortográficos) × 40%</div>
+            <p><strong>Fuente principal:</strong> COPC Inc. (2019). <em>COPC CX Standard for Contact Centers, Release 7.0</em>.</p>
+        </div>
+    </div>
+
+    <!-- 4. Algorithm -->
+    <div class="doc-section">
+        <h2>4. Descripción Detallada del Algoritmo</h2>
+
+        <h3>Paso 1 — Recolección de Datos</h3>
+        <p>Durante cada sesión de entrenamiento se registran automáticamente:</p>
+        <ul>
+            <li>Cada mensaje enviado por el asesor y la IA-cliente, con timestamp</li>
+            <li>Conteo de palabras por mensaje</li>
+            <li>Tiempo total de la sesión (en segundos)</li>
+            <li>Palabras por minuto (WPM) calculadas al finalizar la sesión usando tiempo activo de tipeo</li>
+            <li>Evaluación de IA al finalizar: NPS (0-10), respuesta correcta (sí/no), errores ortográficos detectados, feedback cualitativo con fortalezas y áreas de mejora</li>
+        </ul>
+
+        <h3>Paso 2 — Agregación Multi-Sesión</h3>
+        <p>El algoritmo procesa <strong>todas las sesiones completadas</strong> del usuario (mínimo 2 requeridas). Esto es fundamental porque:</p>
+        <ul>
+            <li>Elimina la variabilidad de una sesión individual (un mal día vs. rendimiento real)</li>
+            <li>Captura el <strong>rendimiento consistente</strong> del asesor</li>
+            <li>Permite detectar tendencias de mejora o deterioro</li>
+        </ul>
+
+        <h3>Paso 3 — Normalización (Escala Sten)</h3>
+        <p>Cada métrica raw (0-100) se convierte a la <strong>escala Sten (1-10)</strong>, un sistema de puntuación estándar en psicometría desarrollado por Anastasi & Urbina (1997).</p>
+        <div class="formula-box">Sten = round(score_raw / 10), acotado entre 1 y 10</div>
+        <p>Con muestras pequeñas (&lt;50 usuarios), se utilizan <strong>puntos de referencia criteriales</strong> (criterion-referenced) basados en benchmarks de la industria (ICMI, COPC) en lugar de normas poblacionales. A medida que la muestra crece, las normas se actualizan automáticamente.</p>
+
+        <h3>Paso 4 — Scoring por Dimensión</h3>
+        <p>Cada dimensión combina métricas cuantitativas (WPM, errores, duración) con evaluaciones cualitativas de IA (NPS, feedback) mediante <strong>fórmulas ponderadas</strong>. Los pesos dentro de cada dimensión se asignan según la relevancia teórica de cada componente. El WPM se normaliza contra un benchmark de <strong>30 WPM</strong>, calibrado para el contexto real de chat de atención al cliente.</p>
+
+        <h3>Paso 5 — Índice Predictivo de Incorporación</h3>
+        <p>Score compuesto ponderado que integra las 6 dimensiones. Los pesos se fundamentan en investigación de <strong>validez criterial</strong> (Dawes, 1979; Feinberg et al., 2000):</p>
+
+        <table class="doc-table">
+            <tr><th>Dimensión</th><th>Peso</th><th>Justificación del Peso</th></tr>
+            <tr><td>Resolución de Problemas</td><td><strong>25%</strong></td><td>Mayor correlación con CSAT (r=.55-.65, Feinberg 2000)</td></tr>
+            <tr><td>Empatía & Trato</td><td><strong>20%</strong></td><td>Predictor de lealtad del cliente (Grandey 2000)</td></tr>
+            <tr><td>Comunicación Escrita</td><td><strong>20%</strong></td><td>Canal primario en atención digital (Köhler 2011)</td></tr>
+            <tr><td>Velocidad & Productividad</td><td><strong>15%</strong></td><td>Impacta experiencia pero menos que calidad (Aksin 2007)</td></tr>
+            <tr><td>Adaptabilidad</td><td><strong>10%</strong></td><td>Predictor de retención a largo plazo (Bartram 2005)</td></tr>
+            <tr><td>Cumplimiento & Calidad</td><td><strong>10%</strong></td><td>Requisito base operativo (COPC 2019)</td></tr>
+        </table>
+
+        <div class="formula-box">Índice = (Resolución×0.25) + (Empatía×0.20) + (Comunicación×0.20) + (Velocidad×0.15) + (Adaptabilidad×0.10) + (Cumplimiento×0.10)<br>Porcentaje = Índice × 10</div>
+
+        <p><strong>Nota sobre pesos iguales vs. diferenciales:</strong> La investigación de Dawes (1979) — "The robust beauty of improper linear models" en <em>American Psychologist</em> — demostró que en muchos contextos predictivos, los pesos iguales funcionan casi tan bien como los optimizados. Sin embargo, la evidencia específica de contact centers favorece dar mayor peso a FCR/Resolución, por lo que usamos pesos diferenciales respaldados por la literatura del sector.</p>
+
+        <h3>Paso 6 — Clasificación</h3>
+
+        <h4>Patrón Operativo (Skill Profile)</h4>
+        <table class="doc-table">
+            <tr><th>Categoría</th><th>Criterio</th><th>Significado</th></tr>
+            <tr style="background:#e8f5e9"><td><strong>Elite</strong></td><td>Todas las dimensiones ≥ 8</td><td>Rendimiento excepcional en todas las áreas. Referente del equipo.</td></tr>
+            <tr style="background:#e3f2fd"><td><strong>Alto Rendimiento</strong></td><td>Promedio ≥ 7, ninguna &lt; 5</td><td>Supera expectativas sin debilidades críticas. Listo para operativa.</td></tr>
+            <tr style="background:#fff3e0"><td><strong>En Desarrollo</strong></td><td>Promedio 5-7</td><td>Dentro de lo esperado con margen de mejora. Monitorear.</td></tr>
+            <tr style="background:#fce4ec"><td><strong>Requiere Refuerzo</strong></td><td>Promedio &lt; 5 o alguna ≤ 2</td><td>Rendimiento insuficiente. Acción de capacitación necesaria.</td></tr>
+        </table>
+
+        <h4>Recomendación de Incorporación</h4>
+        <table class="doc-table">
+            <tr><th>Índice Predictivo</th><th>Recomendación</th><th>Acción Sugerida</th></tr>
+            <tr style="background:#e8f5e9"><td><strong>≥ 70%</strong></td><td>Recomendado</td><td>Perfil apto para incorporación a la operativa</td></tr>
+            <tr style="background:#fff3e0"><td><strong>50-69%</strong></td><td>Con Observaciones</td><td>Incorporar con plan de acompañamiento y seguimiento cercano</td></tr>
+            <tr style="background:#fce4ec"><td><strong>&lt; 50%</strong></td><td>No Recomendado</td><td>No incorporar sin completar programa de capacitación previo</td></tr>
+        </table>
+    </div>
+
+    <!-- 5. Interpretation -->
+    <div class="doc-section">
+        <h2>5. Guía de Interpretación</h2>
+
+        <h3>Escala Sten (1-10) por Dimensión</h3>
+        <table class="doc-table">
+            <tr><th>Sten</th><th>Percentil Aprox.</th><th>Clasificación</th><th>Interpretación</th></tr>
+            <tr style="background:#e8f5e9"><td>9-10</td><td>96-100%</td><td>Sobresaliente</td><td>Rendimiento excepcional, puede ser mentor</td></tr>
+            <tr><td>7-8</td><td>77-95%</td><td>Superior</td><td>Supera las expectativas, listo para operativa</td></tr>
+            <tr style="background:#f5f5f5"><td>5-6</td><td>40-76%</td><td>Promedio</td><td>Dentro de lo esperado, monitorear progreso</td></tr>
+            <tr><td>3-4</td><td>11-39%</td><td>Inferior</td><td>Por debajo de lo esperado, requiere capacitación</td></tr>
+            <tr style="background:#fce4ec"><td>1-2</td><td>0-10%</td><td>Crítico</td><td>Rendimiento insuficiente, acción inmediata</td></tr>
+        </table>
+
+        <h3>Patrones Diagnósticos Comunes</h3>
+        <table class="doc-table">
+            <tr><th>Patrón</th><th>Diagnóstico</th><th>Intervención Recomendada</th></tr>
+            <tr><td>NPS bajo + WPM alto</td><td>Responde rápido pero sin calidad</td><td>Capacitar en empatía y escucha activa</td></tr>
+            <tr><td>NPS alto + WPM bajo</td><td>Buena calidad pero lento</td><td>Practicar agilidad y familiarización con herramientas</td></tr>
+            <tr><td>Errores ortográficos altos</td><td>Deficiencia en comunicación escrita</td><td>Reforzar gramática y uso de correctores</td></tr>
+            <tr><td>Resolución baja + Empatía alta</td><td>Amable pero no resuelve</td><td>Capacitar en procedimientos y productos</td></tr>
+            <tr><td>Adaptabilidad baja</td><td>No mejora entre sesiones</td><td>Coaching personalizado, feedback dirigido</td></tr>
+            <tr><td>Todas altas excepto velocidad</td><td>Perfil de calidad, optimizable</td><td>Práctica de tipeo y atajos de sistema</td></tr>
+        </table>
+    </div>
+
+    <!-- 6. Limitations -->
+    <div class="doc-section">
+        <h2>6. Limitaciones y Consideraciones</h2>
+        <ul>
+            <li><strong>Simulación vs. Realidad:</strong> Los resultados se basan en entrenamiento simulado. El rendimiento real puede variar por factores como presión del volumen, multitasking, y complejidad de casos reales.</li>
+            <li><strong>Tamaño de muestra:</strong> Con pocas sesiones (&lt;4), el perfil es preliminar. Se recomienda un mínimo de 7 sesiones para decisiones de incorporación.</li>
+            <li><strong>Evaluación IA:</strong> La calificación NPS y el feedback son generados por IA (GPT-4o-mini). Aunque consistentes, pueden no capturar matices que un evaluador humano detectaría.</li>
+            <li><strong>Contexto de WPM:</strong> El sistema mide <strong>WPM efectivo</strong> (incluye lectura + análisis + redacción), no WPM de tipeo puro. Los benchmarks de la industria para tipeo puro en chat son de 40-80 WPM (<a href="https://www.livechat.com/success/what-is-a-good-typing-speed/" target="_blank">LiveChat</a>, <a href="https://wonderlic.com/blog/assessments/skills/what-is-a-good-typing-speed-by-profession/" target="_blank">Wonderlic</a>). Nuestro benchmark de 30 WPM efectivo equivale aproximadamente a 50-60 WPM de tipeo puro, alineado con el estándar de la industria. El cálculo usa tiempo activo de tipeo (gap entre respuesta del cliente y envío del asesor, con tope de 120s por mensaje).</li>
+            <li><strong>Complementariedad:</strong> Este sistema es una herramienta de apoyo, no un sustituto de entrevistas, evaluaciones presenciales, u otros métodos de selección.</li>
+        </ul>
+    </div>
+
+    <!-- 7. References -->
+    <div class="doc-section">
+        <h2>7. Referencias Bibliográficas</h2>
+        <div class="ref-item">Aksin, Z., Armony, M. & Mehrotra, V. (2007). "The Modern Call Center: A Multi-Disciplinary Perspective on Operations Management Research." <em>Production and Operations Management</em>, 16(6), 665-688.</div>
+        <div class="ref-item">Anastasi, A. & Urbina, S. (1997). <em>Psychological Testing</em> (7th ed.). Upper Saddle River, NJ: Prentice Hall.</div>
+        <div class="ref-item">Bartram, D. (2005). "The Great Eight Competencies: A Criterion-Centric Approach to Validation." <em>Journal of Applied Psychology</em>, 90(6), 1185-1203.</div>
+        <div class="ref-item">COPC Inc. (2019). <em>COPC CX Standard for Contact Centers, Release 7.0</em>. Winter Park, FL: COPC Inc.</div>
+        <div class="ref-item">Davis, M.H. (1983). "Measuring individual differences in empathy: Evidence for a multidimensional approach." <em>Journal of Personality and Social Psychology</em>, 44(1), 113-126.</div>
+        <div class="ref-item">Dawes, R.M. (1979). "The robust beauty of improper linear models in decision making." <em>American Psychologist</em>, 34(7), 571-582.</div>
+        <div class="ref-item">Dixon, M., Freeman, K. & Toman, N. (2010). "Stop Trying to Delight Your Customers." <em>Harvard Business Review</em>, 88(7/8), 116-122.</div>
+        <div class="ref-item">Feinberg, R.A., Kim, I.S., Hokama, L., de Ruyter, K. & Keen, C. (2000). "Operational determinants of caller satisfaction in the call center." <em>International Journal of Service Industry Management</em>, 11(2), 131-141.</div>
+        <div class="ref-item">Frei, R.L. & McDaniel, M.A. (1998). "Validity of customer service measures in personnel selection." <em>Human Performance</em>, 11(1), 1-27.</div>
+        <div class="ref-item">Grandey, A.A. (2000). "Emotion regulation in the workplace: A new way to conceptualize emotional labor." <em>Journal of Occupational Health Psychology</em>, 5(1), 95-110.</div>
+        <div class="ref-item">Harter, J.K., Schmidt, F.L. & Hayes, T.L. (2002). "Business-unit-level relationship between employee satisfaction, employee engagement, and business outcomes: A meta-analysis." <em>Journal of Applied Psychology</em>, 87(2), 268-279.</div>
+        <div class="ref-item">Hennig-Thurau, T., Groth, M., Paul, M. & Gremler, D.D. (2006). "Are All Smiles Created Equal? How Emotional Contagion and Emotional Labor Affect Service Relationships." <em>Journal of Marketing</em>, 70(3), 58-73.</div>
+        <div class="ref-item">Köhler, T., Cortina, J.M., Kurtessis, J.N. & Gölz, M. (2011). "Is Being Perceived as Competent a Matter of Spelling?" <em>European Journal of Work and Organizational Psychology</em>.</div>
+        <div class="ref-item">Spitzberg, B.H. & Cupach, W.R. (1984). <em>Interpersonal Communication Competence</em>. Beverly Hills, CA: Sage Publications.</div>
+        <div class="ref-item">Spreng, R.N., McKinnon, M.C., Mar, R.A. & Levine, B. (2009). "The Toronto Empathy Questionnaire: Scale development and initial validation." <em>Journal of Personality Assessment</em>, 91(1), 62-71.</div>
+        <div class="ref-item">SQM Group (2019). <em>First Call Resolution: The Performance Driver and Metric</em>. Coeur d'Alene, ID: SQM Group Inc.</div>
+        <div class="ref-item">Tezcan, T. & Zhang, J. (2014). "Routing and Staffing in Customer Service Chat Systems with Impatient Customers." <em>Operations Research</em>, 62(4), 943-956.</div>
+
+        <h3 style="margin-top:20px;color:#00B2BF">Fuentes de Benchmarks de WPM en la Industria</h3>
+        <div class="ref-item">LiveChat (2025). "What Is a Good Typing Speed and Average WPM for Employees?" <em>LiveChat Success</em>. Disponible en: <a href="https://www.livechat.com/success/what-is-a-good-typing-speed/" target="_blank">livechat.com/success/what-is-a-good-typing-speed</a> — Benchmark: 50-70 WPM para agentes de chat (tipeo puro).</div>
+        <div class="ref-item">Wonderlic (2025). "What's a Good Typing Speed? Average WPM by Profession." <em>Wonderlic Blog</em>. Disponible en: <a href="https://wonderlic.com/blog/assessments/skills/what-is-a-good-typing-speed-by-profession/" target="_blank">wonderlic.com/blog/assessments/skills/what-is-a-good-typing-speed-by-profession</a> — Benchmark: 50-70 WPM para customer service & admin roles.</div>
+        <div class="ref-item">WeCP - We Create Problems (2025). "What is a Good Typing Speed for Employees & Why?" Disponible en: <a href="https://www.wecreateproblems.com/blog/good-typing-speed" target="_blank">wecreateproblems.com/blog/good-typing-speed</a> — Benchmark: 60-80 WPM para customer support agents.</div>
+        <div class="ref-item">Call Centre Helper. "Should We Teach Contact Centre Staff to Touch Type?" Disponible en: <a href="https://www.callcentrehelper.com/should-we-teach-contact-centre-staff-to-touch-type-92128.htm" target="_blank">callcentrehelper.com/should-we-teach-contact-centre-staff-to-touch-type</a> — Promedio: 35-42 WPM (sin touch typing), 65-75 WPM (con touch typing).</div>
+        <div class="ref-item">Chatway (2025). "12+ Strategies to Improve Writing Speed in Live Chat." <em>Chatway Blog</em>. Disponible en: <a href="https://chatway.app/blog/strategies-for-improving-writing-speed-in-live-chat-free-tools" target="_blank">chatway.app/blog/strategies-for-improving-writing-speed-in-live-chat</a> — Nota clave: "Live chat requires agents to read, think, and type at the same time while the customer waits." Benchmark: 55-70 WPM (intermedio), 75-90+ WPM (avanzado).</div>
+    </div>
+
+    <!-- 8. Disclaimer -->
+    <div class="doc-section" style="border-left:4px solid #e65100">
+        <h2>8. Aviso Legal</h2>
+        <p>Este informe es una <strong>herramienta de apoyo para la toma de decisiones</strong>. Los resultados se basan en sesiones de entrenamiento simuladas con Inteligencia Artificial y no sustituyen evaluaciones presenciales, entrevistas estructuradas, verificaciones de antecedentes, ni otros métodos de selección de personal establecidos por la legislación laboral vigente.</p>
+        <p>Se recomienda utilizar este análisis como <strong>un componente más dentro de un proceso integral de evaluación</strong>. Las decisiones de contratación, desvinculación o asignación de funciones no deben basarse exclusivamente en los resultados de este sistema.</p>
+        <p>Las métricas se actualizan progresivamente con cada nueva sesión completada. Los resultados anteriores pueden variar a medida que se incorporan nuevos datos.</p>
+        <p style="color:#888;font-size:12px;margin-top:16px">Sistema desarrollado por VEX I+D. Motor de evaluación: Vex People Skill Predictive v1.0.</p>
+    </div>
+
+</div>
+{% endblock %}

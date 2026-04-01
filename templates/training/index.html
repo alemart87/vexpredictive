@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Zona de Entrenamiento{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/training.css') }}">
+{% if current_user.is_superadmin %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<h1 style="color:#00B2BF">Zona de Entrenamiento</h1>
+<p style="color:#888;margin-top:-8px;margin-bottom:24px">Practica atención al cliente con escenarios simulados — {{ current_user.max_concurrent_training or 1 }} interacciones simultáneas</p>
+
+{% if current_user.is_superadmin %}
+<!-- Admin Live Dashboard -->
+<div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:24px;border-left:4px solid #2e7d32">
+    <h2 style="color:#00B2BF;margin:0 0 16px;display:flex;align-items:center;gap:8px">
+        <span style="color:#2e7d32;font-size:12px">●</span> Monitor en Vivo
+    </h2>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
+        <div style="width:200px;height:200px"><canvas id="liveDonut"></canvas></div>
+        <div id="liveCards" style="flex:1;min-width:300px"><p style="color:#888">Cargando...</p></div>
+    </div>
+</div>
+{% endif %}
+
+{% if active_batch %}
+<div style="background:#fff4e5;border:2px solid #E6332A;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>
+        <strong style="color:#E6332A">Sesión activa en curso</strong>
+        <p style="margin:4px 0 0;font-size:13px;color:#666">{{ active_batch.scenario.title }} — {{ active_batch.max_concurrent }} interacciones</p>
+    </div>
+    <a href="{{ url_for('training.batch_view', batch_id=active_batch.id) }}" class="btn btn-primary">Continuar</a>
+</div>
+{% endif %}
+
+<h2 style="color:#00B2BF;border-bottom:2px solid #E6332A;padding-bottom:8px">Escenarios Disponibles</h2>
+<div class="scenario-grid">
+    {% for s in scenarios %}
+    <div class="scenario-card">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+            <h3>{{ s.title }}</h3>
+            <span class="badge-difficulty badge-{{ s.difficulty }}">{{ s.difficulty }}</span>
+        </div>
+        <p>{{ s.description or 'Escenario de práctica' }}</p>
+        {% if s.category %}<span class="badge" style="margin-bottom:10px">{{ s.category }}</span>{% endif %}
+        <br>
+        <button class="btn btn-primary" onclick="startTraining({{ s.id }})" {% if active_batch %}disabled title="Finaliza tu sesión activa primero"{% endif %}>
+            Iniciar Entrenamiento
+        </button>
+    </div>
+    {% endfor %}
+    {% if not scenarios %}
+    <p style="color:#888;padding:40px;text-align:center">No hay escenarios disponibles.</p>
+    {% endif %}
+</div>
+
+{% if my_batches %}
+<div class="session-history">
+    <h2 style="color:#00B2BF;border-bottom:2px solid #E6332A;padding-bottom:8px">Mi Historial</h2>
+    {% for b in my_batches %}
+    <div class="session-item">
+        <div class="si-info">
+            <strong>Batch {{ b.id }}</strong> — {{ b.scenario.title }} ({{ b.max_concurrent }} chats)
+            <br><small style="color:#888">{{ b.created_at.strftime('%d/%m/%Y %H:%M') if b.created_at else '' }}
+            {% if b.status == 'active' %}<span style="color:#E6332A">● En curso</span>{% endif %}</small>
+        </div>
+        {% if b.status == 'completed' and b.overall_nps is not none %}
+        <div style="display:flex;align-items:center;gap:12px">
+            <span class="si-nps {% if b.overall_nps >= 9 %}nps-promoter{% elif b.overall_nps >= 7 %}nps-passive{% else %}nps-detractor{% endif %}">{{ b.overall_nps }}/10</span>
+            <a href="{{ url_for('training.batch_result', batch_id=b.id) }}" class="btn btn-sm btn-secondary">Ver</a>
+        </div>
+        {% elif b.status == 'active' %}
+        <a href="{{ url_for('training.batch_view', batch_id=b.id) }}" class="btn btn-sm btn-primary">Continuar</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% block extra_scripts %}
+<script>
+async function startTraining(scenarioId) {
+    var btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Iniciando...';
+    try {
+        var res = await fetch('/api/training/batch/start/' + scenarioId, { method: 'POST' });
+        var data = await res.json();
+        if (data.batch_id) {
+            window.location.href = '/training/batch/' + data.batch_id;
+        } else {
+            alert(data.error || 'Error al iniciar');
+            btn.disabled = false;
+            btn.textContent = 'Iniciar Entrenamiento';
+        }
+    } catch (err) {
+        alert('Error de conexión');
+        btn.disabled = false;
+        btn.textContent = 'Iniciar Entrenamiento';
+    }
+}
+
+{% if current_user.is_superadmin %}
+var liveDonut;
+async function loadLive() {
+    try {
+        var res = await fetch('/admin/api/training/live');
+        var d = await res.json();
+        var batches = d.active_batches;
+
+        // Donut: aggregate all interactions
+        var totalActive = 0, totalCompleted = 0, totalPending = 0;
+        batches.forEach(function(b) {
+            totalActive += b.interactions_active;
+            totalCompleted += b.interactions_completed;
+            totalPending += b.interactions_pending;
+        });
+
+        if (liveDonut) liveDonut.destroy();
+        liveDonut = new Chart(document.getElementById('liveDonut'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Activas', 'Resueltas', 'Pendientes'],
+                datasets: [{
+                    data: [totalActive || 0, totalCompleted || 0, totalPending || 0],
+                    backgroundColor: ['#E6332A', '#2e7d32', '#ccc'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: true, cutout: '65%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 12 } } }
+                }
+            }
+        });
+
+        // User cards
+        var cardsEl = document.getElementById('liveCards');
+        if (batches.length === 0) {
+            cardsEl.innerHTML = '<p style="color:#888;font-size:14px">No hay sesiones activas en este momento</p>';
+        } else {
+            cardsEl.innerHTML = batches.map(function(b) {
+                var pct = Math.round(b.interactions_completed / b.max_concurrent * 100);
+                var min = Math.floor(b.elapsed_seconds / 60);
+                return '<div class="live-card">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                    '<strong>' + b.user_name + '</strong>' +
+                    '<span style="font-size:12px;color:#888">' + b.scenario + ' · ' + min + ' min</span></div>' +
+                    '<div style="display:flex;gap:10px;margin-top:6px;font-size:12px">' +
+                    '<span style="color:#E6332A">🟠 ' + b.interactions_active + '</span>' +
+                    '<span style="color:#2e7d32">✅ ' + b.interactions_completed + '</span>' +
+                    '<span style="color:#888">⏳ ' + b.interactions_pending + '</span></div>' +
+                    '<div class="live-progress"><div class="live-progress-bar" style="width:' + pct + '%;background:linear-gradient(90deg,#2e7d32,#E6332A)"></div></div></div>';
+            }).join('');
+        }
+    } catch(e) {}
+}
+loadLive();
+setInterval(loadLive, 10000);
+{% endif %}
+</script>
+{% endblock %}
+{% endblock %}

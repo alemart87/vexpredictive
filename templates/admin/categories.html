@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Categorías - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Gestión de Categorías</h1>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
+        <a href="{{ url_for('admin.category_list') }}" class="btn btn-primary">Categorías</a>
+        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
+        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Entrenamiento</a>
+        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">Vex Predictive</a>
+    </div>
+
+    <h2>Nueva Categoría</h2>
+    <form method="POST" action="{{ url_for('admin.category_save') }}" class="inline-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" name="name" required placeholder="Nombre de la categoría">
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" required placeholder="nombre-de-categoria">
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input type="text" name="description" placeholder="Descripción breve">
+            </div>
+            <div class="form-group">
+                <label>Orden</label>
+                <input type="number" name="sort_order" value="0" style="width:80px">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Crear</button>
+    </form>
+
+    <h2>Categorías Existentes</h2>
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Slug</th>
+                    <th>Descripción</th>
+                    <th>Orden</th>
+                    <th>Contenidos</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categories %}
+                <tr>
+                    <td>{{ cat.name }}</td>
+                    <td><code>{{ cat.slug }}</code></td>
+                    <td>{{ cat.description or '-' }}</td>
+                    <td>{{ cat.sort_order }}</td>
+                    <td>{{ cat.contents|length }}</td>
+                    <td class="actions">
+                        <button class="btn btn-sm btn-primary" onclick="editCat({{ cat.id }}, '{{ cat.name }}', '{{ cat.slug }}', '{{ cat.description or '' }}', {{ cat.sort_order }})">Editar</button>
+                        <form method="POST" action="{{ url_for('admin.category_delete', cat_id=cat.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar esta categoría? Los contenidos no se borrarán.')">
+                            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <h2>Editar Categoría</h2>
+        <form method="POST" action="{{ url_for('admin.category_save') }}">
+            <input type="hidden" name="id" id="editId">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" name="name" id="editName" required>
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" id="editSlug" required>
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input type="text" name="description" id="editDesc">
+            </div>
+            <div class="form-group">
+                <label>Orden</label>
+                <input type="number" name="sort_order" id="editOrder">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('editModal').style.display='none'">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+function editCat(id, name, slug, desc, order) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editName').value = name;
+    document.getElementById('editSlug').value = slug;
+    document.getElementById('editDesc').value = desc;
+    document.getElementById('editOrder').value = order;
+    document.getElementById('editModal').style.display = 'flex';
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+
+{% block title %}Guia del Sistema - Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Role Hierarchy Tree */
+    .role-tree {
+        padding: 30px 20px;
+        font-family: 'Arial', sans-serif;
+    }
+    .role-node {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 15px;
+        margin-bottom: 4px;
+        max-width: 380px;
+    }
+    .role-node-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--blanco);
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .role-superadmin { background: rgba(230,51,42,0.1); border-left: 4px solid var(--rojo-vex); }
+    .role-superadmin .role-node-icon { background: var(--rojo-vex); }
+    .role-operativa { background: rgba(0,178,191,0.1); border-left: 4px solid var(--cyan-vex); }
+    .role-operativa .role-node-icon { background: var(--cyan-vex); }
+    .role-coordinador { background: rgba(102,36,131,0.1); border-left: 4px solid var(--purpura-vex); }
+    .role-coordinador .role-node-icon { background: var(--purpura-vex); }
+    .role-supervisor { background: rgba(243,146,0,0.1); border-left: 4px solid var(--naranja-vex); }
+    .role-supervisor .role-node-icon { background: var(--naranja-vex); }
+    .role-operador { background: rgba(51,51,51,0.08); border-left: 4px solid var(--gris-texto); }
+    .role-operador .role-node-icon { background: var(--gris-texto); }
+
+    .tree-branch {
+        margin-left: 36px;
+        padding-left: 24px;
+        border-left: 2px dashed #ccc;
+    }
+    .tree-connector {
+        width: 20px;
+        height: 2px;
+        background: #ccc;
+        display: inline-block;
+        margin-right: 4px;
+        vertical-align: middle;
+    }
+
+    /* Guide Card */
+    .guide-card {
+        background: var(--blanco);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        box-shadow: var(--sombra-sm);
+        margin-bottom: 24px;
+    }
+    .guide-card h2 {
+        color: var(--purpura-vex);
+        margin: 0 0 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--rojo-vex);
+        font-size: 1.3em;
+    }
+    .guide-card h3 {
+        color: var(--cyan-vex);
+        margin: 20px 0 8px;
+        font-size: 1.1em;
+    }
+
+    /* Permissions Table */
+    .perm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .perm-table th {
+        background: var(--cyan-vex);
+        color: var(--blanco);
+        padding: 10px 12px;
+        text-align: center;
+        white-space: nowrap;
+        font-size: 13px;
+    }
+    .perm-table th:first-child {
+        text-align: left;
+        min-width: 180px;
+    }
+    .perm-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--gris-claro);
+        text-align: center;
+        font-size: 13px;
+    }
+    .perm-table td:first-child {
+        text-align: left;
+        font-weight: 600;
+        color: var(--gris-texto);
+    }
+    .perm-table tr:hover td {
+        background: #f8f8f8;
+    }
+    .perm-yes {
+        color: #28a745;
+        font-weight: 700;
+    }
+    .perm-no {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .perm-partial {
+        color: var(--naranja-vex);
+        font-weight: 600;
+        font-size: 12px;
+    }
+
+    /* Steps */
+    .guide-steps {
+        counter-reset: step;
+        list-style: none;
+        padding: 0;
+    }
+    .guide-steps li {
+        counter-increment: step;
+        padding: 16px 16px 16px 60px;
+        position: relative;
+        margin-bottom: 12px;
+        background: var(--gris-fondo);
+        border-radius: var(--radius-sm);
+        line-height: 1.6;
+    }
+    .guide-steps li::before {
+        content: counter(step);
+        position: absolute;
+        left: 16px;
+        top: 14px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--rojo-vex);
+        color: var(--blanco);
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .guide-steps li strong {
+        color: var(--purpura-vex);
+    }
+
+    /* FAQ */
+    .faq-item {
+        border: 1px solid var(--gris-claro);
+        border-radius: var(--radius-sm);
+        margin-bottom: 8px;
+        overflow: hidden;
+    }
+    .faq-question {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        background: var(--gris-fondo);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--gris-texto);
+        border: none;
+        width: 100%;
+        text-align: left;
+        transition: background 0.2s;
+    }
+    .faq-question:hover {
+        background: #eee;
+    }
+    .faq-question::after {
+        content: '+';
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--cyan-vex);
+        transition: transform 0.2s;
+    }
+    .faq-question.open::after {
+        content: '-';
+    }
+    .faq-answer {
+        display: none;
+        padding: 14px 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--gris-texto);
+    }
+    .faq-answer.open {
+        display: block;
+    }
+
+    /* Responsive permissions table */
+    @media (max-width: 768px) {
+        .perm-table th, .perm-table td {
+            padding: 8px 6px;
+            font-size: 12px;
+        }
+        .perm-table th:first-child {
+            min-width: 120px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Guia del Sistema</h1>
+    <p style="color:var(--gris-meta);margin-top:-8px;margin-bottom:20px">Referencia completa de la plataforma VEX People Predictive</p>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
+        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorias</a>
+        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
+        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
+        <a href="{{ url_for('admin.operativa_list') }}" class="btn btn-secondary">Operativas</a>
+        <a href="{{ url_for('admin.system_guide') }}" class="btn btn-primary">Guia del Sistema</a>
+    </div>
+
+    <!-- Section 1: Role Hierarchy -->
+    <div class="guide-card">
+        <h2>Jerarquia de Roles</h2>
+        <p style="margin-bottom:20px;color:var(--gris-meta)">Estructura organizacional de la plataforma. Cada nivel hereda los permisos inferiores y agrega capacidades adicionales.</p>
+
+        <div class="role-tree">
+            <!-- SuperAdmin -->
+            <div class="role-node role-superadmin">
+                <div class="role-node-icon">&#9733;</div>
+                <div>
+                    <div>SuperAdmin</div>
+                    <small style="font-weight:400;color:var(--gris-meta);font-size:12px">Administrador General del Sistema</small>
+                </div>
+            </div>
+
+            <div class="tree-branch">
+                <!-- Operativa -->
+                <div class="role-node role-operativa">
+                    <div class="role-node-icon">&#9881;</div>
+                    <div>
+                        <div>Operativa / Cuenta</div>
+                        <small style="font-weight:400;color:var(--gris-meta);font-size:12px">Entidad organizacional (tenant)</small>
+                    </div>
+                </div>
+
+                <div class="tree-branch">
+                    <!-- Coordinador -->
+                    <div class="role-node role-coordinador">
+                        <div class="role-node-icon">&#9670;</div>
+                        <div>
+                            <div>Coordinador / Gerente / SubGerente</div>
+                            <small style="font-weight:400;color:var(--gris-meta);font-size:12px">Administra su operativa</small>
+                        </div>
+                    </div>
+
+                    <div class="tree-branch">
+                        <!-- Supervisor -->
+                        <div class="role-node role-supervisor" style="margin-bottom:8px">
+                            <div class="role-node-icon">&#9673;</div>
+                            <div>
+                                <div>Supervisor</div>
+                                <small style="font-weight:400;color:var(--gris-meta);font-size:12px">Monitorea y solicita revisiones</small>
+                            </div>
+                        </div>
+
+                        <!-- Operador -->
+                        <div class="role-node role-operador">
+                            <div class="role-node-icon">&#9679;</div>
+                            <div>
+                                <div>Operador</div>
+                                <small style="font-weight:400;color:var(--gris-meta);font-size:12px">Usuario de entrenamiento y consulta</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Permissions Table -->
+    <div class="guide-card">
+        <h2>Tabla de Permisos</h2>
+        <p style="margin-bottom:16px;color:var(--gris-meta)">Detalle de las capacidades de cada rol dentro del sistema.</p>
+
+        <div class="table-responsive">
+            <table class="perm-table">
+                <thead>
+                    <tr>
+                        <th>Permiso</th>
+                        <th>SuperAdmin</th>
+                        <th>Coordinador</th>
+                        <th>Supervisor</th>
+                        <th>Operador</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Gestionar Operativas</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-no">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>Gestionar Usuarios</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-partial">Su operativa</span></td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-no">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>Gestionar Contenido</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-partial">Su operativa</span></td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-no">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>Crear Escenarios</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-partial">Su operativa</span></td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-no">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>Ver VEX Predictive</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-partial">Su operativa</span></td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-no">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>Ver Dashboard CX</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-partial">Su operativa</span></td>
+                        <td><span class="perm-partial">Con permiso</span></td>
+                        <td><span class="perm-no">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>Solicitar Revisiones</td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-no">No</span></td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-no">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>Entrenamientos</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-yes">Si</span></td>
+                    </tr>
+                    <tr>
+                        <td>Ver Contenido</td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-yes">Si</span></td>
+                        <td><span class="perm-yes">Si</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 3: Instructions -->
+    <div class="guide-card">
+        <h2>Instrucciones de Uso</h2>
+
+        <h3>1. Como crear una Operativa</h3>
+        <ol class="guide-steps">
+            <li>Navega a <strong>Admin > Operativas</strong> desde el menu de administracion.</li>
+            <li>Completa el formulario con el <strong>nombre</strong>, <strong>slug</strong> (identificador unico sin espacios) y una <strong>descripcion</strong> de la operativa.</li>
+            <li>Selecciona los <strong>colores personalizados</strong> (primario, secundario y acento) para la identidad visual de la operativa.</li>
+            <li>Opcionalmente sube un <strong>logo</strong> en formato PNG, JPG, GIF o WebP.</li>
+            <li>Haz clic en <strong>"Crear Operativa"</strong>. La operativa quedara activa inmediatamente.</li>
+        </ol>
+
+        <h3>2. Como asignar un Coordinador</h3>
+        <ol class="guide-steps">
+            <li>Ve a <strong>Admin > Usuarios</strong> y crea un nuevo usuario o edita uno existente.</li>
+            <li>Selecciona el rol <strong>"Coordinador"</strong> en el campo de rol.</li>
+            <li>Asigna la <strong>operativa correspondiente</strong> en el selector de operativa.</li>
+            <li>El coordinador tendra acceso automatico a la administracion de su operativa (usuarios, contenido, escenarios y dashboard).</li>
+        </ol>
+
+        <h3>3. Como los Coordinadores gestionan su Operativa</h3>
+        <ol class="guide-steps">
+            <li>El Coordinador accede al <strong>panel de Admin</strong> y ve solo los datos de su operativa.</li>
+            <li>Puede <strong>crear y gestionar usuarios</strong> (supervisores y operadores) dentro de su operativa.</li>
+            <li>Puede <strong>gestionar contenido</strong> y categorias visibles para su equipo.</li>
+            <li>Tiene acceso a <strong>crear escenarios de entrenamiento</strong> y ver los resultados en el dashboard CX.</li>
+            <li>Puede ver los datos de <strong>VEX Predictive</strong> para analizar el rendimiento de su equipo.</li>
+        </ol>
+
+        <h3>4. Como los Supervisores solicitan revisiones</h3>
+        <ol class="guide-steps">
+            <li>Al visualizar un contenido, el Supervisor puede hacer clic en el boton <strong>"Solicitar Revision"</strong>.</li>
+            <li>Se crea una solicitud que aparece en <strong>Admin > Revisiones</strong>.</li>
+            <li>El Coordinador de la operativa (o SuperAdmin) revisa la solicitud y puede <strong>aprobarla o rechazarla</strong> con notas.</li>
+            <li>El estado de la revision se actualiza automaticamente (<strong>pendiente, en revision, aprobada o rechazada</strong>).</li>
+        </ol>
+    </div>
+
+    <!-- Section 4: FAQ -->
+    <div class="guide-card">
+        <h2>Preguntas Frecuentes</h2>
+
+        <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+                Que es una Operativa?
+            </button>
+            <div class="faq-answer">
+                Una Operativa es la unidad organizacional principal del sistema (equivalente a un "tenant" o cuenta). Cada operativa agrupa a sus propios usuarios, contenido y datos de entrenamiento de forma aislada. Esto permite que multiples organizaciones usen la misma plataforma sin compartir informacion.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+                Puedo tener mas de un Coordinador por Operativa?
+            </button>
+            <div class="faq-answer">
+                Si, se pueden asignar multiples coordinadores a una misma operativa. Todos tendran los mismos permisos de administracion dentro de esa operativa. Esto es util para equipos con varios gerentes o subgerentes.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+                Que pasa si desactivo una Operativa?
+            </button>
+            <div class="faq-answer">
+                Al desactivar una operativa, los usuarios asociados no podran iniciar sesion y su contenido dejara de ser accesible. Los datos se conservan y la operativa puede reactivarse en cualquier momento sin perdida de informacion.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+                Un Supervisor puede ver el Dashboard CX?
+            </button>
+            <div class="faq-answer">
+                Por defecto, no. Un Coordinador debe otorgar permisos especificos al Supervisor a traves de la configuracion de permisos de entrenamiento. Una vez autorizado, el Supervisor podra visualizar el dashboard CX de su equipo.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+                Como funciona VEX Predictive?
+            </button>
+            <div class="faq-answer">
+                VEX Predictive analiza las sesiones de entrenamiento de cada operador y genera un perfil predictivo con puntajes en comunicacion, empatia, resolucion, velocidad, adaptabilidad y cumplimiento. Estos datos permiten identificar perfiles elite, con alto potencial, en desarrollo o que requieren refuerzo, ayudando a la toma de decisiones sobre el talento.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+                Quien puede crear escenarios de entrenamiento?
+            </button>
+            <div class="faq-answer">
+                Solo el SuperAdmin y los Coordinadores pueden crear escenarios de entrenamiento. Los Coordinadores solo pueden crear escenarios dentro de su propia operativa. Los escenarios definen las situaciones que los operadores practicaran durante sus sesiones de entrenamiento con VEX AI.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+                Los datos de una operativa son visibles desde otra?
+            </button>
+            <div class="faq-answer">
+                No, el sistema implementa aislamiento completo entre operativas. Los usuarios de una operativa solo ven sus propios datos, contenidos y resultados. Unicamente el SuperAdmin tiene visibilidad global sobre todas las operativas.
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+function toggleFaq(btn) {
+    var answer = btn.nextElementSibling;
+    var isOpen = btn.classList.contains('open');
+
+    // Close all
+    document.querySelectorAll('.faq-question').forEach(function(q) {
+        q.classList.remove('open');
+        q.nextElementSibling.classList.remove('open');
+    });
+
+    // Toggle current
+    if (!isOpen) {
+        btn.classList.add('open');
+        answer.classList.add('open');
+    }
+}
+</script>
+{% endblock %}
+{% endblock %}

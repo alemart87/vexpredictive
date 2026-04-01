@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}{{ content.title }} - Vex People Predictive{% endblock %}
+
+{% block content %}
+<article class="content-viewer">
+    <div class="content-header">
+        <h1>{{ content.title }}</h1>
+        {% if content.category %}
+        <a href="{{ url_for('view_category', slug=content.category.slug) }}" class="badge">{{ content.category.name }}</a>
+        {% endif %}
+    </div>
+    <div class="content-body">
+        {{ content.html_content|safe }}
+    </div>
+</article>
+
+<a href="{{ url_for('index') }}" class="fixed-back-btn">Volver al Inicio</a>
+
+<script>
+// Track this page view with content_id
+fetch('/api/track/pageview', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+        page_path: window.location.pathname,
+        referrer: document.referrer,
+        content_id: {{ content.id }},
+        session_id: sessionStorage.getItem('sid') || ''
+    })
+});
+</script>
+{% endblock %}
