@@ -5,12 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% if user %}
     <title>{{ user.name }} - Perfil Verificado | Vex People Predictive</title>
-    <meta property="og:title" content="{{ user.name }} - Perfil Verificado">
-    <meta property="og:description" content="{{ user.name }} ha sido verificado por VEX Profile con un Indice Predictivo de {{ '%.0f'|format(vex.predictive_index) }}%. Plataforma Vex People Predictive.">
+    <meta property="og:title" content="{{ user.name }} ✅ Perfil Verificado">
+    <meta property="og:description" content="{{ user.name }} ha sido verificado por VEX Profile con un Indice Predictivo de {{ '%.0f'|format(vex.predictive_index) }}%. Talento certificado en la plataforma Vex People Predictive.">
+    <meta property="og:image" content="{{ url_for('static', filename='img/og-card.png', _external=True) }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:url" content="{{ request.url }}">
     <meta property="og:type" content="profile">
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="{{ user.name }} - Perfil Verificado | VEX">
-    <meta name="twitter:description" content="Perfil verificado con Indice Predictivo de {{ '%.0f'|format(vex.predictive_index) }}%">
+    <meta property="og:site_name" content="Vex People Predictive">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ user.name }} ✅ Perfil Verificado">
+    <meta name="twitter:description" content="{{ user.name }} ha sido verificado por VEX Profile con un Indice Predictivo de {{ '%.0f'|format(vex.predictive_index) }}%.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/og-card.png', _external=True) }}">
     {% else %}
     <title>Perfil no encontrado | Vex People Predictive</title>
     {% endif %}

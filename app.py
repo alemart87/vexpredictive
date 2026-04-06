@@ -349,6 +349,60 @@ def update_profile():
     return redirect(url_for('my_profile'))
 
 
+@app.route('/verified/<token>/og.svg')
+def verified_og_image(token):
+    """Dynamic SVG Open Graph image for verified profiles."""
+    from flask import Response
+    users = User.query.filter_by(is_active_user=True).all()
+    user = None
+    for u in users:
+        if generate_verified_token(u.id) == token:
+            user = u
+            break
+    if not user:
+        return '', 404
+
+    vex = VexProfile.query.filter_by(user_id=user.id).first()
+    if not vex or vex.predictive_index < 70:
+        return '', 404
+
+    operativa_name = user.operativa.name if user.operativa_id and user.operativa else ''
+    pi = int(vex.predictive_index)
+    initial = user.name[0].upper() if user.name else 'V'
+
+    svg = f'''<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E6332A"/>
+      <stop offset="100%" stop-color="#F39200"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1877F2"/>
+      <stop offset="100%" stop-color="#00C6FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="white"/>
+  <rect width="1200" height="200" fill="url(#bg)"/>
+  <circle cx="600" cy="200" r="70" fill="white"/>
+  <circle cx="600" cy="200" r="62" fill="#f0f2f5"/>
+  <text x="600" y="220" text-anchor="middle" font-family="Arial,sans-serif" font-size="48" font-weight="bold" fill="#E6332A">{initial}</text>
+  <circle cx="645" cy="245" r="20" fill="#1877F2"/>
+  <path d="M638 245l-5-5 1.6-1.6 3.4 3.4 7.4-7.4 1.6 1.6z" fill="white" transform="translate(2,0)"/>
+  <text x="600" y="310" text-anchor="middle" font-family="Arial,sans-serif" font-size="36" font-weight="bold" fill="#333">{user.name}</text>
+  <text x="600" y="345" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#888">{operativa_name}</text>
+  <rect x="470" y="370" width="260" height="44" rx="22" fill="#e8f0fe"/>
+  <text x="600" y="399" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#1877F2">&#x2705; Perfil Verificado</text>
+  <text x="600" y="460" text-anchor="middle" font-family="Arial,sans-serif" font-size="64" font-weight="bold" fill="url(#blue)">{pi}%</text>
+  <text x="600" y="490" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" fill="#888">Indice Predictivo</text>
+  <rect x="0" y="560" width="1200" height="70" fill="#f8f9fa"/>
+  <text x="600" y="602" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="#aaa">Vex People Predictive by VEX I+D</text>
+</svg>'''
+
+    return Response(svg, mimetype='image/svg+xml', headers={
+        'Cache-Control': 'public, max-age=3600'
+    })
+
+
 def generate_verified_token(user_id):
     """Generate a simple hash token for public verified page URL."""
     secret = app.config['SECRET_KEY']
@@ -375,7 +429,8 @@ def public_verified(token):
     return render_template('verified_public.html',
         user=user,
         vex=vex,
-        operativa=operativa
+        operativa=operativa,
+        token=token
     )
 
 
