@@ -24,6 +24,9 @@
 .profile-photo-wrapper {
     position: relative;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .profile-photo {
@@ -50,12 +53,12 @@
     font-weight: 700;
 }
 
-.profile-photo-upload {
+.profile-photo-upload-btn {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 34px;
-    height: 34px;
+    bottom: -2px;
+    right: -2px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: var(--cyan-vex);
     border: 3px solid var(--blanco);
@@ -63,18 +66,31 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.2s;
+    box-shadow: var(--sombra-sm);
 }
-.profile-photo-upload:hover {
+.profile-photo-upload-btn:hover {
     background: var(--cyan-oscuro);
+    transform: scale(1.1);
 }
-.profile-photo-upload svg {
-    width: 16px;
-    height: 16px;
+.profile-photo-upload-btn svg {
+    width: 18px;
+    height: 18px;
     fill: var(--blanco);
 }
-.profile-photo-upload input[type="file"] {
+.profile-photo-upload-btn input[type="file"] {
     display: none;
+}
+.profile-photo-text {
+    margin-top: 10px;
+    font-size: 13px;
+    opacity: 0.9;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.profile-photo-text:hover {
+    opacity: 1;
 }
 
 .profile-info h1 {
@@ -293,11 +309,12 @@
                 <div class="profile-photo-placeholder">{{ user.name[0]|upper }}</div>
             {% endif %}
             <form action="{{ url_for('upload_profile_photo') }}" method="POST" enctype="multipart/form-data" id="photoForm">
-                <label class="profile-photo-upload" title="Cambiar foto">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                <label class="profile-photo-upload-btn" title="Cambiar foto de perfil">
+                    <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
                     <input type="file" name="photo" accept="image/*" onchange="document.getElementById('photoForm').submit();">
                 </label>
             </form>
+            <label for="photoFileInput" class="profile-photo-text" onclick="document.querySelector('#photoForm input[type=file]').click();">Cambiar foto</label>
         </div>
         <div class="profile-info">
             <h1>{{ user.name }}</h1>
