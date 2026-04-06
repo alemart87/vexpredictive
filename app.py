@@ -167,15 +167,20 @@ def inject_nav_categories():
 @app.context_processor
 def inject_operativa_branding():
     """Inject operativa custom branding for color overrides."""
+    ctx = {}
     if current_user.is_authenticated and hasattr(current_user, 'operativa') and current_user.operativa:
         op = current_user.operativa
-        return {
+        ctx.update({
             'op_name': op.name,
             'op_logo': op.logo_url,
             'op_primary': op.primary_color,
             'op_secondary': op.secondary_color,
-        }
-    return {}
+        })
+    # Verified badge: user has VexProfile with predictive_index >= 70
+    if current_user.is_authenticated:
+        vp = VexProfile.query.filter_by(user_id=current_user.id).first()
+        ctx['user_is_verified'] = vp is not None and vp.predictive_index >= 70
+    return ctx
 
 
 @app.route('/')

@@ -101,11 +101,16 @@
                 {% endif %}
 
                 <a href="{{ url_for('my_profile') }}" class="nav-user-info">
-                    {% if current_user.profile_photo %}
-                    <img src="{{ current_user.profile_photo }}" alt="" class="nav-user-avatar">
-                    {% else %}
-                    <span class="nav-user-avatar-placeholder">{{ current_user.name[0]|upper }}</span>
-                    {% endif %}
+                    <span class="nav-avatar-wrap">
+                        {% if current_user.profile_photo %}
+                        <img src="{{ current_user.profile_photo }}" alt="" class="nav-user-avatar">
+                        {% else %}
+                        <span class="nav-user-avatar-placeholder">{{ current_user.name[0]|upper }}</span>
+                        {% endif %}
+                        {% if user_is_verified %}
+                        <svg class="nav-verified-badge" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#1877F2"/><path d="M17.5 27.5L10 20l2.1-2.1 5.4 5.4L28.9 12l2.1 2.1L17.5 27.5z" fill="white"/></svg>
+                        {% endif %}
+                    </span>
                     <span class="nav-user-name">{{ current_user.name }}</span>
                     <span class="nav-user-role">{{ current_user.role|capitalize }}</span>
                 </a>
