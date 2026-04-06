@@ -116,6 +116,54 @@ nav a:hover { background-color: var(--rojo-vex); }
 nav .nav-admin { background-color: rgba(255,255,255,0.1); }
 nav .nav-logout { color: #ffcccc; }
 
+/* User info in nav */
+nav a.nav-user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    color: var(--blanco);
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+nav a.nav-user-info:hover {
+    background-color: rgba(255,255,255,0.15);
+}
+.nav-user-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.5);
+}
+.nav-user-avatar-placeholder {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--blanco);
+    border: 2px solid rgba(255,255,255,0.5);
+}
+.nav-user-name {
+    font-weight: 700;
+}
+.nav-user-role {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 /* Nav Dropdowns */
 .nav-dropdown { position: relative; }
 .nav-dropdown-btn {
@@ -489,6 +537,7 @@ footer p { margin: 0; font-size: 14px; }
         display: flex !important;
         flex-direction: row;
         justify-content: center;
+        align-items: center;
         flex-wrap: wrap;
     }
 
@@ -496,6 +545,13 @@ footer p { margin: 0; font-size: 14px; }
         border-bottom: none;
         padding: 12px 16px;
         font-size: 14px;
+    }
+
+    nav a.nav-user-info {
+        border-bottom: none;
+        padding: 8px 14px;
+        margin-left: auto;
+        border-radius: 8px;
     }
 
     .nav-dropdown { display: inline-block; }

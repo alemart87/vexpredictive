@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+{% block title %}Mi Perfil - Vex People Predictive{% endblock %}
+
+{% block extra_head %}
+<style>
+.profile-container {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.profile-header {
+    background: linear-gradient(135deg, var(--rojo-vex), var(--naranja-vex));
+    border-radius: 16px;
+    padding: 30px;
+    color: var(--blanco);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    box-shadow: var(--sombra-md);
+    position: relative;
+}
+
+.profile-photo-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.profile-photo {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--blanco);
+    box-shadow: var(--sombra-sm);
+    background: var(--blanco);
+}
+
+.profile-photo-placeholder {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    border: 4px solid var(--blanco);
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    color: var(--blanco);
+    font-weight: 700;
+}
+
+.profile-photo-upload {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--cyan-vex);
+    border: 3px solid var(--blanco);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.profile-photo-upload:hover {
+    background: var(--cyan-oscuro);
+}
+.profile-photo-upload svg {
+    width: 16px;
+    height: 16px;
+    fill: var(--blanco);
+}
+.profile-photo-upload input[type="file"] {
+    display: none;
+}
+
+.profile-info h1 {
+    margin: 0 0 4px 0;
+    font-size: 26px;
+    font-weight: 700;
+}
+.profile-info .profile-email {
+    opacity: 0.85;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+.profile-role-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.25);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.profile-card {
+    background: var(--blanco);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--sombra-sm);
+    border: 1px solid #e8e8e8;
+}
+
+.profile-card h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    color: var(--purpura-vex);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--gris-claro);
+}
+
+.profile-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gris-claro);
+    font-size: 14px;
+}
+.profile-detail-row:last-child { border-bottom: none; }
+.profile-detail-label {
+    color: var(--gris-meta);
+    font-weight: 600;
+}
+.profile-detail-value {
+    color: var(--gris-texto);
+    font-weight: 500;
+    text-align: right;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.stat-box {
+    background: var(--gris-page);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+}
+.stat-box .stat-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--rojo-vex);
+    line-height: 1;
+}
+.stat-box .stat-label {
+    font-size: 12px;
+    color: var(--gris-meta);
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+.vex-scores {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.vex-score-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+.vex-score-bar .score-label {
+    width: 110px;
+    font-weight: 600;
+    color: var(--gris-texto);
+    flex-shrink: 0;
+}
+.vex-score-bar .score-track {
+    flex: 1;
+    height: 10px;
+    background: var(--gris-claro);
+    border-radius: 5px;
+    overflow: hidden;
+}
+.vex-score-bar .score-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.6s ease;
+}
+.vex-score-bar .score-value {
+    width: 35px;
+    text-align: right;
+    font-weight: 700;
+    color: var(--gris-texto);
+}
+
+.vex-category-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.vex-cat-elite { background: #d4edda; color: #155724; }
+.vex-cat-alto { background: #cce5ff; color: #004085; }
+.vex-cat-desarrollo { background: #fff3cd; color: #856404; }
+.vex-cat-refuerzo { background: #f8d7da; color: #721c24; }
+
+.profile-edit-form {
+    margin-top: 12px;
+}
+.profile-edit-form input[type="text"] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.profile-edit-form button {
+    margin-top: 10px;
+    background: var(--cyan-vex);
+    color: var(--blanco);
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+.profile-edit-form button:hover {
+    background: var(--cyan-oscuro);
+}
+
+.nps-indicator {
+    font-size: 22px;
+    font-weight: 700;
+}
+.nps-good { color: #28a745; }
+.nps-mid { color: #ffc107; }
+.nps-low { color: #dc3545; }
+
+@media (min-width: 768px) {
+    .profile-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .profile-header {
+        padding: 36px 40px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    .profile-info { text-align: center; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+
+    <!-- Header con foto y nombre -->
+    <div class="profile-header">
+        <div class="profile-photo-wrapper">
+            {% if user.profile_photo %}
+                <img src="{{ user.profile_photo }}" alt="Foto de perfil" class="profile-photo">
+            {% else %}
+                <div class="profile-photo-placeholder">{{ user.name[0]|upper }}</div>
+            {% endif %}
+            <form action="{{ url_for('upload_profile_photo') }}" method="POST" enctype="multipart/form-data" id="photoForm">
+                <label class="profile-photo-upload" title="Cambiar foto">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    <input type="file" name="photo" accept="image/*" onchange="document.getElementById('photoForm').submit();">
+                </label>
+            </form>
+        </div>
+        <div class="profile-info">
+            <h1>{{ user.name }}</h1>
+            <div class="profile-email">{{ user.email }}</div>
+            <span class="profile-role-badge">{{ user.role|capitalize }}</span>
+        </div>
+    </div>
+
+    <!-- Grid de cards -->
+    <div class="profile-grid">
+
+        <!-- Informacion de cuenta -->
+        <div class="profile-card">
+            <h3><span>&#128100;</span> Informacion de Cuenta</h3>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Nombre</span>
+                <span class="profile-detail-value">{{ user.name }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Email</span>
+                <span class="profile-detail-value">{{ user.email }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Rol</span>
+                <span class="profile-detail-value">{{ user.role|capitalize }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Operativa</span>
+                <span class="profile-detail-value">{{ operativa.name if operativa else 'Global (SuperAdmin)' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Miembro desde</span>
+                <span class="profile-detail-value">{{ user.created_at.strftime('%d/%m/%Y') if user.created_at else '-' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Ultimo acceso</span>
+                <span class="profile-detail-value">{{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else '-' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Estado</span>
+                <span class="profile-detail-value" style="color: {% if user.is_active_user %}#28a745{% else %}#dc3545{% endif %}">
+                    {{ 'Activo' if user.is_active_user else 'Inactivo' }}
+                </span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="profile-detail-label">Chats simultaneos</span>
+                <span class="profile-detail-value">{{ user.max_concurrent_training }}</span>
+            </div>
+
+            <!-- Editar nombre -->
+            <form class="profile-edit-form" action="{{ url_for('update_profile') }}" method="POST">
+                <label style="font-size:13px;color:var(--gris-meta);font-weight:600;">Editar nombre</label>
+                <input type="text" name="name" value="{{ user.name }}" required>
+                <button type="submit">Guardar</button>
+            </form>
+        </div>
+
+        <!-- Estadisticas de actividad -->
+        <div class="profile-card">
+            <h3><span>&#128200;</span> Mi Actividad</h3>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-number">{{ pages_read }}</div>
+                    <div class="stat-label">Articulos leidos</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ total_pageviews }}</div>
+                    <div class="stat-label">Paginas visitadas</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ trainings_completed }}</div>
+                    <div class="stat-label">Entrenamientos completados</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ sessions_completed }}</div>
+                    <div class="stat-label">Sesiones totales</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ total_conversations }}</div>
+                    <div class="stat-label">Conversaciones VEX AI</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ total_chat_messages }}</div>
+                    <div class="stat-label">Mensajes enviados</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ trainings_active }}</div>
+                    <div class="stat-label">Entrenamientos activos</div>
+                </div>
+                <div class="stat-box">
+                    {% if avg_nps is not none %}
+                    <div class="stat-number nps-indicator {% if avg_nps >= 8 %}nps-good{% elif avg_nps >= 6 %}nps-mid{% else %}nps-low{% endif %}">
+                        {{ avg_nps }}
+                    </div>
+                    {% else %}
+                    <div class="stat-number" style="color:var(--gris-meta)">-</div>
+                    {% endif %}
+                    <div class="stat-label">NPS Promedio</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VEX Profile (si existe) -->
+        {% if vex_profile %}
+        <div class="profile-card" style="grid-column: 1 / -1;">
+            <h3><span>&#127942;</span> VEX Profile - Perfil Predictivo</h3>
+
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
+                <span class="vex-category-badge vex-cat-{{ vex_profile.profile_category }}">
+                    {{ vex_profile.profile_category|upper }}
+                </span>
+                <span style="font-size:14px;color:var(--gris-meta);">
+                    Indice Predictivo: <strong style="color:var(--gris-texto);font-size:18px;">{{ "%.0f"|format(vex_profile.predictive_index) }}%</strong>
+                </span>
+                <span style="font-size:14px;color:var(--gris-meta);">
+                    Basado en <strong>{{ vex_profile.sessions_analyzed }}</strong> sesiones
+                </span>
+            </div>
+
+            <div class="vex-scores">
+                {% set scores = [
+                    ('Comunicacion', vex_profile.communication_score),
+                    ('Empatia', vex_profile.empathy_score),
+                    ('Resolucion', vex_profile.resolution_score),
+                    ('Velocidad', vex_profile.speed_score),
+                    ('Adaptabilidad', vex_profile.adaptability_score),
+                    ('Cumplimiento', vex_profile.compliance_score)
+                ] %}
+                {% for label, score in scores %}
+                <div class="vex-score-bar">
+                    <span class="score-label">{{ label }}</span>
+                    <div class="score-track">
+                        <div class="score-fill" style="width: {{ (score / 10 * 100)|int }}%; background: {% if score >= 8 %}#28a745{% elif score >= 5 %}#ffc107{% else %}#dc3545{% endif %};"></div>
+                    </div>
+                    <span class="score-value">{{ "%.1f"|format(score) }}</span>
+                </div>
+                {% endfor %}
+
+                <div class="vex-score-bar" style="margin-top:8px;padding-top:10px;border-top:2px solid var(--gris-claro);">
+                    <span class="score-label" style="font-weight:700;">Overall</span>
+                    <div class="score-track" style="height:14px;">
+                        <div class="score-fill" style="width: {{ (vex_profile.overall_score / 10 * 100)|int }}%; background: linear-gradient(90deg, var(--rojo-vex), var(--naranja-vex)); height:100%; border-radius:7px;"></div>
+                    </div>
+                    <span class="score-value" style="font-size:16px;">{{ "%.1f"|format(vex_profile.overall_score) }}</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="profile-card" style="grid-column: 1 / -1;">
+            <h3><span>&#127942;</span> VEX Profile - Perfil Predictivo</h3>
+            <p style="text-align:center;color:var(--gris-meta);padding:20px 0;">
+                Aun no tienes un perfil VEX. Completa al menos 2 entrenamientos para generar tu perfil predictivo.
+            </p>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

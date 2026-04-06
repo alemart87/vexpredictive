@@ -2,8 +2,9 @@ import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify, flash, send_from_directory
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
-from models import db, User, Content, Category, PageView, DocumentReview
+from models import db, User, Content, Category, PageView, DocumentReview, TrainingSession, TrainingBatch, VexProfile, ChatConversation, ChatMessage
 from datetime import datetime, timezone
 
 load_dotenv()
@@ -228,6 +229,117 @@ def api_search():
                 'category': c.category.name if c.category else ''
             })
     return jsonify(results)
+
+
+# --- Mi Perfil ---
+@app.route('/profile')
+@login_required
+def my_profile():
+    """User profile page with stats and details."""
+    from sqlalchemy import func
+
+    user = current_user
+
+    # Pages read (unique content pages)
+    pages_read = PageView.query.filter(
+        PageView.user_id == user.id,
+        PageView.content_id.isnot(None)
+    ).with_entities(PageView.content_id).distinct().count()
+
+    total_pageviews = PageView.query.filter_by(user_id=user.id).count()
+
+    # Training stats
+    trainings_completed = TrainingBatch.query.filter_by(
+        user_id=user.id, status='completed'
+    ).count()
+
+    trainings_active = TrainingBatch.query.filter_by(
+        user_id=user.id, status='active'
+    ).count()
+
+    sessions_completed = TrainingSession.query.filter_by(
+        user_id=user.id, status='completed'
+    ).count()
+
+    # Average NPS from completed sessions
+    avg_nps_result = db.session.query(func.avg(TrainingSession.nps_score)).filter(
+        TrainingSession.user_id == user.id,
+        TrainingSession.status == 'completed',
+        TrainingSession.nps_score.isnot(None)
+    ).scalar()
+    avg_nps = round(avg_nps_result, 1) if avg_nps_result else None
+
+    # Chat stats
+    total_conversations = ChatConversation.query.filter_by(user_id=user.id).count()
+    total_chat_messages = ChatMessage.query.join(ChatConversation).filter(
+        ChatConversation.user_id == user.id,
+        ChatMessage.role == 'user'
+    ).count()
+
+    # VEX Profile
+    vex_profile = VexProfile.query.filter_by(user_id=user.id).first()
+
+    # Operativa info
+    operativa = user.operativa if user.operativa_id else None
+
+    return render_template('profile.html',
+        user=user,
+        operativa=operativa,
+        pages_read=pages_read,
+        total_pageviews=total_pageviews,
+        trainings_completed=trainings_completed,
+        trainings_active=trainings_active,
+        sessions_completed=sessions_completed,
+        avg_nps=avg_nps,
+        total_conversations=total_conversations,
+        total_chat_messages=total_chat_messages,
+        vex_profile=vex_profile
+    )
+
+
+@app.route('/profile/upload-photo', methods=['POST'])
+@login_required
+def upload_profile_photo():
+    """Upload profile photo."""
+    if 'photo' not in request.files:
+        flash('No se envio archivo.', 'error')
+        return redirect(url_for('my_profile'))
+
+    file = request.files['photo']
+    if file.filename == '':
+        flash('Archivo sin nombre.', 'error')
+        return redirect(url_for('my_profile'))
+
+    allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed:
+        flash('Tipo de archivo no permitido. Usa PNG, JPG, GIF o WEBP.', 'error')
+        return redirect(url_for('my_profile'))
+
+    filename = f"profile_{current_user.id}.{ext}"
+    upload_dir = app.config['UPLOAD_DIR']
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+
+    current_user.profile_photo = '/imagenes/' + filename
+    db.session.commit()
+    flash('Foto de perfil actualizada.', 'success')
+    return redirect(url_for('my_profile'))
+
+
+@app.route('/profile/update', methods=['POST'])
+@login_required
+def update_profile():
+    """Update user's own name."""
+    name = request.form.get('name', '').strip()
+    if name:
+        current_user.name = name
+        db.session.commit()
+        flash('Perfil actualizado.', 'success')
+    else:
+        flash('El nombre no puede estar vacio.', 'error')
+    return redirect(url_for('my_profile'))
 
 
 # --- Document Review request (for supervisors) ---
