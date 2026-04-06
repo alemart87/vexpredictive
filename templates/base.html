@@ -100,6 +100,10 @@
                 </div>
                 {% endif %}
 
+                <span class="nav-user-info">
+                    <span class="nav-user-name">{{ current_user.name }}</span>
+                    <span class="nav-user-role">{{ current_user.role|capitalize }}</span>
+                </span>
                 <a href="{{ url_for('logout') }}" class="nav-logout">Salir</a>
             {% endif %}
         </div>
