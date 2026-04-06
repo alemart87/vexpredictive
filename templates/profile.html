@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Mi Perfil - Vex People Predictive{% endblock %}
 
+{% set is_verified = vex_profile and vex_profile.predictive_index >= 70 %}
+
 {% block extra_head %}
 <style>
 .profile-container {
@@ -29,6 +31,12 @@
     align-items: center;
 }
 
+.profile-photo-container {
+    position: relative;
+    width: 114px;
+    height: 114px;
+}
+
 .profile-photo {
     width: 110px;
     height: 110px;
@@ -53,56 +61,76 @@
     font-weight: 700;
 }
 
-.profile-photo-upload-btn {
+/* Verified badge - Meta style */
+.verified-badge {
     position: absolute;
-    bottom: -2px;
-    right: -2px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--cyan-vex);
-    border: 3px solid var(--blanco);
-    display: flex;
+    bottom: 2px;
+    right: 2px;
+    width: 32px;
+    height: 32px;
+    z-index: 2;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+/* Upload photo button */
+.profile-photo-change {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 6px 16px;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 20px;
+    color: var(--blanco);
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
-    box-shadow: var(--sombra-sm);
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
 }
-.profile-photo-upload-btn:hover {
-    background: var(--cyan-oscuro);
-    transform: scale(1.1);
+.profile-photo-change:hover {
+    background: rgba(255,255,255,0.35);
+    transform: translateY(-1px);
 }
-.profile-photo-upload-btn svg {
-    width: 18px;
-    height: 18px;
+.profile-photo-change svg {
+    width: 16px;
+    height: 16px;
     fill: var(--blanco);
 }
-.profile-photo-upload-btn input[type="file"] {
+.profile-photo-change input[type="file"] {
     display: none;
 }
-.profile-photo-text {
-    margin-top: 10px;
-    font-size: 13px;
-    opacity: 0.9;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+
+.profile-info {
+    flex: 1;
 }
-.profile-photo-text:hover {
-    opacity: 1;
+
+.profile-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .profile-info h1 {
-    margin: 0 0 4px 0;
+    margin: 0;
     font-size: 26px;
     font-weight: 700;
 }
 .profile-info .profile-email {
     opacity: 0.85;
     font-size: 14px;
-    margin-bottom: 10px;
+    margin: 4px 0 10px 0;
 }
+
+.profile-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .profile-role-badge {
     display: inline-block;
     background: rgba(255,255,255,0.25);
@@ -112,6 +140,23 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.verified-text-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,255,255,0.9);
+    color: #1877F2;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+.verified-text-badge svg {
+    width: 14px;
+    height: 14px;
 }
 
 .profile-grid {
@@ -182,6 +227,72 @@
     color: var(--gris-meta);
     margin-top: 4px;
     font-weight: 600;
+}
+
+/* Verified card CTA */
+.verified-card {
+    border: 2px solid #1877F2 !important;
+    background: linear-gradient(135deg, #f0f6ff, #ffffff) !important;
+}
+.verified-card.locked {
+    border-color: #ddd !important;
+    background: var(--blanco) !important;
+}
+
+.verified-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 10px 0;
+}
+.verified-hero-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 12px;
+}
+.verified-hero-icon.locked-icon {
+    opacity: 0.25;
+    filter: grayscale(1);
+}
+.verified-hero h4 {
+    margin: 0 0 6px 0;
+    font-size: 18px;
+    color: #1877F2;
+}
+.verified-hero.locked h4 {
+    color: var(--gris-meta);
+}
+.verified-hero p {
+    font-size: 13px;
+    color: var(--gris-meta);
+    margin: 0 0 12px 0;
+    max-width: 340px;
+    line-height: 1.5;
+}
+.verified-progress {
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+}
+.verified-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gris-meta);
+    margin-bottom: 6px;
+}
+.verified-progress-track {
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.verified-progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.8s ease;
 }
 
 .vex-scores {
@@ -293,6 +404,8 @@
         text-align: center;
     }
     .profile-info { text-align: center; }
+    .profile-name-row { justify-content: center; }
+    .profile-badges { justify-content: center; }
 }
 </style>
 {% endblock %}
@@ -303,23 +416,47 @@
     <!-- Header con foto y nombre -->
     <div class="profile-header">
         <div class="profile-photo-wrapper">
-            {% if user.profile_photo %}
-                <img src="{{ user.profile_photo }}" alt="Foto de perfil" class="profile-photo">
-            {% else %}
-                <div class="profile-photo-placeholder">{{ user.name[0]|upper }}</div>
-            {% endif %}
+            <div class="profile-photo-container">
+                {% if user.profile_photo %}
+                    <img src="{{ user.profile_photo }}" alt="Foto de perfil" class="profile-photo">
+                {% else %}
+                    <div class="profile-photo-placeholder">{{ user.name[0]|upper }}</div>
+                {% endif %}
+                {% if is_verified %}
+                <svg class="verified-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" fill="#1877F2"/>
+                    <path d="M17.5 27.5L10 20l2.1-2.1 5.4 5.4L28.9 12l2.1 2.1L17.5 27.5z" fill="white"/>
+                </svg>
+                {% endif %}
+            </div>
             <form action="{{ url_for('upload_profile_photo') }}" method="POST" enctype="multipart/form-data" id="photoForm">
-                <label class="profile-photo-upload-btn" title="Cambiar foto de perfil">
+                <label class="profile-photo-change">
                     <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                    Cambiar foto
                     <input type="file" name="photo" accept="image/*" onchange="document.getElementById('photoForm').submit();">
                 </label>
             </form>
-            <label for="photoFileInput" class="profile-photo-text" onclick="document.querySelector('#photoForm input[type=file]').click();">Cambiar foto</label>
         </div>
         <div class="profile-info">
-            <h1>{{ user.name }}</h1>
+            <div class="profile-name-row">
+                <h1>{{ user.name }}</h1>
+                {% if is_verified %}
+                <svg width="24" height="24" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" fill="#1877F2"/>
+                    <path d="M17.5 27.5L10 20l2.1-2.1 5.4 5.4L28.9 12l2.1 2.1L17.5 27.5z" fill="white"/>
+                </svg>
+                {% endif %}
+            </div>
             <div class="profile-email">{{ user.email }}</div>
-            <span class="profile-role-badge">{{ user.role|capitalize }}</span>
+            <div class="profile-badges">
+                <span class="profile-role-badge">{{ user.role|capitalize }}</span>
+                {% if is_verified %}
+                <span class="verified-text-badge">
+                    <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#1877F2"/><path d="M17.5 27.5L10 20l2.1-2.1 5.4 5.4L28.9 12l2.1 2.1L17.5 27.5z" fill="white"/></svg>
+                    Perfil Verificado
+                </span>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -416,6 +553,52 @@
                 </div>
             </div>
         </div>
+
+        <!-- Verificacion card -->
+        {% if is_verified %}
+        <div class="profile-card verified-card">
+            <div class="verified-hero">
+                <svg class="verified-hero-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="vg" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#1877F2"/>
+                            <stop offset="100%" stop-color="#00C6FF"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="32" cy="32" r="30" fill="url(#vg)"/>
+                    <path d="M28 42L18 32l3.4-3.4 6.6 6.6L41.6 18 45 21.4 28 42z" fill="white"/>
+                </svg>
+                <h4>Perfil Verificado</h4>
+                <p>Felicitaciones! Tu Indice Predictivo de <strong>{{ "%.0f"|format(vex_profile.predictive_index) }}%</strong> supera el umbral de 70%. Tu perfil esta verificado como talento recomendado.</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="profile-card verified-card locked">
+            <div class="verified-hero locked">
+                <svg class="verified-hero-icon locked-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="32" cy="32" r="30" fill="#999"/>
+                    <path d="M28 42L18 32l3.4-3.4 6.6 6.6L41.6 18 45 21.4 28 42z" fill="white"/>
+                </svg>
+                <h4>Perfil Verificado</h4>
+                {% if vex_profile %}
+                    <p>Tu Indice Predictivo actual es <strong>{{ "%.0f"|format(vex_profile.predictive_index) }}%</strong>. Necesitas alcanzar <strong>70%</strong> para obtener la verificacion. Sigue entrenando para mejorar tus habilidades!</p>
+                    {% set progress = vex_profile.predictive_index %}
+                {% else %}
+                    <p>Completa entrenamientos para generar tu perfil VEX y desbloquear la verificacion. Necesitas un Indice Predictivo de <strong>70%</strong> o superior.</p>
+                    {% set progress = 0 %}
+                {% endif %}
+                <div class="verified-progress">
+                    <div class="verified-progress-label">
+                        <span>Progreso</span>
+                        <span>{{ "%.0f"|format(progress) }}% / 70%</span>
+                    </div>
+                    <div class="verified-progress-track">
+                        <div class="verified-progress-fill" style="width: {{ [(progress / 70 * 100)|int, 100]|min }}%; background: {% if progress >= 70 %}#1877F2{% elif progress >= 50 %}#ffc107{% else %}#dc3545{% endif %};"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- VEX Profile (si existe) -->
         {% if vex_profile %}
