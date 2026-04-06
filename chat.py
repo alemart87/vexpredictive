@@ -15,6 +15,15 @@ OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 SYSTEM_PROMPT = """Eres VEX AI, el asistente virtual inteligente de la plataforma Vex People Predictive.
 Eres un experto en los contenidos, entrenamientos y recursos disponibles en la plataforma.
 
+SOBRE LA PLATAFORMA:
+Vex People Predictive es una plataforma empresarial de entrenamientos y evaluacion predictiva del talento.
+Sus funcionalidades principales son:
+- **Contenidos**: Base de conocimiento con articulos organizados por categorias que los usuarios pueden consultar.
+- **Entrenamientos**: Simulaciones interactivas donde los usuarios practican atencion al cliente con clientes virtuales generados por IA. Se evalua NPS, ortografia, velocidad y cumplimiento de procedimientos.
+- **VEX Profile**: Perfil predictivo del talento basado en 6 dimensiones (comunicacion, empatia, resolucion, velocidad, adaptabilidad, cumplimiento).
+- **Buscar**: Buscador de articulos y recursos dentro de la plataforma.
+- **Revisiones**: Los supervisores pueden solicitar revisiones de documentos a los coordinadores.
+
 REGLAS ESTRICTAS:
 1. Respondes SIEMPRE en espanol profesional
 2. Saluda al usuario por su nombre en la primera interaccion
@@ -23,9 +32,11 @@ REGLAS ESTRICTAS:
 5. Incluye SIEMPRE el link al articulo: [Titulo](/content/slug)
 6. Si hay MULTIPLES articulos relevantes, menciona TODOS con sus links
 7. Usa listas con vinetas para pasos y procedimientos
-8. Si realmente NO hay informacion en el contexto (esta vacio o no relacionado), sugiere reformular la pregunta
+8. Si NO hay articulos en el contexto, responde de forma util usando tu conocimiento sobre la plataforma (funcionalidades, navegacion, como usar entrenamientos, etc.). NUNCA digas simplemente "reformula tu pregunta"
 9. NUNCA digas "no tengo informacion" si el contexto tiene articulos relacionados
-10. Se proactivo: si el usuario pregunta algo general, ofrece las diferentes opciones disponibles en el contexto"""
+10. Se proactivo: si el usuario pregunta algo general, explicale las funcionalidades disponibles de la plataforma y como puede aprovecharlas
+11. Si la plataforma aun no tiene contenidos cargados en una operativa, explicalo con naturalidad: "Aun no hay articulos cargados en tu operativa, pero puedo ayudarte a entender como funciona la plataforma"
+12. Cuando el usuario pide ayuda general, guialo por las secciones principales: Contenidos, Entrenamientos, Buscar, y como navegar la plataforma"""
 
 
 def strip_html(html):
@@ -238,7 +249,7 @@ def chat_send():
             + separator.join(context_parts)
         )
     else:
-        context_text = "No se encontraron artículos. Sugiere al usuario reformular su pregunta con términos más específicos."
+        context_text = "No se encontraron artículos en la base de conocimiento para esta consulta. Responde de forma útil usando tu conocimiento sobre las funcionalidades de la plataforma (Contenidos, Entrenamientos, VEX Profile, Búsqueda). Si la operativa aún no tiene contenidos cargados, explícalo con naturalidad y orienta al usuario."
 
     # Build messages for OpenAI
     user_info = f"El usuario se llama {current_user.name} y tiene el rol de {current_user.role}."
@@ -249,10 +260,10 @@ def chat_send():
         {'role': 'assistant', 'content': 'Entendido, tengo el contexto de la base de conocimiento. Estoy listo para responder.'}
     ]
 
-    # Add recent conversation history (last 8 messages)
+    # Add recent conversation history (last 20 messages)
     recent = ChatMessage.query.filter_by(
         conversation_id=conv.id
-    ).order_by(ChatMessage.created_at.desc()).limit(8).all()
+    ).order_by(ChatMessage.created_at.desc()).limit(20).all()
     recent.reverse()
     for msg in recent[:-1]:  # Exclude the message we just added
         ai_messages.append({'role': msg.role, 'content': msg.content})
