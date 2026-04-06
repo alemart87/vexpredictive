@@ -1,4 +1,5 @@
 import os
+import hashlib
 from flask import Flask, render_template, redirect, url_for, request, jsonify, flash, send_from_directory
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -298,7 +299,8 @@ def my_profile():
         avg_nps=avg_nps,
         total_conversations=total_conversations,
         total_chat_messages=total_chat_messages,
-        vex_profile=vex_profile
+        vex_profile=vex_profile,
+        verified_token=generate_verified_token(user.id)
     )
 
 
@@ -345,6 +347,36 @@ def update_profile():
     else:
         flash('El nombre no puede estar vacio.', 'error')
     return redirect(url_for('my_profile'))
+
+
+def generate_verified_token(user_id):
+    """Generate a simple hash token for public verified page URL."""
+    secret = app.config['SECRET_KEY']
+    return hashlib.sha256(f"verified-{user_id}-{secret}".encode()).hexdigest()[:16]
+
+
+@app.route('/verified/<token>')
+def public_verified(token):
+    """Public shareable verified profile page - no login required."""
+    users = User.query.filter_by(is_active_user=True).all()
+    user = None
+    for u in users:
+        if generate_verified_token(u.id) == token:
+            user = u
+            break
+    if not user:
+        return render_template('verified_public.html', user=None), 404
+
+    vex = VexProfile.query.filter_by(user_id=user.id).first()
+    if not vex or vex.predictive_index < 70:
+        return render_template('verified_public.html', user=None), 404
+
+    operativa = user.operativa if user.operativa_id else None
+    return render_template('verified_public.html',
+        user=user,
+        vex=vex,
+        operativa=operativa
+    )
 
 
 # --- Document Review request (for supervisors) ---
