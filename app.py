@@ -363,6 +363,23 @@ def request_review():
 
 with app.app_context():
     db.create_all()
+    # Auto-migrate: add profile_photo column if missing
+    try:
+        db.session.execute(db.text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'profile_photo'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN profile_photo VARCHAR(500);
+                END IF;
+            END $$;
+        """))
+        db.session.commit()
+    except Exception as e:
+        print(f"[STARTUP] Migration note: {e}")
+        db.session.rollback()
     init_superadmin()
 
 
