@@ -7,7 +7,7 @@ Plataforma empresarial multi-tenant de entrenamientos, evaluacion predictiva del
 Vex People Predictive permite a las organizaciones:
 
 - **Gestionar contenido** de ayuda en linea y knowledge base por operativa
-- **Entrenar agentes** con simulaciones de clientes impulsadas por IA (GPT-4o-mini)
+- **Entrenar agentes** con simulaciones de clientes impulsadas por IA (GPT-5.4 mini)
 - **Evaluar competencias** con el sistema Vex People Skill Predictive (6 dimensiones + indice predictivo). Ver [scoring.md](scoring.md) para el detalle de formulas, pesos y umbrales.
 - **Asistente VEX AI** - chatbot inteligente que responde en base al contenido cargado
 - **Analytics** - dashboards de uso, insights y recomendaciones automaticas
@@ -22,7 +22,7 @@ Vex People Predictive permite a las organizaciones:
 | Frontend | Jinja2 + Vanilla JS |
 | Editor CMS | Quill.js |
 | Graficos | Chart.js |
-| IA | OpenAI GPT-4o-mini |
+| IA | OpenAI GPT-5.4 mini |
 | Auth | Flask-Login (session-based) |
 | Server | Gunicorn |
 | Deploy | Docker en Render.com |

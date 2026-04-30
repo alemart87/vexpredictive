@@ -185,17 +185,56 @@ document.addEventListener('DOMContentLoaded', function() { bindAutoGrow(document
 -     'model': 'gpt-4o-mini',
 +     'model': 'gpt-5.4-mini',
       'messages': messages,
-      'max_tokens': 1200,
+-     'max_tokens': 1200,
++     'max_completion_tokens': 1200,
       'temperature': 0.2
   }).encode('utf-8')
 ```
 
-Esa función se reusa para: cliente simulado, evaluación final de
-sesiones, y asistente VEX AI.
+> ⚠ **Crítico:** GPT-5.x rechaza el parámetro `max_tokens` con
+> **HTTP 400**. El nombre correcto en chat completions para esta
+> familia es `max_completion_tokens`. Si solo cambiás el modelo sin
+> cambiar el parámetro, las llamadas fallan en silencio (excepto en
+> los logs).
 
-> **Verificá en tu proyecto** si tenés más de un punto donde se hardcodea
-> el nombre del modelo. Si es así, considerá extraerlo a una constante
-> `OPENAI_MODEL` o variable de entorno.
+Esa función se reusa para: cliente simulado, evaluación final de
+sesiones, y asistente VEX AI. Verificá en tu proyecto si tenés más
+de un punto donde se hardcodea el modelo y en cada uno corregí
+también el parámetro de tokens.
+
+### 3.1 Logging robusto del error de OpenAI
+
+Captura `HTTPError` aparte de `URLError` para poder leer el body de
+la respuesta cuando algo falla. Sin esto, un 400 se loguea como
+`HTTP Error 400: Bad Request` sin pista de qué rechazó el API.
+
+```python
+from urllib.error import URLError, HTTPError
+
+try:
+    with urlopen(req, timeout=30) as resp:
+        # ...
+except HTTPError as e:
+    body = ''
+    try:
+        body = e.read().decode('utf-8', errors='replace')[:500]
+    except Exception:
+        pass
+    print(f"[CHAT] OpenAI HTTP {e.code}: {body}", flush=True)
+    return "Error al procesar.", 0
+except URLError as e:
+    print(f"[CHAT] OpenAI error: {e}", flush=True)
+    return "Error al procesar.", 0
+```
+
+### 3.2 Errores comunes y diagnóstico
+
+| Mensaje en logs                              | Causa                                              | Solución                              |
+|----------------------------------------------|----------------------------------------------------|---------------------------------------|
+| `Unsupported parameter: 'max_tokens'`        | Modelo GPT-5.x no acepta el nombre viejo           | Renombrar a `max_completion_tokens`   |
+| `model_not_found` o `does not have access`   | El slug `gpt-5.4-mini` no está habilitado en la cuenta | Solicitar acceso o usar `gpt-4o-mini` |
+| `Unsupported parameter: 'temperature'`       | Algunos reasoning models de GPT-5 no aceptan temp custom | Quitar `temperature` del payload      |
+| `max_completion_tokens too low`              | Reasoning model consume tokens internos            | Subir el límite (ej: 2000)            |
 
 ---
 
@@ -515,7 +554,7 @@ Si hacés todo de una pasada, aplicá en este orden para minimizar riesgos:
    `empathy_breakdown` en el JSON.
 5. **Persistir el breakdown** en `ai_feedback`.
 6. **`calculate_vex_profile`** — fórmulas nuevas + categorías + recomendaciones.
-7. **Cambio de modelo IA** a `gpt-5.4-mini`.
+7. **Cambio de modelo IA** a `gpt-5.4-mini` **+ renombrar `max_tokens` a `max_completion_tokens`** (ambos cambios juntos en el mismo commit, o el deploy queda roto).
 8. **UX de chat** (textareas + auto-resize).
 9. **UX de admin** (textareas con auto-grow).
 10. **Documentación HTML/MD**.
@@ -541,6 +580,7 @@ Después de aplicar:
 - [ ] En "Crear Escenario", al pegar un texto largo el textarea crece.
 - [ ] La página de Metodología muestra el nuevo modelo y las nuevas fórmulas.
 - [ ] El asistente VEX AI responde usando GPT-5.4 mini (verificable en logs de OpenAI).
+- [ ] No aparecen `[CHAT] OpenAI HTTP 400` en los logs del backend tras enviar un mensaje (si aparece, leer el body — probablemente sea `max_tokens` no renombrado o falta de acceso al modelo).
 
 ---
 

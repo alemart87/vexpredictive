@@ -17,6 +17,8 @@ Devuelve un JSON estructurado con las señales que alimentan el perfil agregado.
 
 > El cliente simulado durante la sesión y la evaluación final usan el mismo
 > modelo. Si necesitás cambiar el modelo, editá `chat.py:166` (`call_openai`).
+> Nota: GPT-5.x usa `max_completion_tokens` (no `max_tokens`); si volvés a un
+> modelo de la familia GPT-4 hay que renombrar el parámetro de vuelta.
 
 ### 1.1 Auto-fail
 
