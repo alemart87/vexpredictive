@@ -37,10 +37,12 @@ DEFAULT_MODES = {
             'empathy': 0.25, 'resolution': 0.20, 'communication': 0.20,
             'speed': 0.15, 'adaptability': 0.10, 'compliance': 0.10
         },
-        # Pisos por dimension (raw 0-100)
+        # Pisos por dimension (raw 0-100). Suaves para no aplastar perfiles
+        # iniciales pero NO tan altos como para anular la evaluacion. Antes
+        # eran 35 -> cualquier sesion no auto-fail terminaba en Sten 6+.
         'floors': {
-            'communication': 35, 'resolution': 35, 'adaptability': 35,
-            'compliance': 35, 'empathy': 0, 'speed_no_data': 75
+            'communication': 25, 'resolution': 25, 'adaptability': 25,
+            'compliance': 25, 'empathy': 0, 'speed_no_data': 60
         },
         'spelling_multiplier': 35,        # Saturacion al 2.85% de errores
         'empathy_pillars_weight': 0.6,    # 60% pilares + 40% NPS
@@ -49,7 +51,7 @@ DEFAULT_MODES = {
             'healthy_max': 240,           # 180-240 -> 100->80
             'acceptable_max': 360,        # 240-360 -> 80->50
             'slow_max': 600,              # 360-600 -> 50->20
-            'no_data_score': 75
+            'no_data_score': 60           # bajado de 75 - era demasiado generoso
         },
         'thresholds': {
             'elite_overall': 8.0, 'elite_min_dim': 6,

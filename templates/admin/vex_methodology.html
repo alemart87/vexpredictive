@@ -52,7 +52,7 @@
             <tr style="background:#e8f5e9">
                 <td><strong>🟢 Flexible</strong></td>
                 <td>Nuevos ingresos · Capacitación inicial · Procesos de selección de personal</td>
-                <td>Penaliza menos errores. Pisos altos. ART meta 180-240s. Recomendado con PI ≥55%. La IA es generosa: premia esfuerzo y potencial.</td>
+                <td>Penaliza menos errores. Pisos suaves (25 raw). ART meta 180-240s. Recomendado con PI ≥55%. La IA es generosa: premia esfuerzo y potencial. <strong>Los hard caps universales siguen aplicando</strong>: aún en Flexible, no se puede ser Recomendado si correct_rate&lt;50% o NPS&lt;4.</td>
             </tr>
             <tr style="background:#e3f2fd">
                 <td><strong>🔵 Standard</strong></td>
@@ -306,13 +306,31 @@
         </table>
         <p><strong>Cambio:</strong> Antes los cortes eran 70% / 50%. Bajamos 5 puntos cada uno para alinear con la curva más generosa del scoring revisado.</p>
 
-        <h4 style="color:#c62828">⚠ Hard Cap por tasa de abandono</h4>
-        <p>Independientemente del Predictive Index calculado, si el asesor tiene <strong>más del 40% de las sesiones abandonadas</strong> (auto-fails: &lt;2 mensajes o &lt;8 palabras totales del asesor), el sistema aplica un tope automático:</p>
-        <ul>
-            <li>La <strong>categoría</strong> no puede ser Elite ni Alto (máximo Desarrollo).</li>
-            <li>La <strong>recomendación</strong> no puede ser "Recomendado" (máximo "Con Observaciones").</li>
-        </ul>
-        <p>La razón: aunque las pocas sesiones válidas hayan salido excelentes, una muestra con muchos abandonos no es estadísticamente confiable para una recomendación positiva. La tasa de abandono se muestra como <strong>"Fiabilidad de la muestra"</strong> en la cabecera del perfil.</p>
+        <h4 style="color:#c62828">⚠ Hard Caps universales (aplican a los 3 modos)</h4>
+        <p>Independientemente del Predictive Index y del modo elegido (Flexible / Standard / Exigente), el sistema aplica reglas de seguridad que detectan casos donde la fórmula matemática da un resultado positivo pero la realidad operativa indica que el asesor falla la tarea fundamental. Estos topes son <strong>acumulativos</strong> y se muestran al usuario en el perfil con la razón exacta.</p>
+
+        <table class="doc-table">
+            <tr><th>Regla</th><th>Disparador</th><th>Efecto</th></tr>
+            <tr style="background:#fce4ec">
+                <td><strong>Tasa de abandono alta</strong></td>
+                <td>Más del 40% de sesiones son auto-fail (&lt;2 mensajes o &lt;8 palabras totales del asesor)</td>
+                <td>Categoría máx <strong>"Desarrollo"</strong>, recomendación máx <strong>"Observaciones"</strong></td>
+            </tr>
+            <tr style="background:#fce4ec">
+                <td><strong>Bajo correct rate</strong></td>
+                <td>Menos del 50% de respuestas correctas (falla más casos de los que resuelve)</td>
+                <td>Recomendación máx <strong>"Observaciones"</strong></td>
+            </tr>
+            <tr style="background:#fce4ec">
+                <td><strong>NPS promedio bajo</strong></td>
+                <td>NPS promedio menor a 4.0 (mayoría de clientes detractores)</td>
+                <td>Recomendación máx <strong>"Observaciones"</strong></td>
+            </tr>
+        </table>
+
+        <p><strong>Por qué existen:</strong> el modo Flexible está diseñado para ser indulgente con principiantes, pero <em>"indulgente"</em> no debe significar <em>"ignora fallos sistémicos"</em>. Si un asesor falla 2 de cada 3 casos, el sistema no debería marcarlo como "Recomendado" ni siquiera con el modo más permisivo. Los hard caps son la red de seguridad que separa <strong>"hay que acompañar a este asesor"</strong> de <strong>"este asesor todavía no está listo"</strong>.</p>
+
+        <p><strong>Visibilidad:</strong> cuando se aplica algún cap, el perfil del asesor lo muestra en un bloque rojo arriba de las dimensiones, con la regla disparada y el efecto concreto. Así el evaluador entiende por qué la recomendación no es positiva aunque las dimensiones individuales se vean bien.</p>
     </div>
 
     <!-- 5. Interpretation -->
