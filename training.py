@@ -1054,15 +1054,34 @@ def calculate_vex_profile(user_id):
     # Spelling rate: errores por palabra. Solo contamos errores que afectan
     # comprensión (el prompt de IA ya filtra tildes/abreviaciones).
     spelling_rate = total_spelling / max(total_words, 1)
-    unique_scenarios = len(set(s.scenario_id for s in sessions))
     total_scenarios = TrainingScenario.query.filter_by(is_active=True).count() or 1
 
-    # ART (Average Response Time) — promedio del tiempo medio de respuesta
-    # del asesor en cada sesión. Solo considera sesiones con ART medible.
-    art_values = [s.avg_response_time for s in sessions if s.avg_response_time and s.avg_response_time > 0]
+    # Auto-fail / abandono: sesiones donde el asesor practicamente no
+    # interactuo. Coincide con el filtro de end_session: <2 mensajes o
+    # <8 palabras -> NPS automatico = 1.
+    def _is_auto_fail(s):
+        return (s.nps_score == 1 and not s.response_correct
+                and (s.total_words_user or 0) < 10)
+    auto_fail_sessions = [s for s in sessions if _is_auto_fail(s)]
+    abandonment_rate = len(auto_fail_sessions) / total_sessions  # 0..1
+
+    # ART agregado. Sesiones auto-fail sin ART real cuentan como respuesta
+    # muy lenta (1200s = mas alla del 'lento_max') para reflejar el
+    # abandono. Sesiones legacy sin ART y sin auto-fail siguen como neutras.
+    art_values = []
+    for s in sessions:
+        v = s.avg_response_time
+        if v and v > 0:
+            art_values.append(v)
+        elif _is_auto_fail(s):
+            # Penalizacion fuerte: equivalente a un ART catastrofico
+            art_values.append(1200)
     avg_art = sum(art_values) / len(art_values) if art_values else 0  # segundos
 
-    # Empathy breakdown agregado: promedio del cumplimiento de cada pilar.
+    # Empatia: dividir por TOTAL de sesiones, no por pillar_count.
+    # Sesiones sin breakdown (auto-fails o legacy) cuentan como pilares=0.
+    # Esto evita que una sola sesion buena infle la empatia cuando las
+    # demas fueron abandonos.
     empathy_pillars = {'nombre': 0, 'contexto': 0, 'calidez': 0, 'resolucion': 0}
     pillar_count = 0
     for s in sessions:
@@ -1078,9 +1097,19 @@ def calculate_vex_profile(user_id):
                         empathy_pillars[k] += 1
         except (json.JSONDecodeError, TypeError):
             pass
+    # Tasa por pilar SOBRE TOTAL de sesiones (no sobre pillar_count).
     empathy_pillar_rate = {
-        k: (v / pillar_count) if pillar_count else 0 for k, v in empathy_pillars.items()
+        k: (v / total_sessions) for k, v in empathy_pillars.items()
     }
+
+    # Variedad efectiva: solo escenarios donde el asesor tuvo exito
+    # (response_correct=True OR nps_score>=6). Abandonar 3 escenarios
+    # distintos NO suma variedad.
+    successful_scenario_ids = set(
+        s.scenario_id for s in sessions
+        if s.response_correct or (s.nps_score or 0) >= 6
+    )
+    unique_scenarios = len(successful_scenario_ids)
 
     # Improvement trend (NPS slope across sessions ordered by date)
     sorted_sessions = sorted(sessions, key=lambda s: s.created_at or datetime.min)
@@ -1190,6 +1219,18 @@ def calculate_vex_profile(user_id):
     else:
         rec = 'no_recomendado'
 
+    # --- Hard cap por abandono ---
+    # Si mas del 40% de las sesiones son auto-fail (asesor no interactuo
+    # de forma sustancial), no podemos recomendar al asesor independiente
+    # de cuanto saque la formula. Es una regla de seguridad: aunque las
+    # pocas sesiones validas hayan salido excelentes, la muestra no es
+    # confiable para una recomendacion positiva.
+    if abandonment_rate > 0.40:
+        if category in ('elite', 'alto'):
+            category = 'desarrollo'
+        if rec == 'recomendado':
+            rec = 'observaciones'
+
     # --- Save/Update ---
     profile = VexProfile.query.filter_by(user_id=user_id).first()
     if not profile:
@@ -1207,6 +1248,7 @@ def calculate_vex_profile(user_id):
     profile.profile_category = category
     profile.recommendation = rec
     profile.sessions_analyzed = total_sessions
+    profile.abandonment_rate = round(abandonment_rate, 3)
     profile.last_updated = datetime.utcnow()
     db.session.commit()
 

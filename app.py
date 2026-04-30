@@ -122,7 +122,7 @@ def login():
         password = request.form.get('password', '')
 
         user = User.query.filter_by(email=email).first()
-        if user and user.check_password(password) and user.is_active_user:
+        if user and user.check_password(password) and user.is_active_user and not user.is_purged:
                 user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
                 login_user(user, remember=True)

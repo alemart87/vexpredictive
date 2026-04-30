@@ -146,12 +146,116 @@ def category_delete(cat_id):
 @admin_bp.route('/users')
 @coordinador_or_above
 def user_list():
-    if current_user.is_superadmin:
-        users = User.query.order_by(User.created_at.desc()).all()
+    """Lista usuarios. Tab por defecto: Activos. ?tab=inactivos para inactivos.
+    Los usuarios con is_purged=True nunca se listan aca; las filas que
+    apuntan a un purged en otras tablas conservan integridad referencial."""
+    tab = request.args.get('tab', 'activos')
+    base_q = User.query.filter(User.is_purged.isnot(True))
+    if not current_user.is_superadmin:
+        base_q = base_q.filter_by(operativa_id=current_user.operativa_id)
+
+    if tab == 'inactivos':
+        users = base_q.filter_by(is_active_user=False).order_by(User.deactivated_at.desc().nullslast(), User.created_at.desc()).all()
     else:
-        users = User.query.filter_by(operativa_id=current_user.operativa_id).order_by(User.created_at.desc()).all()
+        tab = 'activos'
+        users = base_q.filter_by(is_active_user=True).order_by(User.created_at.desc()).all()
+
+    # Conteos para los tabs
+    counts = {
+        'activos':   base_q.filter_by(is_active_user=True).count(),
+        'inactivos': base_q.filter_by(is_active_user=False).count()
+    }
     operativas = Operativa.query.filter_by(is_active=True).all() if current_user.is_superadmin else []
-    return render_template('admin/users.html', users=users, operativas=operativas)
+    return render_template('admin/users.html', users=users, operativas=operativas, tab=tab, counts=counts)
+
+
+@admin_bp.route('/users/<int:user_id>/deactivate', methods=['POST'])
+@coordinador_or_above
+def user_deactivate(user_id):
+    """Soft delete: marca is_active_user=False, registra timestamp.
+    Conserva todos los datos del usuario."""
+    user = User.query.get_or_404(user_id)
+    if user.is_superadmin:
+        flash('No se puede desactivar al SuperAdmin.', 'error')
+        return redirect(url_for('admin.user_list'))
+    if user.id == current_user.id:
+        flash('No podes desactivarte a vos mismo.', 'error')
+        return redirect(url_for('admin.user_list'))
+    if not current_user.is_superadmin and user.operativa_id != current_user.operativa_id:
+        flash('No tenes permiso sobre este usuario.', 'error')
+        return redirect(url_for('admin.user_list'))
+
+    user.is_active_user = False
+    user.deactivated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Usuario "{user.name}" desactivado. Sus datos se conservan y podes reactivarlo cuando quieras.', 'success')
+    return redirect(url_for('admin.user_list', tab='inactivos'))
+
+
+@admin_bp.route('/users/<int:user_id>/reactivate', methods=['POST'])
+@coordinador_or_above
+def user_reactivate(user_id):
+    """Revierte un soft delete."""
+    user = User.query.get_or_404(user_id)
+    if user.is_purged:
+        flash('Este usuario fue eliminado definitivamente. No se puede reactivar.', 'error')
+        return redirect(url_for('admin.user_list', tab='inactivos'))
+    if not current_user.is_superadmin and user.operativa_id != current_user.operativa_id:
+        flash('No tenes permiso sobre este usuario.', 'error')
+        return redirect(url_for('admin.user_list'))
+
+    user.is_active_user = True
+    user.deactivated_at = None
+    db.session.commit()
+    flash(f'Usuario "{user.name}" reactivado.', 'success')
+    return redirect(url_for('admin.user_list'))
+
+
+@admin_bp.route('/users/<int:user_id>/purge', methods=['POST'])
+@superadmin_required
+def user_purge(user_id):
+    """Eliminacion definitiva (solo SuperAdmin).
+
+    NO borra filas del DB: anonimiza la PII del usuario (nombre, email,
+    foto, password) y deja is_purged=True. Las FK desde TrainingSession,
+    TrainingBatch, VexProfile, Content.created_by, ChatConversation,
+    PageView, DocumentReview siguen apuntando aca y conservan integridad
+    referencial. Las analytics agregadas por operativa siguen siendo
+    correctas.
+
+    Requiere doble confirmacion via form (?confirm=yes&typed=NOMBRE_USUARIO).
+    """
+    user = User.query.get_or_404(user_id)
+    if user.is_superadmin:
+        flash('No se puede eliminar al SuperAdmin.', 'error')
+        return redirect(url_for('admin.user_list'))
+    if user.is_active_user:
+        flash('Primero hay que desactivar al usuario antes de eliminarlo definitivamente.', 'error')
+        return redirect(url_for('admin.user_list'))
+    if user.id == current_user.id:
+        flash('No podes eliminarte a vos mismo.', 'error')
+        return redirect(url_for('admin.user_list'))
+
+    typed = (request.form.get('typed_name') or '').strip()
+    if typed != user.name:
+        flash(f'Para confirmar, tenes que escribir exactamente el nombre del usuario: "{user.name}".', 'error')
+        return redirect(url_for('admin.user_list', tab='inactivos'))
+
+    import secrets
+    original_name = user.name
+    user.name = 'Usuario eliminado'
+    user.email = f'deleted_{user.id}_{secrets.token_hex(4)}@vexpredictive.local'
+    user.password_hash = secrets.token_hex(32)  # ya no permite login
+    user.profile_photo = None
+    user.is_active_user = False
+    user.is_purged = True
+    user.purged_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'Usuario "{original_name}" eliminado definitivamente. Su PII fue anonimizada; los datos historicos vinculados conservan integridad.', 'success')
+    return redirect(url_for('admin.user_list', tab='inactivos'))
+
+
+
 
 
 @admin_bp.route('/users/save', methods=['POST'])
@@ -193,9 +297,17 @@ def user_save():
         if user.is_superadmin:
             flash('No puedes editar al SuperAdmin desde aqui.', 'error')
             return redirect(url_for('admin.user_list'))
+        if user.is_purged:
+            flash('Este usuario fue eliminado definitivamente y no se puede editar.', 'error')
+            return redirect(url_for('admin.user_list'))
         user.email = email
         user.name = name
         user.role = role
+        # Si pasa de inactivo->activo registramos; si de activo->inactivo, marcamos timestamp
+        if user.is_active_user and not is_active:
+            user.deactivated_at = datetime.now(timezone.utc)
+        elif not user.is_active_user and is_active:
+            user.deactivated_at = None
         user.is_active_user = is_active
         user.max_concurrent_training = max(1, min(10, max_concurrent))
         if target_operativa_id:

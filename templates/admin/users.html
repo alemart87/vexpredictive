@@ -1,6 +1,70 @@
 {% extends "base.html" %}
 
 {% block title %}Gestion de Usuarios - Admin{% endblock %}
+{% block extra_head %}
+<style>
+.user-tabs { display:flex; gap:4px; margin:14px 0 0; border-bottom:2px solid #e0e0e0; }
+.user-tabs a {
+    padding:10px 22px; text-decoration:none; color:#666; font-weight:600;
+    border-radius:8px 8px 0 0; border:2px solid transparent; border-bottom:none;
+    margin-bottom:-2px; transition:all .15s; display:flex; align-items:center; gap:8px;
+}
+.user-tabs a:hover { color:#E6332A; }
+.user-tabs a.active {
+    color:#E6332A; background:#fff;
+    border-color:#e0e0e0; border-bottom-color:#fff;
+}
+.user-tabs a .tab-count {
+    background:#f0f0f0; color:#666; padding:1px 8px; border-radius:10px;
+    font-size:11px; font-weight:700;
+}
+.user-tabs a.active .tab-count { background:#E6332A; color:#fff; }
+
+/* Botones de accion en filas */
+.row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.row-actions form { display:inline; }
+.btn-action {
+    padding:5px 12px; border-radius:14px; border:none; cursor:pointer;
+    font-size:11px; font-weight:700; transition:transform .15s;
+}
+.btn-action:hover { transform:translateY(-1px); }
+.btn-edit       { background:#E6332A; color:#fff; }
+.btn-deactivate { background:#888; color:#fff; }
+.btn-reactivate { background:#2e7d32; color:#fff; }
+.btn-purge      { background:#fff; color:#c62828; border:1px solid #c62828; }
+.btn-purge:hover { background:#c62828; color:#fff; }
+
+/* Aviso del modal de purge */
+.purge-modal {
+    position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:9999;
+    display:none; align-items:center; justify-content:center; padding:20px;
+}
+.purge-modal.open { display:flex; }
+.purge-modal-content {
+    background:#fff; border-radius:14px; padding:28px; max-width:520px; width:100%;
+    box-shadow:0 12px 40px rgba(0,0,0,.3); border-top:6px solid #c62828;
+}
+.purge-modal-content h2 { margin:0 0 8px; color:#c62828; font-size:20px; display:flex; align-items:center; gap:8px; }
+.purge-modal-content .warn-box {
+    background:#ffebee; border-left:4px solid #c62828; padding:14px 16px;
+    border-radius:8px; margin:14px 0; font-size:13px; color:#555; line-height:1.7;
+}
+.purge-modal-content .warn-box strong { color:#c62828; }
+.purge-modal-content .warn-box ul { padding-left:18px; margin:8px 0 0; }
+.purge-modal-content input[type=text] {
+    width:100%; padding:10px 14px; border:2px solid #c62828; border-radius:8px;
+    font-size:14px; font-family:monospace; box-sizing:border-box; margin-top:6px;
+}
+.purge-modal-content .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+.purge-modal-content .modal-actions button { padding:9px 18px; border-radius:8px; border:none; cursor:pointer; font-weight:700; font-size:13px; }
+.purge-modal-content .modal-actions .cancel { background:#eee; color:#555; }
+.purge-modal-content .modal-actions .confirm { background:#c62828; color:#fff; }
+.purge-modal-content .modal-actions .confirm:disabled { opacity:.4; cursor:not-allowed; }
+
+.user-purged { opacity:.5; font-style:italic; }
+.badge-purged { background:#fce4ec; color:#880e4f; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="admin-container">
@@ -71,8 +135,22 @@
         <button type="submit" class="btn btn-primary">Crear Usuario</button>
     </form>
 
-    <h2>Usuarios Existentes</h2>
-    <div class="table-responsive">
+    <h2>Usuarios</h2>
+    <div class="user-tabs">
+        <a href="{{ url_for('admin.user_list', tab='activos') }}" class="{% if tab == 'activos' %}active{% endif %}">
+            ✅ Activos <span class="tab-count">{{ counts.activos }}</span>
+        </a>
+        <a href="{{ url_for('admin.user_list', tab='inactivos') }}" class="{% if tab == 'inactivos' %}active{% endif %}">
+            🗃 Inactivos <span class="tab-count">{{ counts.inactivos }}</span>
+        </a>
+    </div>
+
+    <div class="table-responsive" style="background:#fff;border-radius:0 8px 8px 8px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+        {% if not users %}
+        <p style="color:#888;text-align:center;padding:30px">
+            {% if tab == 'inactivos' %}No hay usuarios inactivos.{% else %}No hay usuarios activos.{% endif %}
+        </p>
+        {% else %}
         <table class="admin-table">
             <thead>
                 <tr>
@@ -80,8 +158,7 @@
                     <th>Email / Usuario</th>
                     <th>Rol</th>
                     {% if current_user.is_superadmin %}<th>Operativa</th>{% endif %}
-                    <th>Estado</th>
-                    <th>Ultimo Login</th>
+                    <th>{% if tab == 'inactivos' %}Desactivado{% else %}Ultimo Login{% endif %}</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -94,19 +171,40 @@
                     {% if current_user.is_superadmin %}
                     <td>{{ user.operativa.name if user.operativa else '-' }}</td>
                     {% endif %}
-                    <td>{{ 'Activo' if user.is_active_user else 'Inactivo' }}</td>
-                    <td>{{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else 'Nunca' }}</td>
                     <td>
-                        {% if not user.is_superadmin %}
-                        <button class="btn btn-sm btn-primary" onclick="editUser({{ user.id }}, '{{ user.name }}', '{{ user.email }}', '{{ user.role }}', {{ 'true' if user.is_active_user else 'false' }}, {{ user.max_concurrent_training or 1 }}, {{ user.operativa_id or 'null' }})">Editar</button>
+                        {% if tab == 'inactivos' %}
+                            {{ user.deactivated_at.strftime('%d/%m/%Y %H:%M') if user.deactivated_at else 'Sin fecha' }}
                         {% else %}
-                        <span class="badge badge-superadmin">SuperAdmin</span>
+                            {{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else 'Nunca' }}
                         {% endif %}
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                        {% if user.is_superadmin %}
+                            <span class="badge badge-superadmin">SuperAdmin</span>
+                        {% elif tab == 'activos' %}
+                            <button class="btn-action btn-edit" onclick='editUser({{ user.id }}, {{ user.name|tojson }}, {{ user.email|tojson }}, "{{ user.role }}", {{ "true" if user.is_active_user else "false" }}, {{ user.max_concurrent_training or 1 }}, {{ user.operativa_id or "null" }})'>Editar</button>
+                            {% if user.id != current_user.id %}
+                            <form method="POST" action="{{ url_for('admin.user_deactivate', user_id=user.id) }}" onsubmit="return confirm('¿Desactivar a &quot;{{ user.name }}&quot;? Sus datos se conservan y podes reactivarlo despues.');">
+                                <button type="submit" class="btn-action btn-deactivate">Desactivar</button>
+                            </form>
+                            {% endif %}
+                        {% else %}
+                            {# Inactivos #}
+                            <form method="POST" action="{{ url_for('admin.user_reactivate', user_id=user.id) }}">
+                                <button type="submit" class="btn-action btn-reactivate">↻ Reactivar</button>
+                            </form>
+                            {% if current_user.is_superadmin %}
+                            <button class="btn-action btn-purge" onclick="openPurgeModal({{ user.id }}, {{ user.name|tojson }})">🗑 Eliminar definitivamente</button>
+                            {% endif %}
+                        {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% endif %}
     </div>
 </div>
 
@@ -164,6 +262,37 @@
     </div>
 </div>
 
+<!-- Purge Modal -->
+{% if current_user.is_superadmin %}
+<div id="purgeModal" class="purge-modal">
+    <div class="purge-modal-content">
+        <h2>⚠ Eliminar definitivamente</h2>
+        <p style="font-size:14px;color:#444;margin:0">Vas a eliminar definitivamente al usuario <strong id="purgeName">…</strong>.</p>
+
+        <div class="warn-box">
+            <strong>Qué pasa al eliminar definitivamente:</strong>
+            <ul>
+                <li>Su <strong>nombre</strong>, <strong>email</strong> y <strong>foto</strong> se anonimizan.</li>
+                <li>El usuario no podrá volver a loguear ni reactivarse.</li>
+                <li>Los datos históricos vinculados (entrenamientos, perfil VEX, contenido creado, audit) se <strong>conservan</strong> para no romper integridad ni reportes.</li>
+                <li>Esta acción es <strong>irreversible</strong>.</li>
+            </ul>
+        </div>
+
+        <form method="POST" id="purgeForm" action="">
+            <label style="font-size:13px;color:#555;font-weight:600">
+                Para confirmar, escribí exactamente el nombre del usuario:
+            </label>
+            <input type="text" name="typed_name" id="purgeTypedName" autocomplete="off" placeholder="Escribí el nombre tal como aparece arriba">
+            <div class="modal-actions">
+                <button type="button" class="cancel" onclick="closePurgeModal()">Cancelar</button>
+                <button type="submit" class="confirm" id="purgeConfirmBtn" disabled>Eliminar definitivamente</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 {% block extra_scripts %}
 <script>
 function editUser(id, name, email, role, active, maxConcurrent, operativaId) {
@@ -177,6 +306,29 @@ function editUser(id, name, email, role, active, maxConcurrent, operativaId) {
     if (opSelect) opSelect.value = operativaId || '';
     document.getElementById('editModal').style.display = 'flex';
 }
+
+{% if current_user.is_superadmin %}
+var purgeExpectedName = '';
+function openPurgeModal(userId, userName) {
+    purgeExpectedName = userName;
+    document.getElementById('purgeName').textContent = userName;
+    document.getElementById('purgeForm').action = '/admin/users/' + userId + '/purge';
+    document.getElementById('purgeTypedName').value = '';
+    document.getElementById('purgeConfirmBtn').disabled = true;
+    document.getElementById('purgeModal').classList.add('open');
+    setTimeout(function(){ document.getElementById('purgeTypedName').focus(); }, 50);
+}
+function closePurgeModal() {
+    document.getElementById('purgeModal').classList.remove('open');
+}
+document.getElementById('purgeTypedName') && document.getElementById('purgeTypedName').addEventListener('input', function(e) {
+    document.getElementById('purgeConfirmBtn').disabled = (e.target.value.trim() !== purgeExpectedName);
+});
+// Cerrar con Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePurgeModal();
+});
+{% endif %}
 </script>
 {% endblock %}
 {% endblock %}

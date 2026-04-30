@@ -120,10 +120,22 @@ completadas. El resultado se persiste en `vex_profiles`.
 | `correct_rate`     | Sesiones con `response_correct=true` / total |
 | `spelling_rate`    | `Σ spelling_errors` / `Σ total_words_user` |
 | `avg_wpm`          | Promedio de `words_per_minute` |
-| `avg_art`          | Promedio del **ART** (sólo sesiones con ART > 0) |
+| `avg_art`          | Promedio del **ART**. Sesiones auto-fail sin ART real cuentan como **1200s** (penalización fuerte). |
 | `improvement_trend`| Pendiente lineal del NPS por fecha, normalizada a 0–1 |
-| `variety`          | `unique_scenarios` / `max(total_scenarios×0.4, 1)`, cap 1 |
-| `empathy_pillar_rate` | Tasa de cumplimiento por pilar (Nombre/Contexto/Calidez/Resolución) |
+| `variety` (efectiva) | Escenarios donde el asesor tuvo éxito (`response_correct=true` **o** `nps_score≥6`) / `max(total_scenarios×0.4, 1)`, cap 1. Abandonar escenarios distintos NO suma variedad. |
+| `empathy_pillar_rate` | Tasa de cumplimiento por pilar **sobre el TOTAL de sesiones** (sesiones sin breakdown cuentan como pilares en cero). |
+| `abandonment_rate` | Sesiones con auto-fail (`<2 mensajes` o `<8 palabras`) / total. Se persiste en `VexProfile`. |
+
+#### Hard cap por abandono
+
+Si `abandonment_rate > 0.40`:
+
+- `category` se limita a máximo `desarrollo` (no puede ser `elite` ni `alto`).
+- `recommendation` se limita a máximo `observaciones` (no puede ser `recomendado`).
+
+Es una regla de seguridad: aunque las pocas sesiones válidas hayan salido excelentes,
+una muestra con muchos abandonos no es estadísticamente confiable para una recomendación
+positiva. Se muestra como **"Fiabilidad de la muestra"** en la cabecera del perfil VEX.
 
 ### 2.2 Penalización ortográfica suavizada
 
