@@ -257,19 +257,27 @@
     gap: 8px;
     background: #fff;
     flex-shrink: 0;
+    align-items: flex-end;
 }
-.chat-input-area input {
+.chat-input-area textarea {
     flex: 1;
     padding: 11px 16px;
     border: 2px solid #e0e0e0;
-    border-radius: 24px;
+    border-radius: 22px;
     font-size: 14px;
     outline: none;
     font-family: inherit;
     transition: border-color 0.3s;
     background: #f8f9fa;
+    resize: none;
+    line-height: 1.4;
+    min-height: 42px;
+    max-height: 120px;
+    overflow-y: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
-.chat-input-area input:focus { border-color: #E6332A; background: #fff; }
+.chat-input-area textarea:focus { border-color: #E6332A; background: #fff; }
 .chat-input-area button {
     width: 42px;
     height: 42px;
@@ -330,7 +338,7 @@
     }
     .chat-mascot { bottom: 16px; right: 16px; width: 56px; height: 56px; }
     .chat-mascot svg { width: 34px; height: 34px; }
-    .chat-input-area input { font-size: 16px; }
+    .chat-input-area textarea { font-size: 16px; }
 }
 
 /* ===== Large Desktop ===== */

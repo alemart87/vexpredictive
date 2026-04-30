@@ -122,16 +122,19 @@
     gap: 10px;
     background: #fff;
     border-radius: 0 0 12px 12px;
-    align-items: center;
+    align-items: flex-end;
     position: relative;
     flex-shrink: 0;
 }
-.training-input-area input {
+.training-input-area textarea {
     flex: 1; padding: 12px 18px; border: 2px solid #e0e0e0;
-    border-radius: 24px; font-size: 15px; outline: none;
+    border-radius: 22px; font-size: 15px; outline: none;
     font-family: inherit; transition: border-color 0.3s;
+    resize: none; line-height: 1.4;
+    min-height: 44px; max-height: 140px;
+    overflow-y: auto; word-wrap: break-word; overflow-wrap: break-word;
 }
-.training-input-area input:focus { border-color: #E6332A; }
+.training-input-area textarea:focus { border-color: #E6332A; }
 .training-input-area .btn-send {
     width: 44px; height: 44px; border-radius: 50%;
     background: #E6332A; color: #fff; border: none;
