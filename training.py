@@ -1255,11 +1255,13 @@ def calculate_vex_profile(user_id):
             'effect': 'Recomendacion max "Observaciones"'
         })
 
-    # Aplicar caps acumulativos
-    if any(c['rule'] == 'abandonment' for c in cap_reasons):
+    # Aplicar caps acumulativos. Cualquier hard cap baja categoria y
+    # recomendacion: si el asesor falla la tarea fundamental, no
+    # corresponde ni "Alto Rendimiento" ni "Recomendado", aunque la
+    # formula matematica diga lo contrario.
+    if cap_reasons:
         if category in ('elite', 'alto'):
             category = 'desarrollo'
-    if cap_reasons:
         if rec == 'recomendado':
             rec = 'observaciones'
 
@@ -1320,10 +1322,13 @@ def vex_profile(user_id):
         if target_user.operativa_id != current_user.operativa_id:
             flash('No tenes permiso para ver este perfil.', 'error')
             return redirect(url_for('training.vex_dashboard'))
-    # Recalculate before showing (esto popula profile._cap_reasons,
-    # profile._active_mode, profile._mode_cfg en memoria)
-    calculate_vex_profile(user_id)
-    profile = VexProfile.query.filter_by(user_id=user_id).first_or_404()
+    # Recalculate before showing. IMPORTANTE: capturamos el return de
+    # calculate_vex_profile para conservar los atributos volatiles
+    # (_cap_reasons, _active_mode, _mode_cfg) que se setean en memoria.
+    # Si re-queryamos VexProfile despues, esos atributos se pierden.
+    profile = calculate_vex_profile(user_id)
+    if profile is None:
+        profile = VexProfile.query.filter_by(user_id=user_id).first_or_404()
 
     page = request.args.get('page', 1, type=int)
     per_page = 10
