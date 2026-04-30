@@ -73,7 +73,7 @@
                     </div>
                 </div>
 
-                {% if current_user.is_superadmin or current_user.role == 'coordinador' %}
+                {% if current_user.is_superadmin or current_user.role in ('coordinador', 'supervisor') %}
                 <!-- Vex Predictive dropdown -->
                 <div class="nav-dropdown">
                     <button class="nav-dropdown-btn">Vex Predictive &#9662;</button>
@@ -101,7 +101,7 @@
                 </div>
                 {% endif %}
 
-                {% if current_user.is_superadmin or current_user.role == 'coordinador' %}
+                {% if current_user.is_superadmin or current_user.role in ('coordinador', 'supervisor') %}
                 <a href="{{ url_for('novedades') }}" class="nav-novedades" title="Ver novedades de la plataforma">
                     <span class="nav-novedades-icon">✨</span>
                     <span class="nav-novedades-text">Novedades</span>

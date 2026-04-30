@@ -138,8 +138,9 @@
             <p><strong>Qué evalúa:</strong> Calidad gramatical, claridad expositiva, estructura de las respuestas y profesionalismo en la comunicación escrita con el cliente.</p>
             <p><strong>Por qué importa:</strong> La investigación de Köhler et al. (2011) demostró que los errores ortográficos en comunicación de servicio <strong>reducen la percepción de calidad entre un 15% y 20%</strong>, incluso cuando la solución proporcionada es correcta. En canales digitales, la comunicación escrita es el único canal de interacción, por lo que su calidad impacta directamente en la experiencia del cliente.</p>
             <p><strong>Cómo se calcula:</strong></p>
-            <div class="formula-box">Comunicación = 30 (piso) + (1 - penalización_ortográfica) × 30% + NPS_promedio × 40%</div>
-            <p><strong>Penalización ortográfica suavizada:</strong> <code>penalización = min(tasa_errores × 25, 1)</code>. Solo se cuentan errores que <strong>afectan la comprensión</strong>; tildes omitidas, mayúsculas iniciales, abreviaciones de chat (xq, q, tmb) y emojis NO penalizan. La saturación se alcanza recién con 1 error cada 25 palabras (4%), no cada 10 (10%) como en la versión inicial.</p>
+            <div class="formula-box">Comunicación = piso (modo) + (1 - penalización_ortográfica) × 30% + NPS_promedio × 40%</div>
+            <p><strong>Pisos por modo:</strong> Flexible 25 · Standard 30 · Exigente 20. Antes del recalibrado de abril 2026, Flexible tenía piso 35 — se bajó porque inflaba demasiado la dimensión.</p>
+            <p><strong>Penalización ortográfica suavizada:</strong> <code>penalización = min(tasa_errores × multiplicador, 1)</code> donde el multiplicador depende del modo: Flexible 35 · Standard 25 · Exigente 15. Solo se cuentan errores que <strong>afectan la comprensión</strong>; tildes omitidas, mayúsculas iniciales, abreviaciones de chat (xq, q, tmb) y emojis NO penalizan.</p>
             <p><strong>Fuente principal:</strong> Spitzberg, B.H. & Cupach, W.R. (1984). <em>Interpersonal Communication Competence</em>. Sage Publications.</p>
         </div>
 
@@ -158,8 +159,9 @@
                 <tr><td>4</td><td><strong>Resolución</strong></td><td>¿Se enfocó en ayudar genuinamente, no en recitar un speech?</td><td>35%</td></tr>
             </table>
             <p><strong>Cómo se calcula:</strong></p>
-            <div class="formula-box">pilares = nombre×15 + contexto×25 + calidez×25 + resolucion×35    (rango 0-100)<br>Empatía = pilares × 70% + NPS_promedio × 30%</div>
-            <p><strong>Nota:</strong> Sesiones legacy sin breakdown de pilares (anteriores a esta versión) caen al cálculo histórico (100% NPS). El NPS sigue capturando la experiencia integral del cliente, pero ahora la rúbrica de pilares hace explícitos los componentes accionables que el asesor puede mejorar.</p>
+            <div class="formula-box">pilares = nombre×15 + contexto×25 + calidez×25 + resolucion×35    (rango 0-100)<br>Empatía = pilares × W + NPS_promedio × (1-W)<br>donde W depende del modo: Flexible 0.6 · Standard 0.7 · Exigente 0.8</div>
+            <p><strong>Importante:</strong> los pilares se promedian sobre el <strong>TOTAL de sesiones</strong> (no solo las que tienen breakdown). Sesiones abandonadas o legacy cuentan como pilares en cero — esto evita que una sola sesión buena infle artificialmente la empatía cuando hay abandonos.</p>
+            <p><strong>Sesiones legacy:</strong> aquellas sin breakdown de pilares (anteriores al feature de pilares) caen al cálculo histórico basado en NPS.</p>
             <p><strong>Fuentes:</strong> Davis, M.H. (1983). <em>J. of Personality and Social Psychology</em>, 44(1). · Spreng, R.N. et al. (2009). <em>J. of Personality Assessment</em>, 91(1). · Grandey, A.A. (2000). <em>J. of Occupational Health Psychology</em>, 5(1).</p>
         </div>
 
@@ -169,8 +171,9 @@
             <p><strong>Qué evalúa:</strong> Eficacia para identificar, analizar y resolver el problema del cliente correctamente, siguiendo los procedimientos establecidos.</p>
             <p><strong>Por qué importa:</strong> La Resolución en Primer Contacto (FCR — First Contact Resolution) tiene la <strong>correlación más fuerte con satisfacción del cliente (r = .55 a .65)</strong> según múltiples estudios. La investigación del SQM Group (2019) con datos de más de 500 contact centers demostró que por cada 1% de mejora en FCR, hay 1% de mejora en CSAT. Es la métrica operativa más importante.</p>
             <p><strong>Cómo se calcula:</strong></p>
-            <div class="formula-box">Resolución = 25 (piso) + tasa_respuestas_correctas × 50% + NPS_promedio × 25%</div>
-            <p>El piso mínimo de 25 evita que una racha puntual de "incorrectas" hunda el perfil cuando el asesor mantiene buen NPS. La correctitud sigue siendo el factor dominante (50%) pero ya no monopoliza la dimensión.</p>
+            <div class="formula-box">Resolución = piso (modo) + tasa_respuestas_correctas × 50% + NPS_promedio × 25%</div>
+            <p><strong>Pisos por modo:</strong> Flexible 25 · Standard 25 · Exigente 15. La correctitud sigue siendo el factor dominante (50%) pero ya no monopoliza la dimensión.</p>
+            <p style="background:#ffebee;border-left:3px solid #c62828;padding:8px 12px;border-radius:6px;margin-top:8px"><strong>⚠ Hard cap:</strong> si <code>correct_rate &lt; 0.50</code> la recomendación final no puede ser "Recomendado" en ningún modo (ver sección 4 — Hard Caps Universales).</p>
             <p><strong>Fuente principal:</strong> Feinberg, R.A., Kim, I.S., Hokama, L., de Ruyter, K. & Keen, C. (2000). "Operational determinants of caller satisfaction in the call center." <em>International Journal of Service Industry Management</em>, 11(2), 131-141.</p>
         </div>
 
@@ -194,7 +197,7 @@
             <p><strong>Cómo se calcula por sesión (al cerrar):</strong></p>
             <div class="formula-box">para cada respuesta del asesor:<br>&nbsp;&nbsp;&nbsp;&nbsp;gap = timestamp_asesor − timestamp_cliente_anterior<br>&nbsp;&nbsp;&nbsp;&nbsp;gap = max(0, min(gap, 600))    # cap 10 min para idle extremo<br>ART_sesion = promedio(gaps)</div>
 
-            <p><strong>Escala de ART (segundos):</strong></p>
+            <p><strong>Escala de ART (modo Standard, segundos):</strong></p>
             <table class="doc-table">
                 <tr><th>ART promedio</th><th>Puntaje Velocidad-ART</th><th>Lectura</th></tr>
                 <tr style="background:#e8f5e9"><td>≤ 120s</td><td>100</td><td>Excelente — cliente nunca queda esperando</td></tr>
@@ -202,8 +205,18 @@
                 <tr style="background:#fff3e0"><td>180s – 300s</td><td>80 → 50</td><td>Aceptable — el cliente nota la espera</td></tr>
                 <tr><td>300s – 600s</td><td>50 → 20</td><td>Lento — cliente percibe abandono</td></tr>
                 <tr style="background:#fce4ec"><td>&gt; 600s</td><td>20 (cap)</td><td>Muy lento — requiere intervención</td></tr>
-                <tr><td>Sin datos (legacy)</td><td>65 (neutro)</td><td>Sesiones previas a la migración v5</td></tr>
+                <tr><td>Sin datos (legacy / sin sesiones medibles)</td><td>60-75 según modo</td><td>Puntaje neutro</td></tr>
             </table>
+
+            <p><strong>Curvas por modo:</strong></p>
+            <table class="doc-table">
+                <tr><th>Modo</th><th>Excelente</th><th>Saludable</th><th>Aceptable</th><th>Lento</th></tr>
+                <tr><td>🟢 Flexible</td><td>≤180s</td><td>180-240s</td><td>240-360s</td><td>360-600s</td></tr>
+                <tr><td>🔵 Standard</td><td>≤120s</td><td>120-180s</td><td>180-300s</td><td>300-600s</td></tr>
+                <tr><td>🔴 Exigente</td><td>≤60s</td><td>60-120s</td><td>120-240s</td><td>240-480s</td></tr>
+            </table>
+
+            <p><strong>Sesiones auto-fail:</strong> sesiones donde el asesor abandonó (&lt;2 mensajes o &lt;8 palabras) NO contribuyen con su ART real al promedio — se asumen como ART catastrófico de <strong>1200s</strong>. Esto evita que abandonos inflen el puntaje al "no aportar datos".</p>
 
             <p><strong>WPM como factor secundario:</strong> Las palabras por minuto se siguen calculando sobre el tiempo activo de tipeo (gap cap 120s) y aportan el 30% restante de la dimensión. 25 WPM efectivo = 100% de este componente.</p>
 
@@ -219,7 +232,11 @@
             <p><strong>Por qué importa:</strong> El concepto de <strong>Learning Agility</strong> (agilidad de aprendizaje) es uno de los predictores más fuertes de éxito a largo plazo según la investigación de Bartram (2005) con el SHL Universal Competency Framework, basada en análisis de más de 200 modelos de competencias. Agentes que demuestran mejora progresiva tienen mayor probabilidad de retención y desarrollo profesional.</p>
             <p><strong>Cómo se calcula:</strong></p>
             <div class="formula-box">Adaptabilidad = piso (modo) + tendencia_NPS × 35% + variedad_efectiva × 35%</div>
-            <p><strong>Nota técnica:</strong> La tendencia se calcula como la pendiente de una regresión lineal simple sobre los NPS scores ordenados cronológicamente, normalizada al rango 0-1. Una pendiente positiva indica mejora progresiva. <strong>Variedad efectiva</strong> cuenta solo escenarios donde el asesor tuvo éxito (<code>response_correct=true</code> o <code>nps_score≥6</code>): abandonar 3 escenarios distintos NO suma variedad. Fórmula: <code>min(1, escenarios_resueltos / max(total_escenarios×0.4, 1))</code>. El piso del modo evita que un asesor nuevo con pocas sesiones parta en 1.</p>
+            <p><strong>Pisos por modo:</strong> Flexible 25 · Standard 30 · Exigente 20.</p>
+            <p><strong>Tendencia NPS:</strong> pendiente de una regresión lineal simple sobre los NPS scores ordenados cronológicamente, normalizada a 0-1. Una pendiente positiva indica mejora progresiva.</p>
+            <p><strong>Variedad efectiva:</strong> solo cuenta escenarios donde el asesor tuvo éxito (<code>response_correct=true</code> o <code>nps_score≥6</code>). Abandonar 3 escenarios distintos NO suma variedad.</p>
+            <div class="formula-box">variedad = min(1, escenarios_resueltos / max(total_escenarios × 0.5, <strong>3</strong>))</div>
+            <p><strong>⚠ Importante:</strong> el divisor tiene un piso absoluto de <strong>3 escenarios</strong>. Esto corrige un bug previo donde con 1-2 escenarios cargados en el catálogo, bastaba 1 escenario resuelto para variedad 100%.</p>
             <p><strong>Fuente principal:</strong> Bartram, D. (2005). "The Great Eight Competencies: A Criterion-Centric Approach to Validation." <em>Journal of Applied Psychology</em>, 90(6), 1185-1203.</p>
         </div>
 
@@ -229,8 +246,8 @@
             <p><strong>Qué evalúa:</strong> Adherencia a los procedimientos correctos, precisión en la información proporcionada, y calidad general del trabajo.</p>
             <p><strong>Por qué importa:</strong> El estándar <strong>COPC CX Standard</strong> (la certificación más reconocida en gestión de contact centers a nivel mundial) establece que la verificación de habilidades a intervalos definidos es un requisito operativo. La norma <strong>ISO 18295</strong> requiere monitoreo de calidad continuo. El cumplimiento no es solo seguir reglas — es garantizar que el cliente recibe información correcta y que los procesos se ejecutan sin errores.</p>
             <p><strong>Cómo se calcula:</strong></p>
-            <div class="formula-box">Cumplimiento = 25 (piso) + tasa_respuestas_correctas × 45% + (1 - penalización_ortográfica) × 30%</div>
-            <p>Comparte la penalización ortográfica suavizada con la dimensión de Comunicación: solo errores que afectan la comprensión cuentan, y la saturación se alcanza recién al 4% de tasa de errores.</p>
+            <div class="formula-box">Cumplimiento = piso (modo) + tasa_respuestas_correctas × 45% + (1 - penalización_ortográfica) × 30%</div>
+            <p><strong>Pisos por modo:</strong> Flexible 25 · Standard 25 · Exigente 15. Comparte la penalización ortográfica suavizada con Comunicación.</p>
             <p><strong>Fuente principal:</strong> COPC Inc. (2019). <em>COPC CX Standard for Contact Centers, Release 7.0</em>.</p>
         </div>
     </div>
@@ -264,47 +281,51 @@
         <p>Ejemplo: un raw de 64 sube a Sten 7 en lugar de bajar a 6. Con muestras pequeñas (&lt;50 usuarios), se utilizan <strong>puntos de referencia criteriales</strong> basados en benchmarks de la industria (ICMI, COPC) en lugar de normas poblacionales. A medida que la muestra crece, las normas se actualizan automáticamente.</p>
 
         <h3>Paso 4 — Scoring por Dimensión</h3>
-        <p>Cada dimensión combina métricas cuantitativas (ART, WPM, errores) con evaluaciones cualitativas de IA (NPS, pilares de empatía) mediante <strong>fórmulas ponderadas con piso mínimo</strong>. Los pisos (25-30 según dimensión) evitan que una sesión puntualmente baja aplaste el perfil. Los pesos internos de cada dimensión se asignan según la relevancia teórica de cada componente.</p>
+        <p>Cada dimensión combina métricas cuantitativas (ART, WPM, errores) con evaluaciones cualitativas de IA (NPS, pilares de empatía) mediante <strong>fórmulas ponderadas con piso mínimo</strong>. Los pisos varían según el <strong>modo de evaluación activo</strong> (Flexible / Standard / Exigente) y evitan que una sesión puntualmente baja aplaste el perfil. Los pesos internos de cada dimensión se asignan según la relevancia teórica de cada componente.</p>
 
-        <h3>Paso 5 — Índice Predictivo de Incorporación</h3>
-        <p>Score compuesto ponderado que integra las 6 dimensiones. Los pesos se fundamentan en investigación de <strong>validez criterial</strong> (Dawes, 1979; Feinberg et al., 2000):</p>
+        <h3>Paso 5 — Hard Caps Universales (red de seguridad)</h3>
+        <p>Antes de aplicar pesos, el sistema verifica reglas de competencia básica que aplican <strong>sin excepción a los 3 modos</strong>. Ver sección 4 — Hard Caps Universales para detalle.</p>
 
+        <h3>Paso 6 — Índice Predictivo de Incorporación</h3>
+        <p>Score compuesto ponderado que integra las 6 dimensiones. Los pesos se fundamentan en investigación de <strong>validez criterial</strong> (Dawes, 1979; Feinberg et al., 2000) y dependen del modo elegido al crear el escenario.</p>
+
+        <p><strong>Pesos por modo (suman 100% en cada uno):</strong></p>
         <table class="doc-table">
-            <tr><th>Dimensión</th><th>Peso</th><th>Justificación del Peso</th></tr>
-            <tr><td>Empatía & Trato</td><td><strong>25%</strong></td><td>Predictor de lealtad y CSAT en canales digitales; rúbrica jerárquica explícita (Grandey 2000)</td></tr>
-            <tr><td>Resolución de Problemas</td><td><strong>22%</strong></td><td>Alta correlación con CSAT (r=.55-.65, Feinberg 2000)</td></tr>
-            <tr><td>Comunicación Escrita</td><td><strong>18%</strong></td><td>Canal primario en atención digital (Köhler 2011)</td></tr>
-            <tr><td>Velocidad (ART)</td><td><strong>15%</strong></td><td>Capacidad de respuesta multitarea; impacta UX pero menos que calidad (Aksin 2007)</td></tr>
-            <tr><td>Adaptabilidad</td><td><strong>10%</strong></td><td>Predictor de retención a largo plazo (Bartram 2005)</td></tr>
-            <tr><td>Cumplimiento & Calidad</td><td><strong>10%</strong></td><td>Requisito base operativo (COPC 2019)</td></tr>
+            <tr><th>Dimensión</th><th>🟢 Flexible</th><th>🔵 Standard</th><th>🔴 Exigente</th></tr>
+            <tr><td>Empatía & Trato</td><td>25%</td><td><strong>25%</strong></td><td>25%</td></tr>
+            <tr><td>Resolución</td><td>20%</td><td><strong>22%</strong></td><td>25%</td></tr>
+            <tr><td>Comunicación</td><td>20%</td><td><strong>18%</strong></td><td>18%</td></tr>
+            <tr><td>Velocidad (ART)</td><td>15%</td><td><strong>15%</strong></td><td>15%</td></tr>
+            <tr><td>Adaptabilidad</td><td>10%</td><td><strong>10%</strong></td><td>7%</td></tr>
+            <tr><td>Cumplimiento</td><td>10%</td><td><strong>10%</strong></td><td>10%</td></tr>
         </table>
 
-        <div class="formula-box">Índice = (Empatía×0.25) + (Resolución×0.22) + (Comunicación×0.18) + (Velocidad×0.15) + (Adaptabilidad×0.10) + (Cumplimiento×0.10)<br>Porcentaje = Índice × 10</div>
+        <div class="formula-box">Índice = Σ (Sten_dim × peso_dim_modo)<br>Porcentaje = Índice × 10</div>
 
-        <p><strong>Cambio respecto a la versión anterior:</strong> Empatía sube de 20% → 25% por la nueva rúbrica jerárquica de 4 pilares (Nombre/Contexto/Calidez/Resolución), que la hace más auditable y accionable. Resolución baja de 25% → 22% y Comunicación de 20% → 18% para acomodar el nuevo peso. Los pesos siguen sumando 100%.</p>
+        <p><strong>Cambio respecto a la versión inicial:</strong> Empatía subió de 20% → 25% por la rúbrica jerárquica de 4 pilares (Nombre/Contexto/Calidez/Resolución), que la hace auditable y accionable. Los pesos pueden personalizarse por modo en <code>/admin/vex/modos</code> (solo SuperAdmin).</p>
 
         <p><strong>Nota sobre pesos iguales vs. diferenciales:</strong> La investigación de Dawes (1979) — "The robust beauty of improper linear models" en <em>American Psychologist</em> — demostró que en muchos contextos predictivos, los pesos iguales funcionan casi tan bien como los optimizados. Sin embargo, la evidencia específica de contact centers favorece dar mayor peso a FCR/Resolución, por lo que usamos pesos diferenciales respaldados por la literatura del sector.</p>
 
-        <h3>Paso 6 — Clasificación</h3>
+        <h3>Paso 7 — Clasificación final (Categoría + Recomendación)</h3>
 
-        <h4>Patrón Operativo (Skill Profile)</h4>
+        <h4>Patrón Operativo (Skill Profile) — depende del modo</h4>
+        <p>Los umbrales de categoría se ajustan al modo del escenario. Aquí los del modo Standard (default):</p>
         <table class="doc-table">
-            <tr><th>Categoría</th><th>Criterio</th><th>Significado</th></tr>
-            <tr style="background:#e8f5e9"><td><strong>Elite</strong></td><td>Promedio ≥ 8.5 <strong>y</strong> todas las dimensiones ≥ 7</td><td>Rendimiento excepcional. Referente del equipo.</td></tr>
-            <tr style="background:#e3f2fd"><td><strong>Alto Rendimiento</strong></td><td>Promedio ≥ 6.5 <strong>y</strong> todas las dimensiones ≥ 4</td><td>Supera expectativas sin debilidades críticas. Listo para operativa.</td></tr>
-            <tr style="background:#fff3e0"><td><strong>En Desarrollo</strong></td><td>Promedio ≥ 4.5</td><td>Dentro de lo esperado con margen de mejora. Monitorear.</td></tr>
-            <tr style="background:#fce4ec"><td><strong>Requiere Refuerzo</strong></td><td>Promedio &lt; 4.5</td><td>Rendimiento insuficiente. Acción de capacitación necesaria.</td></tr>
+            <tr><th>Categoría</th><th>Flexible</th><th>Standard</th><th>Exigente</th><th>Significado</th></tr>
+            <tr style="background:#e8f5e9"><td><strong>Elite</strong></td><td>≥ 8.0 + todas ≥ 6</td><td>≥ 8.5 + todas ≥ 7</td><td>≥ 9.0 + todas ≥ 8</td><td>Referente del equipo</td></tr>
+            <tr style="background:#e3f2fd"><td><strong>Alto Rendimiento</strong></td><td>≥ 5.5 + todas ≥ 3</td><td>≥ 6.5 + todas ≥ 4</td><td>≥ 7.5 + todas ≥ 6</td><td>Listo para operativa</td></tr>
+            <tr style="background:#fff3e0"><td><strong>En Desarrollo</strong></td><td>≥ 3.5</td><td>≥ 4.5</td><td>≥ 5.5</td><td>Margen de mejora</td></tr>
+            <tr style="background:#fce4ec"><td><strong>Requiere Refuerzo</strong></td><td colspan="3" style="text-align:center">resto</td><td>Capacitación necesaria</td></tr>
         </table>
-        <p><strong>Calibración:</strong> Los umbrales se suavizaron respecto a la versión inicial (Elite ≥8 → ≥8.5 con piso por dimensión, Alto ≥7 → ≥6.5, etc) para acomodar las penalizaciones más permisivas y evitar que el sistema se vuelva excluyente con asesores reales.</p>
 
-        <h4>Recomendación de Incorporación</h4>
+        <h4>Recomendación de Incorporación — depende del modo</h4>
         <table class="doc-table">
-            <tr><th>Índice Predictivo</th><th>Recomendación</th><th>Acción Sugerida</th></tr>
-            <tr style="background:#e8f5e9"><td><strong>≥ 65%</strong></td><td>Recomendado</td><td>Perfil apto para incorporación a la operativa</td></tr>
-            <tr style="background:#fff3e0"><td><strong>45-64%</strong></td><td>Con Observaciones</td><td>Incorporar con plan de acompañamiento y seguimiento cercano</td></tr>
-            <tr style="background:#fce4ec"><td><strong>&lt; 45%</strong></td><td>No Recomendado</td><td>No incorporar sin completar programa de capacitación previo</td></tr>
+            <tr><th>Recomendación</th><th>Flexible</th><th>Standard</th><th>Exigente</th><th>Acción Sugerida</th></tr>
+            <tr style="background:#e8f5e9"><td><strong>Recomendado</strong></td><td>PI ≥ 55%</td><td>PI ≥ 65%</td><td>PI ≥ 75%</td><td>Apto para incorporación</td></tr>
+            <tr style="background:#fff3e0"><td><strong>Con Observaciones</strong></td><td>35-54%</td><td>45-64%</td><td>55-74%</td><td>Plan de acompañamiento</td></tr>
+            <tr style="background:#fce4ec"><td><strong>No Recomendado</strong></td><td>&lt; 35%</td><td>&lt; 45%</td><td>&lt; 55%</td><td>Capacitación previa requerida</td></tr>
         </table>
-        <p><strong>Cambio:</strong> Antes los cortes eran 70% / 50%. Bajamos 5 puntos cada uno para alinear con la curva más generosa del scoring revisado.</p>
+        <p><strong>Importante:</strong> Los hard caps universales (sección abajo) pueden bajar la recomendación independientemente de estos umbrales. Aún en modo Flexible con PI=70%, si el asesor falla más del 50% de los casos, no podrá ser "Recomendado".</p>
 
         <h4 style="color:#c62828">⚠ Hard Caps universales (aplican a los 3 modos)</h4>
         <p>Independientemente del Predictive Index y del modo elegido (Flexible / Standard / Exigente), el sistema aplica reglas de seguridad que detectan casos donde la fórmula matemática da un resultado positivo pero la realidad operativa indica que el asesor falla la tarea fundamental. Estos topes son <strong>acumulativos</strong> y se muestran al usuario en el perfil con la razón exacta.</p>
@@ -358,6 +379,9 @@
             <tr><td>Resolución baja + Empatía alta</td><td>Amable pero no resuelve</td><td>Capacitar en procedimientos y productos</td></tr>
             <tr><td>Adaptabilidad baja</td><td>No mejora entre sesiones</td><td>Coaching personalizado, feedback dirigido</td></tr>
             <tr><td>Todas altas excepto Velocidad (ART)</td><td>Perfil de calidad, optimizable en multitarea</td><td>Práctica de manejo de chats simultáneos, atajos de sistema</td></tr>
+            <tr style="background:#ffebee"><td>Hard cap "low_correct_rate" disparado</td><td>Falla más casos de los que resuelve</td><td>Refuerzo en procedimientos antes de cualquier decisión de incorporación</td></tr>
+            <tr style="background:#ffebee"><td>Hard cap "abandonment" disparado</td><td>Muchas sesiones abandonadas</td><td>Investigar motivación / formación antes de re-evaluar</td></tr>
+            <tr style="background:#ffebee"><td>Hard cap "low_nps" disparado</td><td>Mayoría de clientes detractores</td><td>Coaching intensivo en empatía y resolución antes de operación</td></tr>
         </table>
     </div>
 
@@ -369,7 +393,8 @@
             <li><strong>Tamaño de muestra:</strong> Con pocas sesiones (&lt;4), el perfil es preliminar. Se recomienda un mínimo de 7 sesiones para decisiones de incorporación.</li>
             <li><strong>Evaluación IA:</strong> La calificación NPS, el breakdown de empatía y el feedback son generados por IA (<strong>GPT-5.4 mini</strong>). Aunque consistentes, pueden no capturar matices que un evaluador humano detectaría.</li>
             <li><strong>ART en escenarios mono-chat:</strong> En sesiones individuales (no concurrentes) el ART puede ser engañosamente bajo. La métrica fue diseñada para entornos de chats simultáneos, donde refleja la capacidad de respuesta multitarea.</li>
-            <li><strong>Sesiones legacy sin ART:</strong> Sesiones registradas antes de la migración v5 (sin <code>avg_response_time</code>) reciben puntaje neutro de 65 en la dimensión Velocidad-ART para no penalizar datos históricos.</li>
+            <li><strong>Sesiones legacy sin ART:</strong> Sesiones registradas antes de la migración v5 (sin <code>avg_response_time</code>) reciben puntaje neutro de 60-75 según el modo en la dimensión Velocidad-ART para no penalizar datos históricos.</li>
+            <li><strong>Modo de evaluación del perfil agregado:</strong> El perfil VEX usa el modo del <strong>batch más reciente</strong> del asesor. Si tuvo sesiones en distintos modos, los pisos y umbrales actuales son los del último entrenamiento. La distribución completa por modo se muestra en el bloque "Baremo de medición aplicado".</li>
             <li><strong>Ortografía leniente:</strong> El sistema deliberadamente <strong>no penaliza</strong> tildes omitidas, abreviaciones de chat, ni emojis. Solo cuenta errores que afectan la comprensión. Esto puede sub-estimar problemas de imagen profesional formal en industrias muy estrictas (banca privada, legal).</li>
             <li><strong>Complementariedad:</strong> Este sistema es una herramienta de apoyo, no un sustituto de entrevistas, evaluaciones presenciales, u otros métodos de selección.</li>
         </ul>
@@ -396,12 +421,11 @@
         <div class="ref-item">SQM Group (2019). <em>First Call Resolution: The Performance Driver and Metric</em>. Coeur d'Alene, ID: SQM Group Inc.</div>
         <div class="ref-item">Tezcan, T. & Zhang, J. (2014). "Routing and Staffing in Customer Service Chat Systems with Impatient Customers." <em>Operations Research</em>, 62(4), 943-956.</div>
 
-        <h3 style="margin-top:20px;color:#00B2BF">Fuentes de Benchmarks de WPM en la Industria</h3>
-        <div class="ref-item">LiveChat (2025). "What Is a Good Typing Speed and Average WPM for Employees?" <em>LiveChat Success</em>. Disponible en: <a href="https://www.livechat.com/success/what-is-a-good-typing-speed/" target="_blank">livechat.com/success/what-is-a-good-typing-speed</a> — Benchmark: 50-70 WPM para agentes de chat (tipeo puro).</div>
-        <div class="ref-item">Wonderlic (2025). "What's a Good Typing Speed? Average WPM by Profession." <em>Wonderlic Blog</em>. Disponible en: <a href="https://wonderlic.com/blog/assessments/skills/what-is-a-good-typing-speed-by-profession/" target="_blank">wonderlic.com/blog/assessments/skills/what-is-a-good-typing-speed-by-profession</a> — Benchmark: 50-70 WPM para customer service & admin roles.</div>
-        <div class="ref-item">WeCP - We Create Problems (2025). "What is a Good Typing Speed for Employees & Why?" Disponible en: <a href="https://www.wecreateproblems.com/blog/good-typing-speed" target="_blank">wecreateproblems.com/blog/good-typing-speed</a> — Benchmark: 60-80 WPM para customer support agents.</div>
-        <div class="ref-item">Call Centre Helper. "Should We Teach Contact Centre Staff to Touch Type?" Disponible en: <a href="https://www.callcentrehelper.com/should-we-teach-contact-centre-staff-to-touch-type-92128.htm" target="_blank">callcentrehelper.com/should-we-teach-contact-centre-staff-to-touch-type</a> — Promedio: 35-42 WPM (sin touch typing), 65-75 WPM (con touch typing).</div>
-        <div class="ref-item">Chatway (2025). "12+ Strategies to Improve Writing Speed in Live Chat." <em>Chatway Blog</em>. Disponible en: <a href="https://chatway.app/blog/strategies-for-improving-writing-speed-in-live-chat-free-tools" target="_blank">chatway.app/blog/strategies-for-improving-writing-speed-in-live-chat</a> — Nota clave: "Live chat requires agents to read, think, and type at the same time while the customer waits." Benchmark: 55-70 WPM (intermedio), 75-90+ WPM (avanzado).</div>
+        <h3 style="margin-top:20px;color:#00B2BF">Fuentes de Benchmarks Operativos (ART y WPM)</h3>
+        <div class="ref-item"><strong>ART (Average Response Time) — meta operativa para chats simultáneos:</strong> 120-180 segundos para asesores con 5 chats concurrentes. Fuente: prácticas de la industria BPO recopiladas por LiveChat, Tezcan & Zhang (2014).</div>
+        <div class="ref-item">LiveChat (2025). "What Is a Good Typing Speed and Average WPM for Employees?" Disponible en: <a href="https://www.livechat.com/success/what-is-a-good-typing-speed/" target="_blank">livechat.com</a> — Benchmark contextual: 50-70 WPM tipeo puro para chat agents.</div>
+        <div class="ref-item">Call Centre Helper. "Should We Teach Contact Centre Staff to Touch Type?" Disponible en: <a href="https://www.callcentrehelper.com/should-we-teach-contact-centre-staff-to-touch-type-92128.htm" target="_blank">callcentrehelper.com</a> — Promedio: 35-42 WPM (sin touch typing), 65-75 WPM (con touch typing).</div>
+        <div class="ref-item">Chatway (2025). "Strategies to Improve Writing Speed in Live Chat." Disponible en: <a href="https://chatway.app/blog/strategies-for-improving-writing-speed-in-live-chat-free-tools" target="_blank">chatway.app</a> — Cita clave: <em>"Live chat requires agents to read, think, and type at the same time while the customer waits"</em>.</div>
     </div>
 
     <!-- 8. Disclaimer -->
@@ -410,7 +434,7 @@
         <p>Este informe es una <strong>herramienta de apoyo para la toma de decisiones</strong>. Los resultados se basan en sesiones de entrenamiento simuladas con Inteligencia Artificial y no sustituyen evaluaciones presenciales, entrevistas estructuradas, verificaciones de antecedentes, ni otros métodos de selección de personal establecidos por la legislación laboral vigente.</p>
         <p>Se recomienda utilizar este análisis como <strong>un componente más dentro de un proceso integral de evaluación</strong>. Las decisiones de contratación, desvinculación o asignación de funciones no deben basarse exclusivamente en los resultados de este sistema.</p>
         <p>Las métricas se actualizan progresivamente con cada nueva sesión completada. Los resultados anteriores pueden variar a medida que se incorporan nuevos datos.</p>
-        <p style="color:#888;font-size:12px;margin-top:16px">Sistema desarrollado por VEX I+D. Motor de evaluación: Vex People Skill Predictive v2.0 (rúbrica jerárquica de empatía + ART + scoring suavizado). Modelo IA: GPT-5.4 mini.</p>
+        <p style="color:#888;font-size:12px;margin-top:16px">Sistema desarrollado por VEX I+D. Motor de evaluación: Vex People Skill Predictive <strong>v2.2</strong> — modos Flexible/Standard/Exigente, rúbrica jerárquica de empatía, ART, scoring suavizado, hard caps universales (correct_rate, NPS, abandonment), variedad efectiva con piso de 3 escenarios. Modelo IA: GPT-5.4 mini.</p>
     </div>
 
 </div>

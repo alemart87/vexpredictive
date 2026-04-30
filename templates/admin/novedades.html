@@ -147,6 +147,46 @@
     -->
 
     <!-- 2026-04-30 -->
+    <div class="nov-entry feature" data-type="feature">
+        <div class="nov-head">
+            <span class="nov-tag feature">Acceso ampliado</span>
+            <h3 class="nov-title">Supervisores ahora ven Vex Predictive completo</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>Antes solo Coordinadores y SuperAdmin podían acceder a Vex Predictive. Ahora los <strong>Supervisores</strong> también pueden ver:</p>
+            <ul>
+                <li><strong>Resultados</strong> — perfiles VEX de su operativa con todas las dimensiones, hard caps y baremo aplicado.</li>
+                <li><strong>Metodología</strong> — explicación completa del sistema de evaluación.</li>
+                <li><strong>Modos de Scoring</strong> — vista read-only de los 3 modos con la guía pedagógica de cada uno (sin posibilidad de editar parámetros, eso queda exclusivo del SuperAdmin).</li>
+                <li><strong>Novedades</strong> — el changelog que estás leyendo.</li>
+            </ul>
+            <p>Los Supervisores ven solo perfiles de su operativa (mismo scope que Coordinadores).</p>
+        </div>
+    </div>
+
+    <div class="nov-entry improve" data-type="improve">
+        <div class="nov-head">
+            <span class="nov-tag improve">Documentación</span>
+            <h3 class="nov-title">Metodología actualizada y sincronizada con el scoring real</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>La página de Metodología (<code>/admin/vex/methodology</code>) estaba desactualizada respecto al scoring real implementado. Se rehizo completa:</p>
+            <ul>
+                <li><strong>Pisos por dimensión</strong> ahora se documentan por modo (Flexible/Standard/Exigente) en lugar de un solo número.</li>
+                <li><strong>Empatía</strong>: la fórmula refleja que los pilares se promedian sobre el total de sesiones (no solo las que tienen breakdown). Mezcla con NPS varía según el modo (60/40, 70/30, 80/20).</li>
+                <li><strong>ART</strong>: tabla nueva de curvas por modo (Flexible 180s/240s/360s/600s, Standard 120s/180s/300s/600s, Exigente 60s/120s/240s/480s). Se aclara que sesiones auto-fail asumen ART=1200s.</li>
+                <li><strong>Variedad efectiva</strong>: nueva fórmula con piso absoluto de <code>3 escenarios resueltos</code>.</li>
+                <li><strong>Pesos del Predictive Index</strong>: tabla por modo. Empatía 25% en todos, Resolución 20-25%, etc.</li>
+                <li><strong>Categorías y recomendaciones</strong>: tablas con los 3 modos en columnas.</li>
+                <li><strong>Hard Caps Universales</strong>: sección nueva con las 3 reglas (abandono, correct_rate, NPS).</li>
+                <li><strong>Patrones diagnósticos</strong>: 3 nuevos casos para los hard caps disparados.</li>
+                <li>Pasos del algoritmo renumerados (ahora 7 pasos, antes 6).</li>
+            </ul>
+        </div>
+    </div>
+
     <div class="nov-entry fix" data-type="fix">
         <div class="nov-head">
             <span class="nov-tag fix">Corrección crítica</span>

@@ -7,7 +7,7 @@ from models import (db, User, TrainingScenario, TrainingBatch, TrainingSession,
                     TrainingMessage, TrainingViewPermission, VexProfile)
 from datetime import datetime, timezone
 from functools import wraps
-from decorators import superadmin_required, coordinador_or_above, scoped_query
+from decorators import superadmin_required, coordinador_or_above, supervisor_or_above, scoped_query
 
 
 def utcnow():
@@ -1296,12 +1296,13 @@ def calculate_vex_profile(user_id):
 # ===== Vex Routes =====
 
 @training_bp.route('/admin/vex')
-@coordinador_or_above
+@supervisor_or_above
 def vex_dashboard():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     q = VexProfile.query.join(User)
-    if not current_user.is_superadmin and current_user.role == 'coordinador' and current_user.operativa_id:
+    # Supervisores y Coordinadores ven solo perfiles de su operativa.
+    if not current_user.is_superadmin and current_user.operativa_id:
         q = q.filter(User.operativa_id == current_user.operativa_id)
     pagination = q.order_by(
         VexProfile.overall_score.desc()
@@ -1310,8 +1311,15 @@ def vex_dashboard():
 
 
 @training_bp.route('/admin/vex/profile/<int:user_id>')
-@coordinador_or_above
+@supervisor_or_above
 def vex_profile(user_id):
+    # Scope check: supervisores y coordinadores solo ven perfiles de su
+    # operativa. SuperAdmin ve todo.
+    if not current_user.is_superadmin and current_user.operativa_id:
+        target_user = User.query.get_or_404(user_id)
+        if target_user.operativa_id != current_user.operativa_id:
+            flash('No tenes permiso para ver este perfil.', 'error')
+            return redirect(url_for('training.vex_dashboard'))
     # Recalculate before showing (esto popula profile._cap_reasons,
     # profile._active_mode, profile._mode_cfg en memoria)
     calculate_vex_profile(user_id)
@@ -1362,13 +1370,13 @@ def vex_profile(user_id):
 
 
 @training_bp.route('/admin/vex/methodology')
-@coordinador_or_above
+@supervisor_or_above
 def vex_methodology():
     return render_template('admin/vex_methodology.html')
 
 
 @training_bp.route('/admin/vex/modos')
-@coordinador_or_above
+@supervisor_or_above
 def vex_modos():
     """Vista de los 3 modos de scoring.
 
