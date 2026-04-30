@@ -522,6 +522,167 @@ else:
 
 ---
 
+## 4-bis. Modos de Scoring (Flexible / Standard / Exigente)
+
+Esta capa permite que cada escenario de entrenamiento se evalúe con
+distinta severidad. La selección del modo la hace el creador del
+escenario; cada batch hace un snapshot del modo al iniciar.
+
+### 4-bis.1 Modelo de datos
+
+Tres cambios en `models.py`:
+
+```python
+# En TrainingScenario:
+scoring_mode = db.Column(db.String(20), nullable=True)  # null = legacy
+
+# En TrainingBatch:
+scoring_mode = db.Column(db.String(20), nullable=True)  # snapshot al crear
+
+# Nueva tabla:
+class ScoringModeOverride(db.Model):
+    __tablename__ = 'scoring_mode_overrides'
+    id = db.Column(db.Integer, primary_key=True)
+    mode = db.Column(db.String(20), unique=True, nullable=False)
+    config_json = db.Column(db.Text)
+    updated_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    updated_at = db.Column(db.DateTime, ...)
+```
+
+Migración (`migrate_v6.py`): dos `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+y un `CREATE TABLE IF NOT EXISTS scoring_mode_overrides`.
+
+### 4-bis.2 Módulo `scoring_modes.py`
+
+Define los 3 modos como diccionarios `DEFAULT_MODES` (flexible / standard
+/ exigente), cada uno con: `pi_weights`, `floors`, `spelling_multiplier`,
+`empathy_pillars_weight`, `art_curve`, `thresholds`, `recommendation`,
+`ai_hint`, metadata visual (icon, color, label, when_to_use).
+
+Helpers:
+
+```python
+def get_mode_config(mode_name):
+    """Devuelve dict del modo, prefiriendo override del SuperAdmin si existe.
+    Legacy/null -> standard."""
+
+def get_effective_mode(mode_name):
+    """Igual que get_mode_config pero devuelve también (name_normalized,
+    is_legacy, config)."""
+
+def list_modes():
+    """Lista los 3 modos con metadata para selectors UI."""
+```
+
+También exporta `PEDAGOGICAL_GUIDE` (qué mide cada parámetro) y
+`ADMIN_SUMMARY` (3-5 frases por modo, sin números internos, para mostrar
+a admins read-only).
+
+### 4-bis.3 Aplicación en `calculate_vex_profile`
+
+El cálculo del perfil VEX usa el modo del **batch más reciente** del
+usuario:
+
+```python
+sorted_for_mode = sorted(sessions, key=lambda s: s.created_at, reverse=True)
+latest_batch = TrainingBatch.query.get(sorted_for_mode[0].batch_id)
+mode_name = latest_batch.scoring_mode if latest_batch else None
+_, _, mode_cfg = get_effective_mode(mode_name)
+floors = mode_cfg['floors']
+art_curve = mode_cfg['art_curve']
+pi_weights = mode_cfg['pi_weights']
+thresholds = mode_cfg['thresholds']
+rec_thresholds = mode_cfg['recommendation']
+spell_mult = mode_cfg['spelling_multiplier']
+empathy_pillars_w = mode_cfg['empathy_pillars_weight']
+```
+
+Después se reemplazan los literales hardcodeados:
+
+| Antes (hardcoded) | Ahora (del modo) |
+|---|---|
+| `min(spelling_rate * 25, 1)` | `min(spelling_rate * spell_mult, 1)` |
+| `30 + ... + (avg_nps/10) * 40` | `floors['communication'] + ... + (avg_nps/10) * 40` |
+| `empathy_pillars_score * 0.7 + ...` | `empathy_pillars_score * empathy_pillars_w + ...` |
+| `25 + correct_rate * 50 + ...` | `floors['resolution'] + correct_rate * 50 + ...` |
+| `if avg_art <= 120: speed_art = 100` | `if avg_art <= art_curve['excellent_max']: speed_art = 100` |
+| `pi = resolution * 0.22 + empathy * 0.25 + ...` | `pi = resolution * pi_weights['resolution'] + ...` |
+| `if overall >= 8.5 and all(s >= 7 ...)` | `if overall >= thresholds['elite_overall'] and all(s >= thresholds['elite_min_dim'] ...)` |
+| `if pi_pct >= 65: rec = 'recomendado'` | `if pi_pct >= rec_thresholds['recomendado']: rec = 'recomendado'` |
+
+### 4-bis.4 Aplicación en el prompt de la IA evaluadora
+
+Antes del prompt principal, agregar:
+
+```python
+batch_obj = TrainingBatch.query.get(session.batch_id) if session.batch_id else None
+batch_mode = batch_obj.scoring_mode if batch_obj else None
+eff_mode_name, _, eff_mode_cfg = get_effective_mode(batch_mode)
+mode_ai_hint = eff_mode_cfg.get('ai_hint', '')
+mode_label = eff_mode_cfg.get('label', 'Standard')
+
+eval_prompt = f"""...
+MODO DE EVALUACIÓN: {mode_label}
+{mode_ai_hint}
+..."""
+```
+
+### 4-bis.5 UI: selector en escenario
+
+En `templates/admin/training_scenarios.html`, agregar bloque "Modo de
+Evaluación" antes de la sección de casos. Tres `<label class="mode-card">`
+con `<input type=radio name=scoring_mode>`. Standard preseleccionado.
+JS hace que clickear la card marque el radio y aplique `.selected`. CSS
+da el look de cards con borde de color y un `<details>` mostrando 5
+viñetas de "Qué mide este modo".
+
+El `scenario_json_filter` en `app.py` debe incluir el campo
+`scoring_mode` para que el modal de edición pueda preseleccionar.
+
+### 4-bis.6 Vista SuperAdmin (editor) y vista admin (read-only)
+
+Una sola plantilla `templates/admin/vex_modos.html` que decide el modo
+de los inputs según `is_superadmin`. Cuando es false, todos los `input`
+salen con `readonly`.
+
+Dos rutas en `training.py`:
+- `GET /admin/vex/modos` (`@coordinador_or_above`) — render de la vista
+- `POST /admin/vex/modos/save` (`@superadmin_required`) — valida que los
+  pesos PI sumen ~1, persiste en `scoring_mode_overrides`
+- `POST /admin/vex/modos/reset/<mode>` (`@superadmin_required`) — borra
+  el override
+
+### 4-bis.7 Badges visibles
+
+Donde se muestre un escenario o un batch, agregar el badge del modo. CSS:
+
+```css
+.mode-badge { display:inline-block; padding:2px 8px; border-radius:10px;
+              font-size:11px; font-weight:700; }
+.mode-badge.flexible { background:#e8f5e9; color:#2e7d32; }
+.mode-badge.standard { background:#e3f2fd; color:#0277bd; }
+.mode-badge.exigente { background:#ffebee; color:#c62828; }
+.mode-badge.legacy   { background:#f0f0f0; color:#666; }
+```
+
+Tres lugares como mínimo:
+- Lista de escenarios admin (columna nueva)
+- Página de inicio de entrenamiento (junto a categoría)
+- Batch result (header)
+- Header de sesión activa (sobre fondo oscuro: usar `rgba` semitransparente)
+
+### 4-bis.8 Nav
+
+Agregar al dropdown "Vex Predictive":
+
+```html
+<a href="{{ url_for('training.vex_modos') }}">Modos de Scoring</a>
+```
+
+Visible para coordinadores (read-only) y SuperAdmin (editor).
+
+---
+
 ## 5. Documentación
 
 Si tu otro proyecto tiene una página de metodología visible al usuario:

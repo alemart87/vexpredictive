@@ -174,12 +174,17 @@ def start_batch(scenario_id):
 
     max_c = current_user.max_concurrent_training or 1
 
+    # Snapshot del modo del escenario al crear el batch (asi cambios futuros
+    # en el escenario no afectan evaluaciones ya iniciadas). Si el escenario
+    # no tiene modo (legacy), el batch tampoco -> se evaluara con Standard
+    # pero se etiquetara como 'legacy' en la UI.
     batch = TrainingBatch(
         user_id=current_user.id,
         scenario_id=scenario.id,
         max_concurrent=max_c,
         status='active',
-        started_at=datetime.utcnow()
+        started_at=datetime.utcnow(),
+        scoring_mode=scenario.scoring_mode
     )
     db.session.add(batch)
     db.session.flush()
@@ -441,8 +446,20 @@ def end_session(session_id):
     # Get user messages for spelling check
     user_texts = ' '.join(m.content for m in session.messages if m.role == 'user')
 
+    # Determinar modo de scoring del batch (snapshot al crear) y obtener su hint
+    # para la IA. Legacy/null -> standard.
+    from scoring_modes import get_effective_mode
+    batch_obj = TrainingBatch.query.get(session.batch_id) if session.batch_id else None
+    batch_mode = batch_obj.scoring_mode if batch_obj else None
+    eff_mode_name, _is_legacy, eff_mode_cfg = get_effective_mode(batch_mode)
+    mode_ai_hint = eff_mode_cfg.get('ai_hint', '')
+    mode_label = eff_mode_cfg.get('label', 'Standard')
+
     # Evaluate with OpenAI
     eval_prompt = f"""Evalúa la siguiente conversación entre un asesor y un cliente simulado.
+
+MODO DE EVALUACIÓN: {mode_label}
+{mode_ai_hint}
 
 ESCENARIO: {scenario.title}
 DESCRIPCIÓN: {scenario.description or ''}
@@ -638,11 +655,14 @@ def admin_dashboard():
 @training_bp.route('/admin/training/scenarios')
 @coordinador_or_above
 def admin_scenarios():
+    from scoring_modes import list_modes
     q = TrainingScenario.query
     if not current_user.is_superadmin and current_user.operativa_id:
         q = q.filter_by(operativa_id=current_user.operativa_id)
     scenarios = q.order_by(TrainingScenario.is_active.desc(), TrainingScenario.created_at.desc()).all()
-    return render_template('admin/training_scenarios.html', scenarios=scenarios)
+    return render_template('admin/training_scenarios.html',
+                           scenarios=scenarios,
+                           scoring_modes=list_modes())
 
 
 @training_bp.route('/admin/training/scenarios/save', methods=['POST'])
@@ -655,6 +675,9 @@ def admin_scenario_save():
     expected_response = request.form.get('expected_response', '').strip()
     difficulty = request.form.get('difficulty', 'medio')
     category = request.form.get('category', '').strip()
+    scoring_mode = request.form.get('scoring_mode', 'standard')
+    if scoring_mode not in ('flexible', 'standard', 'exigente'):
+        scoring_mode = 'standard'
 
     if not title or not client_persona or not expected_response:
         flash('Título, persona del cliente y respuesta esperada son obligatorios.', 'error')
@@ -668,11 +691,13 @@ def admin_scenario_save():
         s.expected_response = expected_response
         s.difficulty = difficulty
         s.category = category
+        s.scoring_mode = scoring_mode
     else:
         s = TrainingScenario(
             title=title, description=description,
             client_persona=client_persona, expected_response=expected_response,
             difficulty=difficulty, category=category,
+            scoring_mode=scoring_mode,
             created_by=current_user.id,
             operativa_id=current_user.operativa_id
         )
@@ -988,13 +1013,35 @@ def api_training_live():
 # ===== Vex People Skill Predictive =====
 
 def calculate_vex_profile(user_id):
-    """Calculate and update VexProfile for a user based on ALL completed sessions."""
+    """Calculate and update VexProfile for a user based on ALL completed sessions.
+
+    El perfil agregado se calcula usando el modo del batch MAS RECIENTE del
+    usuario (Flexible/Standard/Exigente). Las dimensiones siguen siendo
+    objetivas pero los pisos, la curva ART y los umbrales de categoria/
+    recomendacion vienen del modo. Sesiones legacy sin modo -> Standard.
+    """
+    from scoring_modes import get_effective_mode
+
     sessions = TrainingSession.query.filter_by(
         user_id=user_id, status='completed'
     ).all()
 
     if len(sessions) < 2:
         return None  # Minimum 2 sessions required
+
+    # Determinar modo a usar para el perfil: el del batch mas reciente.
+    sorted_for_mode = sorted(sessions, key=lambda s: s.created_at or datetime.min, reverse=True)
+    latest_session = sorted_for_mode[0]
+    latest_batch = TrainingBatch.query.get(latest_session.batch_id) if latest_session.batch_id else None
+    latest_mode_name = latest_batch.scoring_mode if latest_batch else None
+    _eff_mode_name, _is_legacy, mode_cfg = get_effective_mode(latest_mode_name)
+    floors = mode_cfg['floors']
+    art_curve = mode_cfg['art_curve']
+    pi_weights = mode_cfg['pi_weights']
+    thresholds = mode_cfg['thresholds']
+    rec_thresholds = mode_cfg['recommendation']
+    spell_mult = mode_cfg['spelling_multiplier']
+    empathy_pillars_w = mode_cfg['empathy_pillars_weight']
 
     # --- Raw metric aggregation ---
     total_sessions = len(sessions)
@@ -1050,18 +1097,14 @@ def calculate_vex_profile(user_id):
         improvement_trend = 0.5
 
     # --- Dimension raw scores (0-100) ---
-    # Penalización suave por ortografía: una errata cada 25 palabras (4%) = -100%.
-    # Antes era cada 10 palabras (10%); ahora más permisivo.
-    spelling_penalty = min(spelling_rate * 25, 1)
+    # Penalizacion ortografica segun modo (multiplicador del modo).
+    spelling_penalty = min(spelling_rate * spell_mult, 1)
 
-    # 1. Comunicación: NPS pesa más que ortografía. Bonus floor de 30 para
-    #    no hundir a quien aún tiene NPS bajo pero escribe bien.
-    comm_raw = 30 + (1 - spelling_penalty) * 30 + (avg_nps / 10) * 40
+    # 1. Comunicacion: piso del modo + ortografia + NPS.
+    comm_raw = floors['communication'] + (1 - spelling_penalty) * 30 + (avg_nps / 10) * 40
 
-    # 2. Empatía: rúbrica jerárquica (Nombre/Contexto/Calidez/Resolución) con
-    #    pesos crecientes según la importancia que pidió el usuario:
-    #    Nombre 15% → Contexto 25% → Calidez 25% → Resolución 35%.
-    #    Si no hay breakdown disponible (sesiones legacy), cae al NPS.
+    # 2. Empatia: pilares (Nombre/Contexto/Calidez/Resolucion 15/25/25/35)
+    #    mezclados con NPS segun el peso del modo.
     if pillar_count > 0:
         empathy_pillars_score = (
             empathy_pillar_rate['nombre'] * 15 +
@@ -1069,47 +1112,39 @@ def calculate_vex_profile(user_id):
             empathy_pillar_rate['calidez'] * 25 +
             empathy_pillar_rate['resolucion'] * 35
         )  # 0-100
-        # Mezclamos 70% pilares + 30% NPS para que ambos contribuyan
-        empathy_raw = empathy_pillars_score * 0.7 + (avg_nps * 10) * 0.3
+        empathy_raw = empathy_pillars_score * empathy_pillars_w + (avg_nps * 10) * (1 - empathy_pillars_w)
     else:
         empathy_raw = avg_nps * 10  # fallback legacy
 
-    # 3. Resolución: correct rate sigue siendo principal pero con piso de 25
-    #    para no aplastar a quien tuvo malas sesiones puntuales.
-    resolution_raw = 25 + correct_rate * 50 + (avg_nps / 10) * 25
+    # 3. Resolucion: piso del modo + correct_rate + NPS.
+    resolution_raw = floors['resolution'] + correct_rate * 50 + (avg_nps / 10) * 25
 
-    # 4. Velocidad: ahora se basa en ART (Average Response Time), no en duración total.
-    #    Meta saludable: 120-180s para asesor con varios chats simultáneos.
-    #    - ART <= 120s  → 100 puntos (excelente)
-    #    - ART 120-180s → 100→80 (saludable)
-    #    - ART 180-300s → 80→50 (aceptable)
-    #    - ART 300-600s → 50→20 (lento)
-    #    - ART > 600s   → 20 (muy lento, cap)
+    # 4. Velocidad: curva ART del modo (4 cortes configurables).
     if avg_art <= 0:
-        # Sin datos de ART (sesiones legacy): no penalizar, dar puntaje neutro
-        speed_art = 65
-    elif avg_art <= 120:
+        speed_art = art_curve['no_data_score']
+    elif avg_art <= art_curve['excellent_max']:
         speed_art = 100
-    elif avg_art <= 180:
-        speed_art = 100 - ((avg_art - 120) / 60) * 20  # 100 → 80
-    elif avg_art <= 300:
-        speed_art = 80 - ((avg_art - 180) / 120) * 30  # 80 → 50
-    elif avg_art <= 600:
-        speed_art = 50 - ((avg_art - 300) / 300) * 30  # 50 → 20
+    elif avg_art <= art_curve['healthy_max']:
+        span = art_curve['healthy_max'] - art_curve['excellent_max']
+        speed_art = 100 - ((avg_art - art_curve['excellent_max']) / max(span, 1)) * 20
+    elif avg_art <= art_curve['acceptable_max']:
+        span = art_curve['acceptable_max'] - art_curve['healthy_max']
+        speed_art = 80 - ((avg_art - art_curve['healthy_max']) / max(span, 1)) * 30
+    elif avg_art <= art_curve['slow_max']:
+        span = art_curve['slow_max'] - art_curve['acceptable_max']
+        speed_art = 50 - ((avg_art - art_curve['acceptable_max']) / max(span, 1)) * 30
     else:
         speed_art = 20
 
-    # WPM como factor secundario (capacidad de escritura). 25 WPM = 100%.
     speed_wpm = min(100, (avg_wpm / 25) * 100) if avg_wpm > 0 else 50
-    # ART pesa 70%, WPM 30%. La capacidad de respuesta importa más que la velocidad de tipeo.
     speed_raw = speed_art * 0.7 + speed_wpm * 0.3
 
-    # 5. Adaptabilidad: floor de 30 para que la primera evaluación no parta en 1.
+    # 5. Adaptabilidad: piso del modo + tendencia + variedad.
     variety = min(1, unique_scenarios / max(total_scenarios * 0.4, 1))
-    adapt_raw = 30 + improvement_trend * 35 + variety * 35
+    adapt_raw = floors['adaptability'] + improvement_trend * 35 + variety * 35
 
-    # 6. Compliance: correct rate + ortografía suavizada.
-    compliance_raw = 25 + correct_rate * 45 + (1 - spelling_penalty) * 30
+    # 6. Compliance: piso del modo + correct_rate + ortografia.
+    compliance_raw = floors['compliance'] + correct_rate * 45 + (1 - spelling_penalty) * 30
 
     raw_scores = [comm_raw, empathy_raw, resolution_raw, speed_raw, adapt_raw, compliance_raw]
 
@@ -1126,27 +1161,31 @@ def calculate_vex_profile(user_id):
     # --- Overall score (simple average) ---
     overall = round(sum(scores) / 6, 1)
 
-    # --- Predictive Index (weighted composite) ---
-    # Empatía sube a 25% (estaba en 20%) por la nueva rúbrica jerárquica.
-    # Resolución baja a 22%, comunicación 18%, velocidad/adaptabilidad/compliance 35% combinado.
-    pi = (resolution * 0.22 + empathy * 0.25 + comm * 0.18 +
-          speed * 0.15 + adapt * 0.10 + compliance * 0.10)
-    pi_pct = round(pi * 10, 1)  # Convert to percentage (1-10 → 10-100%)
+    # --- Predictive Index (pesos del modo) ---
+    pi = (
+        resolution * pi_weights['resolution'] +
+        empathy * pi_weights['empathy'] +
+        comm * pi_weights['communication'] +
+        speed * pi_weights['speed'] +
+        adapt * pi_weights['adaptability'] +
+        compliance * pi_weights['compliance']
+    )
+    pi_pct = round(pi * 10, 1)  # 1-10 -> 10-100%
 
-    # --- Profile Category (umbrales más alcanzables) ---
-    if overall >= 8.5 and all(s >= 7 for s in scores):
+    # --- Categoria de perfil (umbrales del modo) ---
+    if overall >= thresholds['elite_overall'] and all(s >= thresholds['elite_min_dim'] for s in scores):
         category = 'elite'
-    elif overall >= 6.5 and all(s >= 4 for s in scores):
+    elif overall >= thresholds['alto_overall'] and all(s >= thresholds['alto_min_dim'] for s in scores):
         category = 'alto'
-    elif overall >= 4.5:
+    elif overall >= thresholds['desarrollo_overall']:
         category = 'desarrollo'
     else:
         category = 'refuerzo'
 
-    # --- Recommendation (umbrales suavizados) ---
-    if pi_pct >= 65:
+    # --- Recomendacion (umbrales del modo) ---
+    if pi_pct >= rec_thresholds['recomendado']:
         rec = 'recomendado'
-    elif pi_pct >= 45:
+    elif pi_pct >= rec_thresholds['observaciones']:
         rec = 'observaciones'
     else:
         rec = 'no_recomendado'
@@ -1208,3 +1247,123 @@ def vex_profile(user_id):
 @coordinador_or_above
 def vex_methodology():
     return render_template('admin/vex_methodology.html')
+
+
+@training_bp.route('/admin/vex/modos')
+@coordinador_or_above
+def vex_modos():
+    """Vista de los 3 modos de scoring.
+
+    SuperAdmin: editor completo con valores numericos editables.
+    Admins/Coordinadores: vista read-only con la guia pedagogica.
+    """
+    from scoring_modes import (DEFAULT_MODES, MODE_NAMES, PEDAGOGICAL_GUIDE,
+                               ADMIN_SUMMARY, get_mode_config)
+    is_superadmin = current_user.is_superadmin
+    modes_data = []
+    for name in MODE_NAMES:
+        cfg = get_mode_config(name)
+        default = DEFAULT_MODES[name]
+        is_overridden = (cfg != default)
+        modes_data.append({
+            'key': name,
+            'config': cfg,
+            'is_overridden': is_overridden,
+            'summary': ADMIN_SUMMARY[name]
+        })
+    return render_template('admin/vex_modos.html',
+                           modes_data=modes_data,
+                           pedagogical_guide=PEDAGOGICAL_GUIDE,
+                           is_superadmin=is_superadmin)
+
+
+@training_bp.route('/admin/vex/modos/save', methods=['POST'])
+@superadmin_required
+def vex_modos_save():
+    """Guarda overrides de un modo. Solo SuperAdmin."""
+    import json as _json
+    from models import ScoringModeOverride
+    from scoring_modes import DEFAULT_MODES
+
+    mode = request.form.get('mode', '').strip()
+    if mode not in DEFAULT_MODES:
+        flash('Modo invalido.', 'error')
+        return redirect(url_for('training.vex_modos'))
+
+    # Reconstruimos el config a partir de los inputs del form. Solo guardamos
+    # las claves que el SuperAdmin puede tocar.
+    try:
+        cfg = {
+            'pi_weights': {
+                'empathy': float(request.form.get('w_empathy', 0)),
+                'resolution': float(request.form.get('w_resolution', 0)),
+                'communication': float(request.form.get('w_communication', 0)),
+                'speed': float(request.form.get('w_speed', 0)),
+                'adaptability': float(request.form.get('w_adaptability', 0)),
+                'compliance': float(request.form.get('w_compliance', 0))
+            },
+            'spelling_multiplier': float(request.form.get('spelling_multiplier', 25)),
+            'empathy_pillars_weight': float(request.form.get('empathy_pillars_weight', 0.7)),
+            'art_curve': {
+                'excellent_max': float(request.form.get('art_excellent', 120)),
+                'healthy_max': float(request.form.get('art_healthy', 180)),
+                'acceptable_max': float(request.form.get('art_acceptable', 300)),
+                'slow_max': float(request.form.get('art_slow', 600)),
+                'no_data_score': float(request.form.get('art_no_data', 65))
+            },
+            'thresholds': {
+                'elite_overall': float(request.form.get('th_elite_overall', 8.5)),
+                'elite_min_dim': float(request.form.get('th_elite_min', 7)),
+                'alto_overall': float(request.form.get('th_alto_overall', 6.5)),
+                'alto_min_dim': float(request.form.get('th_alto_min', 4)),
+                'desarrollo_overall': float(request.form.get('th_desarrollo_overall', 4.5))
+            },
+            'recommendation': {
+                'recomendado': float(request.form.get('rec_recomendado', 65)),
+                'observaciones': float(request.form.get('rec_observaciones', 45))
+            },
+            'floors': {
+                'communication': float(request.form.get('floor_communication', 30)),
+                'resolution': float(request.form.get('floor_resolution', 25)),
+                'adaptability': float(request.form.get('floor_adaptability', 30)),
+                'compliance': float(request.form.get('floor_compliance', 25)),
+                'empathy': 0,
+                'speed_no_data': float(request.form.get('floor_speed_no_data', 65))
+            }
+        }
+    except (ValueError, TypeError):
+        flash('Algun valor numerico es invalido.', 'error')
+        return redirect(url_for('training.vex_modos'))
+
+    # Validacion: pesos PI deben sumar ~1
+    total_w = sum(cfg['pi_weights'].values())
+    if abs(total_w - 1.0) > 0.02:
+        flash(f'Los pesos del Predictive Index deben sumar 1.00 (actualmente {total_w:.2f}).', 'error')
+        return redirect(url_for('training.vex_modos'))
+
+    override = ScoringModeOverride.query.filter_by(mode=mode).first()
+    if not override:
+        override = ScoringModeOverride(mode=mode)
+        db.session.add(override)
+    override.config_json = _json.dumps(cfg, ensure_ascii=False)
+    override.updated_by = current_user.id
+    db.session.commit()
+    flash(f'Modo "{mode}" actualizado.', 'success')
+    return redirect(url_for('training.vex_modos'))
+
+
+@training_bp.route('/admin/vex/modos/reset/<mode>', methods=['POST'])
+@superadmin_required
+def vex_modos_reset(mode):
+    """Borra el override de un modo: vuelve al default de fabrica."""
+    from models import ScoringModeOverride
+    from scoring_modes import DEFAULT_MODES
+    if mode not in DEFAULT_MODES:
+        flash('Modo invalido.', 'error')
+        return redirect(url_for('training.vex_modos'))
+    override = ScoringModeOverride.query.filter_by(mode=mode).first()
+    if override:
+        db.session.delete(override)
+        db.session.commit()
+    flash(f'Modo "{mode}" restaurado a valores de fabrica.', 'success')
+    return redirect(url_for('training.vex_modos'))

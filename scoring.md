@@ -8,6 +8,43 @@ sesión de entrenamiento y cómo se agregan los resultados en el perfil VEX del 
 
 ---
 
+## 0. Modos de Scoring (Flexible / Standard / Exigente)
+
+Cada **escenario** tiene asignado un modo. Cuando se inicia un entrenamiento,
+el `TrainingBatch` toma un **snapshot** del modo del escenario (queda fijo
+para esa evaluación, aunque el escenario cambie después). Sesiones previas a
+esta versión: `scoring_mode = NULL` → tratadas como `legacy` y se evalúan
+con Standard, pero la UI las etiqueta "⚪ Legacy".
+
+| Modo | Cuándo usar | Recomendado PI ≥ | Saturación ortografía | ART meta |
+|---|---|---|---|---|
+| 🟢 **Flexible** | Nuevos ingresos, capacitación, selección | 55% | 2.85% errores | ≤180-240s |
+| 🔵 **Standard** | Asesores en producción (default) | 65% | 4% errores | ≤120-180s |
+| 🔴 **Exigente** | Expertos, calibración, excelencia | 75% | 6.6% errores | ≤60-120s |
+
+El modo afecta:
+- Pesos del Predictive Index
+- Pisos mínimos por dimensión
+- Saturación de la penalización ortográfica
+- Mezcla empatía (pilares vs NPS)
+- Curva ART (los 4 cortes)
+- Umbrales de categoría (Elite/Alto/Desarrollo)
+- Umbrales de recomendación (Recomendado/Observaciones)
+- Hint que recibe la IA evaluadora (más generosa o más estricta)
+
+**Customización (solo SuperAdmin):** `/admin/vex/modos` permite editar los
+parámetros internos de cada modo. Los overrides se guardan en
+`scoring_mode_overrides`. Si no hay override → defaults de fábrica
+definidos en `scoring_modes.py:DEFAULT_MODES`. Botón "Volver a Standard
+de fábrica" elimina el override.
+
+**Aplicación al perfil VEX agregado:** `calculate_vex_profile` usa el modo
+del **batch más reciente** del usuario para los cálculos. Las dimensiones
+Sten son objetivas pero los pisos, la curva ART y los umbrales finales
+dependen del modo activo.
+
+---
+
 ## 1. Capa 1 — Evaluación por sesión (IA)
 
 Cada sesión cerrada se evalúa con OpenAI (**GPT-5.4 mini**, ID:

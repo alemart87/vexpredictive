@@ -5,7 +5,17 @@
 {% block content %}
 <div class="result-container">
     <h1 style="color:#00B2BF;text-align:center">Resultado del Entrenamiento</h1>
-    <p style="text-align:center;color:#888;margin-bottom:24px">Batch #{{ batch.id }} — {{ batch.scenario.title }} — {{ sessions|length }} interacciones</p>
+    <p style="text-align:center;color:#888;margin-bottom:8px">Batch #{{ batch.id }} — {{ batch.scenario.title }} — {{ sessions|length }} interacciones</p>
+    {% set mk = batch.scoring_mode or 'legacy' %}
+    <p style="text-align:center;margin-bottom:24px">
+        <span style="display:inline-block;padding:4px 14px;border-radius:14px;font-size:12px;font-weight:700;
+            {% if mk == 'flexible' %}background:#e8f5e9;color:#2e7d32{% elif mk == 'standard' %}background:#e3f2fd;color:#0277bd{% elif mk == 'exigente' %}background:#ffebee;color:#c62828{% else %}background:#f0f0f0;color:#666{% endif %}">
+            {% if mk == 'flexible' %}🟢 Modo Flexible
+            {% elif mk == 'standard' %}🔵 Modo Standard
+            {% elif mk == 'exigente' %}🔴 Modo Exigente
+            {% else %}⚪ Legacy (sin modo asignado){% endif %}
+        </span>
+    </p>
 
     <!-- Overall NPS -->
     <div class="result-nps">
