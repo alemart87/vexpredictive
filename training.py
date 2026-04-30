@@ -7,7 +7,7 @@ from models import (db, User, TrainingScenario, TrainingBatch, TrainingSession,
                     TrainingMessage, TrainingViewPermission, VexProfile)
 from datetime import datetime, timezone
 from functools import wraps
-from decorators import superadmin_required, coordinador_or_above, scoped_query
+from decorators import superadmin_required, coordinador_or_above, supervisor_or_above, scoped_query
 
 
 def utcnow():
@@ -1104,7 +1104,8 @@ def calculate_vex_profile(user_id):
 
     # Variedad efectiva: solo escenarios donde el asesor tuvo exito
     # (response_correct=True OR nps_score>=6). Abandonar 3 escenarios
-    # distintos NO suma variedad.
+    # distintos NO suma variedad. Para variedad 100% se requiere AL
+    # MENOS 3 escenarios resueltos (o 50% del catalogo, lo que sea mayor).
     successful_scenario_ids = set(
         s.scenario_id for s in sessions
         if s.response_correct or (s.nps_score or 0) >= 6
@@ -1169,7 +1170,11 @@ def calculate_vex_profile(user_id):
     speed_raw = speed_art * 0.7 + speed_wpm * 0.3
 
     # 5. Adaptabilidad: piso del modo + tendencia + variedad.
-    variety = min(1, unique_scenarios / max(total_scenarios * 0.4, 1))
+    # Variedad: requiere minimo 3 escenarios resueltos para 100% (o 50%
+    # del catalogo, lo que sea mayor). Antes el divisor podia caer a 1
+    # cuando habia pocos escenarios y daba variedad maxima con 1 unico
+    # exito - bug corregido.
+    variety = min(1, unique_scenarios / max(total_scenarios * 0.5, 3))
     adapt_raw = floors['adaptability'] + improvement_trend * 35 + variety * 35
 
     # 6. Compliance: piso del modo + correct_rate + ortografia.
@@ -1219,15 +1224,42 @@ def calculate_vex_profile(user_id):
     else:
         rec = 'no_recomendado'
 
-    # --- Hard cap por abandono ---
-    # Si mas del 40% de las sesiones son auto-fail (asesor no interactuo
-    # de forma sustancial), no podemos recomendar al asesor independiente
-    # de cuanto saque la formula. Es una regla de seguridad: aunque las
-    # pocas sesiones validas hayan salido excelentes, la muestra no es
-    # confiable para una recomendacion positiva.
+    # --- HARD CAPS UNIVERSALES (aplican a los 3 modos) ---
+    # Reglas de seguridad independientes del modo y los pesos. Detectan
+    # casos donde la formula matematica da Recomendado pero la realidad
+    # operativa es que el asesor falla la tarea fundamental. Se acumulan
+    # en cap_reasons para mostrarlos al usuario en el perfil.
+    cap_reasons = []
+
+    # Cap 1: Tasa de abandono > 40% -> muestra no confiable.
     if abandonment_rate > 0.40:
+        cap_reasons.append({
+            'rule': 'abandonment',
+            'detail': f'{int(abandonment_rate*100)}% de sesiones abandonadas (limite 40%)',
+            'effect': 'Categoria max "Desarrollo", recomendacion max "Observaciones"'
+        })
+
+    # Cap 2: Tasa de aciertos < 50% -> falla la tarea fundamental.
+    if correct_rate < 0.50:
+        cap_reasons.append({
+            'rule': 'low_correct_rate',
+            'detail': f'Solo {int(correct_rate*100)}% de respuestas correctas (limite 50%)',
+            'effect': 'Recomendacion max "Observaciones"'
+        })
+
+    # Cap 3: NPS promedio < 4 -> mayoria de clientes detractores.
+    if avg_nps < 4.0:
+        cap_reasons.append({
+            'rule': 'low_nps',
+            'detail': f'NPS promedio {avg_nps:.1f} (limite 4.0). Clientes mayormente detractores.',
+            'effect': 'Recomendacion max "Observaciones"'
+        })
+
+    # Aplicar caps acumulativos
+    if any(c['rule'] == 'abandonment' for c in cap_reasons):
         if category in ('elite', 'alto'):
             category = 'desarrollo'
+    if cap_reasons:
         if rec == 'recomendado':
             rec = 'observaciones'
 
@@ -1250,6 +1282,12 @@ def calculate_vex_profile(user_id):
     profile.sessions_analyzed = total_sessions
     profile.abandonment_rate = round(abandonment_rate, 3)
     profile.last_updated = datetime.utcnow()
+    # Adjuntamos info volatil para el render del perfil. No se persiste
+    # en DB - se recalcula con cada llamada a calculate_vex_profile().
+    profile._cap_reasons = cap_reasons
+    profile._active_mode = _eff_mode_name
+    profile._is_legacy_mode = _is_legacy
+    profile._mode_cfg = mode_cfg
     db.session.commit()
 
     return profile
@@ -1258,12 +1296,13 @@ def calculate_vex_profile(user_id):
 # ===== Vex Routes =====
 
 @training_bp.route('/admin/vex')
-@coordinador_or_above
+@supervisor_or_above
 def vex_dashboard():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     q = VexProfile.query.join(User)
-    if not current_user.is_superadmin and current_user.role == 'coordinador' and current_user.operativa_id:
+    # Supervisores y Coordinadores ven solo perfiles de su operativa.
+    if not current_user.is_superadmin and current_user.operativa_id:
         q = q.filter(User.operativa_id == current_user.operativa_id)
     pagination = q.order_by(
         VexProfile.overall_score.desc()
@@ -1272,27 +1311,72 @@ def vex_dashboard():
 
 
 @training_bp.route('/admin/vex/profile/<int:user_id>')
-@coordinador_or_above
+@supervisor_or_above
 def vex_profile(user_id):
-    # Recalculate before showing
+    # Scope check: supervisores y coordinadores solo ven perfiles de su
+    # operativa. SuperAdmin ve todo.
+    if not current_user.is_superadmin and current_user.operativa_id:
+        target_user = User.query.get_or_404(user_id)
+        if target_user.operativa_id != current_user.operativa_id:
+            flash('No tenes permiso para ver este perfil.', 'error')
+            return redirect(url_for('training.vex_dashboard'))
+    # Recalculate before showing (esto popula profile._cap_reasons,
+    # profile._active_mode, profile._mode_cfg en memoria)
     calculate_vex_profile(user_id)
     profile = VexProfile.query.filter_by(user_id=user_id).first_or_404()
+
     page = request.args.get('page', 1, type=int)
     per_page = 10
     pagination = TrainingSession.query.filter_by(
         user_id=user_id, status='completed'
     ).order_by(TrainingSession.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('admin/vex_profile.html', profile=profile, sessions=pagination.items, pagination=pagination)
+
+    # Distribucion de sesiones por modo (recorre los batches del usuario).
+    # Para sesiones sin batch o con batch sin scoring_mode -> legacy.
+    all_sessions = TrainingSession.query.filter_by(
+        user_id=user_id, status='completed'
+    ).all()
+    mode_counts = {'flexible': 0, 'standard': 0, 'exigente': 0, 'legacy': 0}
+    batch_cache = {}
+    for s in all_sessions:
+        if s.batch_id:
+            if s.batch_id not in batch_cache:
+                b = TrainingBatch.query.get(s.batch_id)
+                batch_cache[s.batch_id] = b.scoring_mode if b else None
+            mname = batch_cache[s.batch_id]
+        else:
+            mname = None
+        key = mname if mname in ('flexible', 'standard', 'exigente') else 'legacy'
+        mode_counts[key] += 1
+
+    # Recuperar info volatil que dejo calculate_vex_profile
+    cap_reasons = getattr(profile, '_cap_reasons', [])
+    active_mode = getattr(profile, '_active_mode', 'standard')
+    is_legacy_mode = getattr(profile, '_is_legacy_mode', False)
+    mode_cfg = getattr(profile, '_mode_cfg', None)
+    if mode_cfg is None:
+        from scoring_modes import get_mode_config
+        mode_cfg = get_mode_config(active_mode)
+
+    return render_template('admin/vex_profile.html',
+                           profile=profile,
+                           sessions=pagination.items,
+                           pagination=pagination,
+                           mode_counts=mode_counts,
+                           cap_reasons=cap_reasons,
+                           active_mode=active_mode,
+                           is_legacy_mode=is_legacy_mode,
+                           mode_cfg=mode_cfg)
 
 
 @training_bp.route('/admin/vex/methodology')
-@coordinador_or_above
+@supervisor_or_above
 def vex_methodology():
     return render_template('admin/vex_methodology.html')
 
 
 @training_bp.route('/admin/vex/modos')
-@coordinador_or_above
+@supervisor_or_above
 def vex_modos():
     """Vista de los 3 modos de scoring.
 

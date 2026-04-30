@@ -126,16 +126,33 @@ completadas. El resultado se persiste en `vex_profiles`.
 | `empathy_pillar_rate` | Tasa de cumplimiento por pilar **sobre el TOTAL de sesiones** (sesiones sin breakdown cuentan como pilares en cero). |
 | `abandonment_rate` | Sesiones con auto-fail (`<2 mensajes` o `<8 palabras`) / total. Se persiste en `VexProfile`. |
 
-#### Hard cap por abandono
+#### Hard Caps Universales (aplican a TODOS los modos)
 
-Si `abandonment_rate > 0.40`:
+Reglas de seguridad independientes del modo y los pesos. Se aplican **después**
+del cálculo del Predictive Index y son acumulativas. Cuando se dispara cualquiera,
+la UI lo muestra explícitamente arriba de las dimensiones.
 
-- `category` se limita a máximo `desarrollo` (no puede ser `elite` ni `alto`).
-- `recommendation` se limita a máximo `observaciones` (no puede ser `recomendado`).
+| Regla | Condición | Efecto |
+|---|---|---|
+| **Abandono alto** | `abandonment_rate > 0.40` | `category` máx `desarrollo` · `recommendation` máx `observaciones` |
+| **Bajo correct rate** | `correct_rate < 0.50` | `recommendation` máx `observaciones` |
+| **NPS bajo** | `avg_nps < 4.0` | `recommendation` máx `observaciones` |
 
-Es una regla de seguridad: aunque las pocas sesiones válidas hayan salido excelentes,
-una muestra con muchos abandonos no es estadísticamente confiable para una recomendación
-positiva. Se muestra como **"Fiabilidad de la muestra"** en la cabecera del perfil VEX.
+**Por qué existen:** el modo Flexible es indulgente, pero *indulgente* no significa
+*ignorar fallos sistémicos*. Si un asesor falla 2 de cada 3 casos o tiene mayoría de
+clientes detractores, el sistema no debe marcarlo como "Recomendado" ni con el modo
+más permisivo.
+
+#### Variedad efectiva — fórmula corregida
+
+```
+variety = min(1, unique_successful_scenarios / max(total_scenarios * 0.5, 3))
+```
+
+Antes el divisor era `max(total*0.4, 1)` lo que permitía que con **1 solo escenario
+resuelto** y pocos escenarios cargados (1-2) la variedad llegara a 100%. Ahora se
+requiere un **mínimo absoluto de 3 escenarios resueltos** (o 50% del catálogo, lo que
+sea mayor) para alcanzar variedad máxima.
 
 ### 2.2 Penalización ortográfica suavizada
 

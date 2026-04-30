@@ -683,6 +683,127 @@ Visible para coordinadores (read-only) y SuperAdmin (editor).
 
 ---
 
+## 4-ter. Hard caps universales + transparencia del baremo
+
+Después de los modos, agregamos una capa de seguridad que protege la
+integridad de la recomendación independientemente del modo elegido.
+
+### 4-ter.1 Hard caps en `calculate_vex_profile`
+
+Después del cálculo de `category` y `rec` y antes de persistir, evaluamos:
+
+```python
+cap_reasons = []
+
+if abandonment_rate > 0.40:
+    cap_reasons.append({
+        'rule': 'abandonment',
+        'detail': f'{int(abandonment_rate*100)}% sesiones abandonadas',
+        'effect': 'Categoria max "Desarrollo", recomendacion max "Observaciones"'
+    })
+
+if correct_rate < 0.50:
+    cap_reasons.append({
+        'rule': 'low_correct_rate',
+        'detail': f'Solo {int(correct_rate*100)}% respuestas correctas',
+        'effect': 'Recomendacion max "Observaciones"'
+    })
+
+if avg_nps < 4.0:
+    cap_reasons.append({
+        'rule': 'low_nps',
+        'detail': f'NPS promedio {avg_nps:.1f}',
+        'effect': 'Recomendacion max "Observaciones"'
+    })
+
+# Aplicar caps acumulativos
+if any(c['rule'] == 'abandonment' for c in cap_reasons):
+    if category in ('elite', 'alto'):
+        category = 'desarrollo'
+if cap_reasons:
+    if rec == 'recomendado':
+        rec = 'observaciones'
+```
+
+`cap_reasons` se adjunta al `profile` como atributo volátil
+(`profile._cap_reasons`) para que la route lo pase al template sin
+necesidad de persistirlo en DB.
+
+### 4-ter.2 Variedad efectiva — fórmula corregida
+
+```python
+# Antes (BUG):
+variety = min(1, unique_scenarios / max(total_scenarios * 0.4, 1))
+
+# Despues:
+variety = min(1, unique_scenarios / max(total_scenarios * 0.5, 3))
+```
+
+El divisor `max(total*0.4, 1)` permitía que con 1 solo escenario y
+pocos cargados (1-2) el ratio fuera 1.0. Ahora se exige un mínimo
+absoluto de 3 escenarios resueltos para alcanzar el 100%.
+
+### 4-ter.3 Pisos del modo Flexible — recalibrados
+
+En `scoring_modes.py`, el modo `flexible` originalmente tenía pisos de
+35 en cada dimensión. Eso inflaba demasiado: cualquier sesión que no
+fuera auto-fail llegaba a Sten 6+. Bajamos a 25:
+
+```python
+'floors': {
+    'communication': 25, 'resolution': 25, 'adaptability': 25,
+    'compliance': 25, 'empathy': 0, 'speed_no_data': 60
+}
+```
+
+Sigue siendo más permisivo que Standard (25-30) pero ya no anula
+la evaluación.
+
+### 4-ter.4 Transparencia en el perfil VEX
+
+La route `vex_profile()` ahora calcula y pasa al template:
+
+```python
+# Distribucion de sesiones por modo
+mode_counts = {'flexible': 0, 'standard': 0, 'exigente': 0, 'legacy': 0}
+for s in all_sessions:
+    batch_mode = batch.scoring_mode if batch else None
+    key = batch_mode if batch_mode in MODE_NAMES else 'legacy'
+    mode_counts[key] += 1
+
+# Recuperar info volatil del calculate_vex_profile
+cap_reasons = getattr(profile, '_cap_reasons', [])
+active_mode = getattr(profile, '_active_mode', 'standard')
+mode_cfg = getattr(profile, '_mode_cfg', None)
+```
+
+El template `vex_profile.html` muestra:
+
+1. **Bloque "Baremo de medición aplicado"** con:
+   - Modo activo destacado (con icono y color)
+   - Indicador "Legacy (sin modo asignado, usa Standard)" si aplica
+2. **Distribución de sesiones por modo**: 4 contadores con badges
+   color-coded (🟢 Flexible, 🔵 Standard, 🔴 Exigente, ⚪ Legacy) con
+   conteo y porcentaje
+3. **Detalle plegable** con los umbrales exactos del modo activo
+   (Elite, Alto, Desarrollo, Recomendado, Observaciones)
+4. **Bloque rojo de hard caps aplicados** (si hay): muestra cada regla
+   disparada con su detalle y efecto
+
+### 4-ter.5 Por qué importa documentar todo esto
+
+El SuperAdmin / Coordinador no tiene que **adivinar** por qué un perfil
+salió "Observaciones" en lugar de "Recomendado" cuando el PI calculado
+es 65%. La UI le dice exactamente: *"Hard cap: solo 33% de respuestas
+correctas → recomendación máx Observaciones"*.
+
+Esto convierte el sistema de evaluación en algo **auditable** y
+**defendible**: cualquier decisión derivada del scoring (incorporar a
+la operativa o no) puede explicarse con los criterios concretos
+disparados.
+
+---
+
 ## 5. Documentación
 
 Si tu otro proyecto tiene una página de metodología visible al usuario:

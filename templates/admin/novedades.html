@@ -147,6 +147,76 @@
     -->
 
     <!-- 2026-04-30 -->
+    <div class="nov-entry feature" data-type="feature">
+        <div class="nov-head">
+            <span class="nov-tag feature">Acceso ampliado</span>
+            <h3 class="nov-title">Supervisores ahora ven Vex Predictive completo</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>Antes solo Coordinadores y SuperAdmin podían acceder a Vex Predictive. Ahora los <strong>Supervisores</strong> también pueden ver:</p>
+            <ul>
+                <li><strong>Resultados</strong> — perfiles VEX de su operativa con todas las dimensiones, hard caps y baremo aplicado.</li>
+                <li><strong>Metodología</strong> — explicación completa del sistema de evaluación.</li>
+                <li><strong>Modos de Scoring</strong> — vista read-only de los 3 modos con la guía pedagógica de cada uno (sin posibilidad de editar parámetros, eso queda exclusivo del SuperAdmin).</li>
+                <li><strong>Novedades</strong> — el changelog que estás leyendo.</li>
+            </ul>
+            <p>Los Supervisores ven solo perfiles de su operativa (mismo scope que Coordinadores).</p>
+        </div>
+    </div>
+
+    <div class="nov-entry improve" data-type="improve">
+        <div class="nov-head">
+            <span class="nov-tag improve">Documentación</span>
+            <h3 class="nov-title">Metodología actualizada y sincronizada con el scoring real</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>La página de Metodología (<code>/admin/vex/methodology</code>) estaba desactualizada respecto al scoring real implementado. Se rehizo completa:</p>
+            <ul>
+                <li><strong>Pisos por dimensión</strong> ahora se documentan por modo (Flexible/Standard/Exigente) en lugar de un solo número.</li>
+                <li><strong>Empatía</strong>: la fórmula refleja que los pilares se promedian sobre el total de sesiones (no solo las que tienen breakdown). Mezcla con NPS varía según el modo (60/40, 70/30, 80/20).</li>
+                <li><strong>ART</strong>: tabla nueva de curvas por modo (Flexible 180s/240s/360s/600s, Standard 120s/180s/300s/600s, Exigente 60s/120s/240s/480s). Se aclara que sesiones auto-fail asumen ART=1200s.</li>
+                <li><strong>Variedad efectiva</strong>: nueva fórmula con piso absoluto de <code>3 escenarios resueltos</code>.</li>
+                <li><strong>Pesos del Predictive Index</strong>: tabla por modo. Empatía 25% en todos, Resolución 20-25%, etc.</li>
+                <li><strong>Categorías y recomendaciones</strong>: tablas con los 3 modos en columnas.</li>
+                <li><strong>Hard Caps Universales</strong>: sección nueva con las 3 reglas (abandono, correct_rate, NPS).</li>
+                <li><strong>Patrones diagnósticos</strong>: 3 nuevos casos para los hard caps disparados.</li>
+                <li>Pasos del algoritmo renumerados (ahora 7 pasos, antes 6).</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="nov-entry fix" data-type="fix">
+        <div class="nov-head">
+            <span class="nov-tag fix">Corrección crítica</span>
+            <h3 class="nov-title">Hard caps universales + transparencia del baremo de medición</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>Detectamos otro caso donde un asesor con <strong>2 de 3 sesiones falladas</strong> en modo Flexible salía como "Recomendado" / "Alto Rendimiento". El algoritmo estaba haciendo lo que el modo le pedía (ser indulgente), pero <em>indulgente</em> no debe significar <em>ignorar fallos sistémicos</em>.</p>
+            <p><strong>Lo que cambia:</strong></p>
+            <ul>
+                <li><strong>Hard caps universales</strong> (aplican a los 3 modos):
+                    <ul>
+                        <li><code>correct_rate &lt; 50%</code> → recomendación máx "Observaciones"</li>
+                        <li><code>avg_nps &lt; 4.0</code> → recomendación máx "Observaciones"</li>
+                        <li><code>abandonment_rate &gt; 40%</code> → categoría máx "Desarrollo" + recomendación máx "Observaciones"</li>
+                    </ul>
+                </li>
+                <li><strong>Pisos del modo Flexible</strong> bajados de 35 → 25 en comm/resolución/adaptabilidad/cumplimiento. Antes inflaban tanto que casi cualquier sesión llegaba a Sten 6+.</li>
+                <li><strong>Variedad efectiva con mínimo 3</strong>: la fórmula tenía un bug — con pocos escenarios cargados (1-2), bastaba 1 escenario resuelto para variedad 100%. Ahora se necesitan al menos <strong>3 escenarios resueltos con éxito</strong> (o 50% del catálogo).</li>
+            </ul>
+            <p><strong>Transparencia nueva en el perfil:</strong></p>
+            <ul>
+                <li>Bloque <strong>"Baremo de medición aplicado"</strong> que muestra qué modo está activo (Flexible/Standard/Exigente/Legacy) y un detalle plegable con los umbrales exactos (Elite, Alto, Desarrollo, Recomendado, Observaciones) según el modo.</li>
+                <li>Distribución de sesiones por modo: 4 contadores con badges 🟢🔵🔴⚪ mostrando cuántas sesiones de cada modo evaluó el asesor y el % del total.</li>
+                <li>Cuando se dispara un hard cap, aparece un bloque rojo arriba de las dimensiones explicando <em>qué regla se disparó</em> y <em>qué efecto tuvo</em>. El evaluador puede ver claramente por qué la recomendación no es positiva aunque las dimensiones individuales se vean bien.</li>
+            </ul>
+            <p>Documentación actualizada en <code>/admin/vex/methodology</code>, <code>scoring.md</code> y <code>guiademodificacion.md</code>.</p>
+        </div>
+    </div>
+
     <div class="nov-entry fix" data-type="fix">
         <div class="nov-head">
             <span class="nov-tag fix">Corrección crítica</span>
