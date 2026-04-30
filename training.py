@@ -1280,7 +1280,13 @@ def vex_modos():
 @training_bp.route('/admin/vex/modos/save', methods=['POST'])
 @superadmin_required
 def vex_modos_save():
-    """Guarda overrides de un modo. Solo SuperAdmin."""
+    """Guarda overrides de un modo. Solo SuperAdmin.
+
+    Todos los valores se ACOTAN al rango seguro antes de persistir. Si el
+    usuario manda algo fuera de rango (ej: 150000 en un piso) se clampea
+    silenciosamente al maximo permitido. Esto protege el modelo de scoring
+    de cualquier input invalido.
+    """
     import json as _json
     from models import ScoringModeOverride
     from scoring_modes import DEFAULT_MODES
@@ -1290,56 +1296,85 @@ def vex_modos_save():
         flash('Modo invalido.', 'error')
         return redirect(url_for('training.vex_modos'))
 
-    # Reconstruimos el config a partir de los inputs del form. Solo guardamos
-    # las claves que el SuperAdmin puede tocar.
-    try:
-        cfg = {
-            'pi_weights': {
-                'empathy': float(request.form.get('w_empathy', 0)),
-                'resolution': float(request.form.get('w_resolution', 0)),
-                'communication': float(request.form.get('w_communication', 0)),
-                'speed': float(request.form.get('w_speed', 0)),
-                'adaptability': float(request.form.get('w_adaptability', 0)),
-                'compliance': float(request.form.get('w_compliance', 0))
-            },
-            'spelling_multiplier': float(request.form.get('spelling_multiplier', 25)),
-            'empathy_pillars_weight': float(request.form.get('empathy_pillars_weight', 0.7)),
-            'art_curve': {
-                'excellent_max': float(request.form.get('art_excellent', 120)),
-                'healthy_max': float(request.form.get('art_healthy', 180)),
-                'acceptable_max': float(request.form.get('art_acceptable', 300)),
-                'slow_max': float(request.form.get('art_slow', 600)),
-                'no_data_score': float(request.form.get('art_no_data', 65))
-            },
-            'thresholds': {
-                'elite_overall': float(request.form.get('th_elite_overall', 8.5)),
-                'elite_min_dim': float(request.form.get('th_elite_min', 7)),
-                'alto_overall': float(request.form.get('th_alto_overall', 6.5)),
-                'alto_min_dim': float(request.form.get('th_alto_min', 4)),
-                'desarrollo_overall': float(request.form.get('th_desarrollo_overall', 4.5))
-            },
-            'recommendation': {
-                'recomendado': float(request.form.get('rec_recomendado', 65)),
-                'observaciones': float(request.form.get('rec_observaciones', 45))
-            },
-            'floors': {
-                'communication': float(request.form.get('floor_communication', 30)),
-                'resolution': float(request.form.get('floor_resolution', 25)),
-                'adaptability': float(request.form.get('floor_adaptability', 30)),
-                'compliance': float(request.form.get('floor_compliance', 25)),
-                'empathy': 0,
-                'speed_no_data': float(request.form.get('floor_speed_no_data', 65))
-            }
-        }
-    except (ValueError, TypeError):
-        flash('Algun valor numerico es invalido.', 'error')
+    def _clamp(field, lo, hi, default):
+        """Lee un campo del form, lo convierte a float y lo acota a [lo, hi]."""
+        raw = request.form.get(field)
+        try:
+            v = float(raw)
+        except (ValueError, TypeError):
+            return float(default)
+        return max(lo, min(hi, v))
+
+    # --- Pesos PI: cada uno 5%-50%, suma debe ser ~1.00 ---
+    weights = {
+        'empathy':       _clamp('w_empathy',       0.05, 0.50, 0.25),
+        'resolution':    _clamp('w_resolution',    0.05, 0.50, 0.22),
+        'communication': _clamp('w_communication', 0.05, 0.50, 0.18),
+        'speed':         _clamp('w_speed',         0.05, 0.50, 0.15),
+        'adaptability':  _clamp('w_adaptability',  0.05, 0.50, 0.10),
+        'compliance':    _clamp('w_compliance',    0.05, 0.50, 0.10),
+    }
+    total_w = sum(weights.values())
+    if abs(total_w - 1.0) > 0.02:
+        flash(f'Los pesos del Predictive Index deben sumar 1.00 (ahora suman {total_w:.2f}). Usa el boton "Auto-balancear" o ajusta manualmente.', 'error')
         return redirect(url_for('training.vex_modos'))
 
-    # Validacion: pesos PI deben sumar ~1
-    total_w = sum(cfg['pi_weights'].values())
-    if abs(total_w - 1.0) > 0.02:
-        flash(f'Los pesos del Predictive Index deben sumar 1.00 (actualmente {total_w:.2f}).', 'error')
-        return redirect(url_for('training.vex_modos'))
+    # --- Curva ART: cortes en segundos, cada uno mayor que el anterior ---
+    art_excellent  = _clamp('art_excellent',  30,  600, 120)
+    art_healthy    = _clamp('art_healthy',    art_excellent + 5, 900, 180)
+    art_acceptable = _clamp('art_acceptable', art_healthy + 5,   1200, 300)
+    art_slow       = _clamp('art_slow',       art_acceptable + 5, 1800, 600)
+    art_no_data    = _clamp('art_no_data',    30, 95, 65)
+
+    # --- Pisos por dimension: 0-60 ---
+    floors = {
+        'communication': _clamp('floor_communication', 0, 60, 30),
+        'resolution':    _clamp('floor_resolution',    0, 60, 25),
+        'adaptability':  _clamp('floor_adaptability',  0, 60, 30),
+        'compliance':    _clamp('floor_compliance',    0, 60, 25),
+        'empathy':       0,
+        'speed_no_data': _clamp('floor_speed_no_data', 30, 95, 65)
+    }
+
+    # --- Umbrales de categoria: ordenamiento Elite > Alto > Desarrollo ---
+    elite_overall      = _clamp('th_elite_overall',      6.0, 10.0, 8.5)
+    alto_overall       = _clamp('th_alto_overall',       4.0, elite_overall - 0.3, 6.5)
+    desarrollo_overall = _clamp('th_desarrollo_overall', 2.0, alto_overall - 0.3, 4.5)
+    elite_min_dim      = _clamp('th_elite_min', 5, 10, 7)
+    alto_min_dim       = _clamp('th_alto_min',  3,  9, 4)
+
+    # --- Recomendacion: Recomendado > Observaciones ---
+    rec_recomendado   = _clamp('rec_recomendado',   30, 95, 65)
+    rec_observaciones = _clamp('rec_observaciones', 10, rec_recomendado - 5, 45)
+
+    # --- Otros ---
+    spelling_multiplier    = _clamp('spelling_multiplier',    5, 50, 25)
+    empathy_pillars_weight = _clamp('empathy_pillars_weight', 0.0, 1.0, 0.7)
+
+    cfg = {
+        'pi_weights': weights,
+        'spelling_multiplier': spelling_multiplier,
+        'empathy_pillars_weight': empathy_pillars_weight,
+        'art_curve': {
+            'excellent_max':  art_excellent,
+            'healthy_max':    art_healthy,
+            'acceptable_max': art_acceptable,
+            'slow_max':       art_slow,
+            'no_data_score':  art_no_data
+        },
+        'thresholds': {
+            'elite_overall':      elite_overall,
+            'elite_min_dim':      elite_min_dim,
+            'alto_overall':       alto_overall,
+            'alto_min_dim':       alto_min_dim,
+            'desarrollo_overall': desarrollo_overall
+        },
+        'recommendation': {
+            'recomendado':   rec_recomendado,
+            'observaciones': rec_observaciones
+        },
+        'floors': floors
+    }
 
     override = ScoringModeOverride.query.filter_by(mode=mode).first()
     if not override:
@@ -1348,7 +1383,7 @@ def vex_modos_save():
     override.config_json = _json.dumps(cfg, ensure_ascii=False)
     override.updated_by = current_user.id
     db.session.commit()
-    flash(f'Modo "{mode}" actualizado.', 'success')
+    flash(f'Modo "{mode}" actualizado correctamente.', 'success')
     return redirect(url_for('training.vex_modos'))
 
 

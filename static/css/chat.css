@@ -276,7 +276,10 @@
     overflow-y: auto;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* IE / Edge legacy */
 }
+.chat-input-area textarea::-webkit-scrollbar { display: none; }  /* Chrome / Safari */
 .chat-input-area textarea:focus { border-color: #E6332A; background: #fff; }
 .chat-input-area button {
     width: 42px;
