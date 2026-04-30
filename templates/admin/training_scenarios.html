@@ -175,7 +175,11 @@
 .case-card textarea {
     width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;
     font-family: inherit; font-size: 14px; resize: vertical;
+    line-height: 1.5; min-height: 80px; max-height: 600px;
+    overflow-y: auto; word-wrap: break-word; overflow-wrap: break-word;
+    box-sizing: border-box;
 }
+.case-card textarea.case-response { min-height: 64px; }
 .case-card textarea:focus { border-color: #E6332A; outline: none; }
 .btn-remove-case {
     background: #dc3545; color: #fff; border: none; border-radius: 6px;
@@ -207,6 +211,26 @@
 <script>
 var caseCount = 1;
 
+// Auto-grow textareas: el alto crece con el contenido hasta un máximo;
+// el usuario puede igual arrastrar la esquina (resize: vertical).
+function autoGrow(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    var max = parseInt(getComputedStyle(el).maxHeight, 10) || 600;
+    el.style.height = Math.min(el.scrollHeight + 2, max) + 'px';
+}
+function bindAutoGrow(scope) {
+    var nodes = (scope || document).querySelectorAll('.case-persona, .case-response');
+    nodes.forEach(function(t) {
+        if (t.dataset.autogrow) return;
+        t.dataset.autogrow = '1';
+        t.addEventListener('input', function() { autoGrow(t); });
+        // Ajuste inicial si ya hay contenido (modal de edición)
+        autoGrow(t);
+    });
+}
+document.addEventListener('DOMContentLoaded', function() { bindAutoGrow(document); });
+
 function addCase() {
     caseCount++;
     var html = '<div class="case-card" data-case="' + (caseCount-1) + '">' +
@@ -219,6 +243,7 @@ function addCase() {
         ' <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
         '<textarea class="case-response" rows="2" placeholder="Pasos que el asesor debe seguir..."></textarea></div></div>';
     document.getElementById('casesContainer').insertAdjacentHTML('beforeend', html);
+    bindAutoGrow(document.getElementById('casesContainer'));
 }
 
 function prepareSubmit() {
@@ -264,6 +289,7 @@ function editScenario(id, data) {
     });
 
     document.getElementById('editModal').style.display = 'flex';
+    bindAutoGrow(document.getElementById('editCasesList'));
 }
 
 function addEditCase() {
@@ -275,6 +301,7 @@ function addEditCase() {
         '<textarea class="case-persona" rows="3" placeholder="Persona del cliente..."></textarea></div>' +
         '<div class="form-group"><label>Resolución <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
         '<textarea class="case-response" rows="2" placeholder="Pasos esperados..."></textarea></div></div>');
+    bindAutoGrow(document.getElementById('editCasesList'));
 }
 
 function prepareEditSubmit() {
@@ -310,6 +337,7 @@ async function enhanceText(btn, type) {
         var data = await res.json();
         if (data.enhanced) {
             textarea.value = data.enhanced;
+            autoGrow(textarea);
             textarea.style.borderColor = '#2e7d32';
             setTimeout(function() { textarea.style.borderColor = ''; }, 2000);
         } else {
