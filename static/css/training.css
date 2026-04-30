@@ -133,7 +133,10 @@
     resize: none; line-height: 1.4;
     min-height: 44px; max-height: 140px;
     overflow-y: auto; word-wrap: break-word; overflow-wrap: break-word;
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* IE / Edge legacy */
 }
+.training-input-area textarea::-webkit-scrollbar { display: none; }  /* Chrome / Safari */
 .training-input-area textarea:focus { border-color: #E6332A; }
 .training-input-area .btn-send {
     width: 44px; height: 44px; border-radius: 50%;
