@@ -93,7 +93,7 @@ OPENAI_API_KEY=sk-tu-api-key-de-openai
 
 Render detecta el `Dockerfile` y ejecuta:
 1. Instala dependencias de `requirements.txt`
-2. Ejecuta migraciones (`migrate_v2.py`, `migrate_v3.py`, `migrate_v4.py`, `migrate_v5.py`)
+2. Ejecuta migraciones (`migrate_v2.py`, `migrate_v3.py`, `migrate_v4.py`, `migrate_v5.py`, `migrate_v6.py`)
 3. Inicia Gunicorn en puerto 10000
 
 ### 4. Post-deploy
@@ -127,6 +127,7 @@ python migrate_v2.py
 python migrate_v3.py
 python migrate_v4.py
 python migrate_v5.py
+python migrate_v6.py
 
 # Iniciar servidor de desarrollo
 python app.py
@@ -150,6 +151,8 @@ vexpredictive/
 ├── migrate_v3.py           # Migracion: multi-tenant (operativas)
 ├── migrate_v4.py           # Migracion: profile_photo en users
 ├── migrate_v5.py           # Migracion: avg_response_time (ART) en training_sessions
+├── migrate_v6.py           # Migracion: modos de scoring (scenario.scoring_mode + overrides)
+├── scoring_modes.py        # 3 modos predefinidos (Flexible/Standard/Exigente) + helpers
 ├── Dockerfile              # Build y deploy
 ├── requirements.txt        # Dependencias Python
 ├── static/
@@ -164,6 +167,10 @@ vexpredictive/
     ├── admin/              # Templates de administracion
     └── training/           # Templates de entrenamiento
 ```
+
+## Modos de Scoring
+
+Cada escenario se evalúa con uno de 3 modos: **🟢 Flexible** (nuevos ingresos / capacitación / selección), **🔵 Standard** (asesores en producción, default), **🔴 Exigente** (expertos / calibración). El modo se selecciona al crear el escenario; cada training hereda ese modo y queda fijo. El SuperAdmin puede personalizar los parámetros de cada modo en `/admin/vex/modos` con un botón "Volver a Standard de fábrica". Detalle completo en [scoring.md](scoring.md).
 
 ## Sistema de Scoring (resumen)
 

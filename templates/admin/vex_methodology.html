@@ -42,6 +42,49 @@
         </div>
     </div>
 
+    <!-- 0. Modos -->
+    <div class="doc-section" style="border-top:6px solid #00B2BF">
+        <h2>0. Modos de Scoring (Flexible / Standard / Exigente)</h2>
+        <p>Cada escenario tiene asignado un <strong>modo de scoring</strong> que define la severidad con la que se evalúa. Al iniciar un entrenamiento, el batch toma un <em>snapshot</em> del modo del escenario y queda fijo: cambios posteriores en el escenario no afectan evaluaciones ya iniciadas.</p>
+
+        <table class="doc-table">
+            <tr><th>Modo</th><th>Cuándo usar</th><th>Características</th></tr>
+            <tr style="background:#e8f5e9">
+                <td><strong>🟢 Flexible</strong></td>
+                <td>Nuevos ingresos · Capacitación inicial · Procesos de selección de personal</td>
+                <td>Penaliza menos errores. Pisos altos. ART meta 180-240s. Recomendado con PI ≥55%. La IA es generosa: premia esfuerzo y potencial.</td>
+            </tr>
+            <tr style="background:#e3f2fd">
+                <td><strong>🔵 Standard</strong></td>
+                <td>Asesores activos en producción (default recomendado)</td>
+                <td>Refleja los criterios reales de operación. ART meta 120-180s. Recomendado con PI ≥65%. La IA aplica criterios estándar.</td>
+            </tr>
+            <tr style="background:#ffebee">
+                <td><strong>🔴 Exigente</strong></td>
+                <td>Solo asesores expertos · Calibración · Pruebas de excelencia</td>
+                <td>Pisos bajos: cualquier debilidad se ve. ART meta 60-120s. Recomendado con PI ≥75%. La IA solo premia la excelencia real.</td>
+            </tr>
+        </table>
+
+        <h3>¿Qué afecta el modo?</h3>
+        <ul>
+            <li><strong>Pesos del Predictive Index</strong> (cómo se combina cada dimensión)</li>
+            <li><strong>Pisos mínimos por dimensión</strong> (qué tan indulgente es con sesiones puntualmente bajas)</li>
+            <li><strong>Saturación ortográfica</strong> (cuántos errores hacen falta para penalizar al máximo)</li>
+            <li><strong>Mezcla de empatía</strong> (cuánto pesan los 4 pilares vs el NPS holístico)</li>
+            <li><strong>Curva ART</strong> (los 4 cortes que definen excelente / saludable / aceptable / lento)</li>
+            <li><strong>Umbrales de categoría</strong> (Elite / Alto / Desarrollo / Refuerzo)</li>
+            <li><strong>Umbrales de recomendación</strong> (Recomendado / Observaciones / No Recomendado)</li>
+            <li><strong>Hint para la IA evaluadora</strong> (instrucción de mayor o menor severidad)</li>
+        </ul>
+
+        <h3>Personalización (solo SuperAdmin)</h3>
+        <p>El SuperAdmin puede ajustar los parámetros internos de cada modo en <code>/admin/vex/modos</code>. Los cambios quedan guardados como override; el botón "Volver a Standard de fábrica" elimina el override y restaura los defaults definidos en <code>scoring_modes.py</code>. Los demás administradores ven la página en modo lectura: pueden entender qué mide cada modo pero no cambiar valores.</p>
+
+        <h3>Sesiones legacy</h3>
+        <p>Los entrenamientos previos a esta versión no tienen modo asignado y se etiquetan como "⚪ Legacy". Se evalúan internamente con los parámetros del modo Standard, pero la UI lo aclara para evitar confusión con datos comparables.</p>
+    </div>
+
     <!-- 1. Overview -->
     <div class="doc-section">
         <h2>1. ¿Qué es Vex People Skill Predictive?</h2>

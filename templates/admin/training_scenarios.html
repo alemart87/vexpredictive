@@ -51,6 +51,30 @@
                 <input type="text" name="description" placeholder="Descripción del escenario">
             </div>
 
+            <!-- Scoring Mode Selector -->
+            <div class="form-group" style="margin:20px 0">
+                <label style="font-size:15px;font-weight:700">Modo de Evaluación</label>
+                <p style="color:#888;font-size:12px;margin:4px 0 12px">El modo define la severidad con la que se evaluará a los asesores que entrenen este escenario. Cada entrenamiento iniciado heredará este modo.</p>
+                <div class="mode-selector" id="modeSelector">
+                    {% for m in scoring_modes %}
+                    <label class="mode-card {% if m.key == 'standard' %}selected{% endif %}" data-mode="{{ m.key }}">
+                        <input type="radio" name="scoring_mode" value="{{ m.key }}" {% if m.key == 'standard' %}checked{% endif %}>
+                        <div class="mode-card-header" style="border-color:{{ m.color }}">
+                            <span class="mode-icon">{{ m.icon }}</span>
+                            <strong style="color:{{ m.color }}">{{ m.label }}</strong>
+                        </div>
+                        <p class="mode-when">{{ m.when_to_use }}</p>
+                        <details class="mode-details">
+                            <summary>Qué mide este modo</summary>
+                            <ul>
+                                {% for line in m.summary %}<li>{{ line }}</li>{% endfor %}
+                            </ul>
+                        </details>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
             <!-- Cases Section -->
             <div style="background:#f8f9fa;border-radius:12px;padding:20px;margin:16px 0;border:2px dashed #ddd">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -94,7 +118,7 @@
     <div class="table-responsive">
         <table class="admin-table">
             <thead>
-                <tr><th>Título</th><th>Categoría</th><th>Dificultad</th><th>Casos</th><th>Sesiones</th><th>Acciones</th></tr>
+                <tr><th>Título</th><th>Categoría</th><th>Dificultad</th><th>Modo</th><th>Casos</th><th>Sesiones</th><th>Acciones</th></tr>
             </thead>
             <tbody>
                 {% for s in scenarios %}
@@ -106,6 +130,15 @@
                     </td>
                     <td>{{ s.category or '-' }}</td>
                     <td><span class="badge-difficulty badge-{{ s.difficulty }}">{{ s.difficulty }}</span></td>
+                    <td>
+                        {% set mk = s.scoring_mode or 'legacy' %}
+                        <span class="mode-badge {{ mk }}">
+                            {% if mk == 'flexible' %}🟢 Flexible
+                            {% elif mk == 'standard' %}🔵 Standard
+                            {% elif mk == 'exigente' %}🔴 Exigente
+                            {% else %}⚪ Legacy{% endif %}
+                        </span>
+                    </td>
                     <td>{{ s.client_persona | count_cases }}</td>
                     <td>{{ s.sessions|length }}</td>
                     <td class="actions">
@@ -143,6 +176,22 @@
                 </div>
             </div>
             <div class="form-group"><label>Descripción</label><input type="text" name="description" id="editDesc"></div>
+
+            <div class="form-group" style="margin:16px 0">
+                <label style="font-weight:700">Modo de Evaluación</label>
+                <div class="mode-selector" id="editModeSelector">
+                    {% for m in scoring_modes %}
+                    <label class="mode-card" data-mode="{{ m.key }}">
+                        <input type="radio" name="scoring_mode" value="{{ m.key }}">
+                        <div class="mode-card-header" style="border-color:{{ m.color }}">
+                            <span class="mode-icon">{{ m.icon }}</span>
+                            <strong style="color:{{ m.color }}">{{ m.label }}</strong>
+                        </div>
+                        <p class="mode-when">{{ m.when_to_use }}</p>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
 
             <div id="editCasesContainer" style="background:#f8f9fa;border-radius:12px;padding:16px;margin:12px 0">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -200,6 +249,26 @@
     animation: btnPulse 2s ease-in-out infinite;
     transition: transform 0.2s;
 }
+
+/* Mode selector */
+.mode-selector { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+.mode-card { display:block; cursor:pointer; background:#fff; border:2px solid #e0e0e0; border-radius:10px; padding:14px; transition:all .2s; position:relative; }
+.mode-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.08); }
+.mode-card.selected { border-color:#E6332A; box-shadow:0 0 0 3px rgba(230,51,42,.12); }
+.mode-card input[type=radio] { position:absolute; opacity:0; pointer-events:none; }
+.mode-card-header { display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:2px solid; margin-bottom:8px; }
+.mode-card .mode-icon { font-size:18px; }
+.mode-card .mode-when { font-size:12px; color:#555; line-height:1.5; margin:0 0 8px; min-height:48px; }
+.mode-card details { margin-top:6px; }
+.mode-card details summary { font-size:11px; color:#888; cursor:pointer; font-weight:600; }
+.mode-card details summary:hover { color:#00B2BF; }
+.mode-card details ul { padding-left:18px; margin:6px 0 0; font-size:11px; color:#666; line-height:1.6; }
+.mode-card details ul li { margin-bottom:3px; }
+.mode-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; }
+.mode-badge.flexible { background:#e8f5e9; color:#2e7d32; }
+.mode-badge.standard { background:#e3f2fd; color:#0277bd; }
+.mode-badge.exigente { background:#ffebee; color:#c62828; }
+.mode-badge.legacy   { background:#f0f0f0; color:#666; }
 .btn-add-case:hover { transform: scale(1.05); }
 @keyframes btnPulse {
     0%, 100% { box-shadow: 0 4px 15px rgba(230, 51, 42, 0.4); }
@@ -229,7 +298,27 @@ function bindAutoGrow(scope) {
         autoGrow(t);
     });
 }
-document.addEventListener('DOMContentLoaded', function() { bindAutoGrow(document); });
+document.addEventListener('DOMContentLoaded', function() {
+    bindAutoGrow(document);
+    bindModeSelector(document);
+});
+
+// Selector visual de modo (3 cards). El click sobre el card marca el radio.
+function bindModeSelector(scope) {
+    (scope || document).querySelectorAll('.mode-selector').forEach(function(group) {
+        group.querySelectorAll('.mode-card').forEach(function(card) {
+            card.addEventListener('click', function(e) {
+                if (e.target.tagName === 'SUMMARY' || e.target.closest('details')) return;
+                var radio = card.querySelector('input[type=radio]');
+                if (radio) {
+                    radio.checked = true;
+                    group.querySelectorAll('.mode-card').forEach(function(c){ c.classList.remove('selected'); });
+                    card.classList.add('selected');
+                }
+            });
+        });
+    });
+}
 
 function addCase() {
     caseCount++;
@@ -269,6 +358,19 @@ function editScenario(id, data) {
     document.getElementById('editDesc').value = data.description || '';
     document.getElementById('editDiff').value = data.difficulty;
     document.getElementById('editCategory').value = data.category || '';
+
+    // Preseleccionar modo en el editor
+    var mode = data.scoring_mode || 'standard';
+    var sel = document.getElementById('editModeSelector');
+    if (sel) {
+        sel.querySelectorAll('.mode-card').forEach(function(c) {
+            var isMatch = c.dataset.mode === mode;
+            c.classList.toggle('selected', isMatch);
+            var r = c.querySelector('input[type=radio]');
+            if (r) r.checked = isMatch;
+        });
+        bindModeSelector(sel.parentElement);
+    }
 
     // Load cases
     var container = document.getElementById('editCasesList');
