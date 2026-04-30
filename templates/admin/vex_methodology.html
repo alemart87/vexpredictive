@@ -218,8 +218,8 @@
             <p><strong>Qué evalúa:</strong> Capacidad de mejorar el rendimiento entre sesiones sucesivas y de manejar diferentes tipos de escenarios y situaciones.</p>
             <p><strong>Por qué importa:</strong> El concepto de <strong>Learning Agility</strong> (agilidad de aprendizaje) es uno de los predictores más fuertes de éxito a largo plazo según la investigación de Bartram (2005) con el SHL Universal Competency Framework, basada en análisis de más de 200 modelos de competencias. Agentes que demuestran mejora progresiva tienen mayor probabilidad de retención y desarrollo profesional.</p>
             <p><strong>Cómo se calcula:</strong></p>
-            <div class="formula-box">Adaptabilidad = 30 (piso) + tendencia_NPS_entre_sesiones × 35% + diversidad_escenarios × 35%</div>
-            <p><strong>Nota técnica:</strong> La tendencia se calcula como la pendiente de una regresión lineal simple sobre los NPS scores ordenados cronológicamente, normalizada al rango 0-1. Una pendiente positiva indica mejora progresiva. La diversidad de escenarios usa un factor más permisivo: <code>variety = min(1, escenarios_unicos / max(total_escenarios×0.4, 1))</code> — alcanzar el 40% de los escenarios disponibles ya da el 100% de variedad. El piso de 30 evita que un asesor nuevo con pocas sesiones parta en 1.</p>
+            <div class="formula-box">Adaptabilidad = piso (modo) + tendencia_NPS × 35% + variedad_efectiva × 35%</div>
+            <p><strong>Nota técnica:</strong> La tendencia se calcula como la pendiente de una regresión lineal simple sobre los NPS scores ordenados cronológicamente, normalizada al rango 0-1. Una pendiente positiva indica mejora progresiva. <strong>Variedad efectiva</strong> cuenta solo escenarios donde el asesor tuvo éxito (<code>response_correct=true</code> o <code>nps_score≥6</code>): abandonar 3 escenarios distintos NO suma variedad. Fórmula: <code>min(1, escenarios_resueltos / max(total_escenarios×0.4, 1))</code>. El piso del modo evita que un asesor nuevo con pocas sesiones parta en 1.</p>
             <p><strong>Fuente principal:</strong> Bartram, D. (2005). "The Great Eight Competencies: A Criterion-Centric Approach to Validation." <em>Journal of Applied Psychology</em>, 90(6), 1185-1203.</p>
         </div>
 
@@ -305,6 +305,14 @@
             <tr style="background:#fce4ec"><td><strong>&lt; 45%</strong></td><td>No Recomendado</td><td>No incorporar sin completar programa de capacitación previo</td></tr>
         </table>
         <p><strong>Cambio:</strong> Antes los cortes eran 70% / 50%. Bajamos 5 puntos cada uno para alinear con la curva más generosa del scoring revisado.</p>
+
+        <h4 style="color:#c62828">⚠ Hard Cap por tasa de abandono</h4>
+        <p>Independientemente del Predictive Index calculado, si el asesor tiene <strong>más del 40% de las sesiones abandonadas</strong> (auto-fails: &lt;2 mensajes o &lt;8 palabras totales del asesor), el sistema aplica un tope automático:</p>
+        <ul>
+            <li>La <strong>categoría</strong> no puede ser Elite ni Alto (máximo Desarrollo).</li>
+            <li>La <strong>recomendación</strong> no puede ser "Recomendado" (máximo "Con Observaciones").</li>
+        </ul>
+        <p>La razón: aunque las pocas sesiones válidas hayan salido excelentes, una muestra con muchos abandonos no es estadísticamente confiable para una recomendación positiva. La tasa de abandono se muestra como <strong>"Fiabilidad de la muestra"</strong> en la cabecera del perfil.</p>
     </div>
 
     <!-- 5. Interpretation -->

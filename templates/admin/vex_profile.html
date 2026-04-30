@@ -55,6 +55,37 @@
         </div>
     </div>
 
+    <!-- Fiabilidad de la muestra -->
+    {% set ab = profile.abandonment_rate or 0 %}
+    {% set ab_pct = (ab * 100) | round(0, 'common') | int %}
+    {% set ab_severity = 'ok' if ab < 0.15 else ('warn' if ab < 0.40 else 'danger') %}
+    {% set ab_color = {'ok':'#2e7d32','warn':'#e65100','danger':'#c62828'}[ab_severity] %}
+    {% set ab_label = {'ok':'Muestra confiable','warn':'Atención: sesiones abandonadas','danger':'Muestra poco fiable — hard cap aplicado'}[ab_severity] %}
+    <div class="vex-card" style="background:#fff;border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px;border-left:5px solid {{ ab_color }}">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+            <div style="flex:1;min-width:240px">
+                <h3 style="color:{{ ab_color }};margin:0;font-size:15px">📊 Fiabilidad de la muestra</h3>
+                <p style="margin:4px 0 0;font-size:13px;color:#555;line-height:1.5">
+                    <strong>{{ ab_label }}.</strong>
+                    {% if ab_severity == 'ok' %}
+                        El asesor completó las sesiones de forma sustancial; los resultados son representativos.
+                    {% elif ab_severity == 'warn' %}
+                        Hay sesiones abandonadas (asesor envió pocos mensajes o muy poca interacción). Considerar antes de tomar decisiones.
+                    {% else %}
+                        Más del 40% de las sesiones fueron abandonadas. <strong>El sistema aplicó automáticamente un hard cap</strong>: la categoría no puede ser Elite/Alto y la recomendación no puede ser "Recomendado" hasta que se reentrene con sesiones completas.
+                    {% endif %}
+                </p>
+            </div>
+            <div style="text-align:center;min-width:120px">
+                <div style="font-size:30px;font-weight:800;color:{{ ab_color }};line-height:1">{{ ab_pct }}%</div>
+                <div style="font-size:11px;color:#888">tasa de abandono</div>
+            </div>
+        </div>
+        <div style="margin-top:10px;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden">
+            <div style="width:{{ ab_pct }}%;height:100%;background:{{ ab_color }};border-radius:3px;transition:width .4s"></div>
+        </div>
+    </div>
+
     <!-- Hexagon Chart -->
     <div class="vex-card" style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px">
         <h2 style="color:#00B2BF;margin:0 0 16px">Hexágono de Rendimiento</h2>
@@ -67,12 +98,12 @@
     <div class="vex-card" style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:20px">
         <h2 style="color:#00B2BF;margin:0 0 16px">Detalle por Dimensión</h2>
         {% set dims = [
-            ('Comunicación Escrita', profile.communication_score, 'Calidad gramatical, claridad y profesionalismo', '#E6332A'),
-            ('Empatía & Trato', profile.empathy_score, 'Reconocimiento emocional y personalización', '#00B2BF'),
-            ('Resolución de Problemas', profile.resolution_score, 'Eficacia para resolver el caso correctamente', '#2e7d32'),
-            ('Velocidad & Productividad', profile.speed_score, 'Rapidez de respuesta (WPM) y tiempo de resolución', '#e65100'),
-            ('Adaptabilidad', profile.adaptability_score, 'Mejora progresiva y diversidad de escenarios', '#7b1fa2'),
-            ('Cumplimiento & Calidad', profile.compliance_score, 'Adherencia a procedimientos y calidad', '#0277bd')
+            ('Comunicación Escrita', profile.communication_score, 'Calidad ortográfica que afecta la comprensión y NPS del cliente', '#E6332A'),
+            ('Empatía & Trato', profile.empathy_score, 'Rúbrica de 4 pilares: Nombre · Contexto · Calidez · Resolución', '#00B2BF'),
+            ('Resolución de Problemas', profile.resolution_score, 'Tasa de respuestas correctas según el procedimiento esperado', '#2e7d32'),
+            ('Velocidad — ART', profile.speed_score, 'Average Response Time: tiempo medio entre mensaje del cliente y réplica del asesor', '#e65100'),
+            ('Adaptabilidad', profile.adaptability_score, 'Mejora progresiva del NPS y variedad de escenarios resueltos con éxito', '#7b1fa2'),
+            ('Cumplimiento & Calidad', profile.compliance_score, 'Adherencia a procedimientos y profesionalismo en la atención', '#0277bd')
         ] %}
         {% for name, score, desc, color in dims %}
         <div style="display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #f0f0f0">
@@ -148,35 +179,35 @@
                 <li><strong>Agregación:</strong> Se promedian datos de todas las sesiones completadas (mínimo 2). Esto captura rendimiento consistente.</li>
                 <li><strong>Normalización:</strong> Escala Sten (1-10) basada en Anastasi & Urbina (1997). Fórmula: Sten = round(raw/10), acotado 1-10.</li>
                 <li><strong>Scoring:</strong> 6 dimensiones con fórmulas ponderadas combinando métricas cuantitativas y cualitativas.</li>
-                <li><strong>Índice Predictivo:</strong> Score compuesto ponderado — Resolución 25%, Empatía 20%, Comunicación 20%, Velocidad 15%, Adaptabilidad 10%, Cumplimiento 10%. Pesos basados en validez criterial (Dawes, 1979).</li>
-                <li><strong>Clasificación:</strong> Patrón Operativo + Recomendación de incorporación.</li>
+                <li><strong>Índice Predictivo:</strong> Score compuesto ponderado — Empatía 25%, Resolución 22%, Comunicación 18%, Velocidad 15%, Adaptabilidad 10%, Cumplimiento 10% (modo Standard). Pesos basados en validez criterial (Dawes, 1979).</li>
+                <li><strong>Clasificación:</strong> Patrón Operativo + Recomendación de incorporación. Hard cap aplicado si la tasa de abandono supera el 40%.</li>
             </ol>
 
             <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Justificación Científica por Dimensión</h3>
 
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
                 <strong>1. Comunicación Escrita</strong> — Spitzberg & Cupach (1984)
-                <p style="margin:4px 0 0">Errores ortográficos reducen percepción de calidad 15-20% (Köhler et al., 2011). Se calcula: tasa inversa de errores (50%) + evaluación IA (50%).</p>
+                <p style="margin:4px 0 0">Errores que afectan la comprensión reducen percepción de calidad 15-20% (Köhler et al., 2011). Tildes, abreviaciones y emojis no penalizan. Se calcula: piso del modo + tasa inversa de errores que afectan comprensión + NPS promedio.</p>
             </div>
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
-                <strong>2. Empatía & Trato</strong> — Davis IRI (1983), Spreng TEQ (2009)
-                <p style="margin:4px 0 0">Deep acting correlaciona con satisfacción del cliente (Grandey, 2000). Se calcula: NPS promedio (100%) — el NPS captura integralmente la experiencia del cliente incluyendo tono y empatía.</p>
+                <strong>2. Empatía & Trato</strong> — Davis IRI (1983), Spreng TEQ (2009), Grandey (2000)
+                <p style="margin:4px 0 0">Rúbrica jerárquica explícita de 4 pilares: <strong>Nombre</strong> (15%) · <strong>Contexto</strong> (25%) · <strong>Calidez</strong> (25%) · <strong>Resolución</strong> (35%). Mezclado con NPS holístico según el modo. Sesiones abandonadas cuentan como pilares en cero.</p>
             </div>
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
                 <strong>3. Resolución de Problemas</strong> — Feinberg et al. (2000)
-                <p style="margin:4px 0 0">FCR tiene correlación r=.55-.65 con CSAT. Se calcula: tasa de respuestas correctas (70%) + NPS (30%).</p>
+                <p style="margin:4px 0 0">FCR tiene correlación r=.55-.65 con CSAT. Se calcula: piso del modo + tasa de respuestas correctas + NPS promedio.</p>
             </div>
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
-                <strong>4. Velocidad & Productividad</strong> — Tezcan & Zhang (2014), LiveChat, Chatway
-                <p style="margin:4px 0 0">Benchmark: 30 WPM efectivo (equivale a ~50-60 WPM tipeo puro). Se calcula: WPM efectivo normalizado (60%) + duración inversa (40%).</p>
+                <strong>4. Velocidad — ART (Average Response Time)</strong> — Tezcan & Zhang (2014), LiveChat, Chatway
+                <p style="margin:4px 0 0">Mide el tiempo medio entre el mensaje del cliente y la réplica del asesor (no la duración total del chat). Meta saludable para 5 chats simultáneos: 120-180s. Sesiones abandonadas se penalizan como ART catastrófico (1200s). ART pesa 70%, WPM 30%.</p>
             </div>
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
                 <strong>5. Adaptabilidad & Aprendizaje</strong> — Bartram (2005), SHL UCF
-                <p style="margin:4px 0 0">Learning Agility predice éxito a largo plazo. Se calcula: tendencia NPS entre sesiones (50%) + diversidad de escenarios (50%).</p>
+                <p style="margin:4px 0 0">Learning Agility predice éxito a largo plazo. Se calcula: piso del modo + tendencia NPS entre sesiones + variedad efectiva (escenarios resueltos correctamente o con NPS≥6 — abandonar escenarios distintos NO suma variedad).</p>
             </div>
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:10px">
                 <strong>6. Cumplimiento & Calidad</strong> — COPC CX Standard (2019), ISO 18295
-                <p style="margin:4px 0 0">Verificación de habilidades es requisito operativo. Se calcula: tasa de correctas (60%) + tasa inversa errores (40%).</p>
+                <p style="margin:4px 0 0">Verificación de habilidades es requisito operativo. Se calcula: piso del modo + tasa de respuestas correctas + tasa inversa de errores que afectan la comprensión.</p>
             </div>
 
             <h3 style="color:#00B2BF;font-size:15px;margin-top:20px">Escala de Interpretación</h3>

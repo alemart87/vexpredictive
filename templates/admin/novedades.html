@@ -147,6 +147,25 @@
     -->
 
     <!-- 2026-04-30 -->
+    <div class="nov-entry fix" data-type="fix">
+        <div class="nov-head">
+            <span class="nov-tag fix">Corrección crítica</span>
+            <h3 class="nov-title">Scoring justo: sesiones abandonadas ya no inflan el Índice Predictivo</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>Detectamos un caso donde un asesor con 4 de 5 sesiones abandonadas (NPS=1, sin interacción real) salía como <strong>"Recomendado"</strong>. Las sesiones vacías estaban siendo "ignoradas" en dimensiones clave en lugar de penalizar. Lo corregimos:</p>
+            <ul>
+                <li><strong>Empatía:</strong> los pilares (Nombre/Contexto/Calidez/Resolución) ahora se promedian sobre el TOTAL de sesiones, no solo las que tienen breakdown. Una sesión abandonada cuenta como pilares en cero.</li>
+                <li><strong>Velocidad (ART):</strong> sesiones auto-fail sin ART real ahora se penalizan como ART catastrófico (1200s) en lugar de recibir el "neutral 65".</li>
+                <li><strong>Adaptabilidad — Variedad efectiva:</strong> solo cuentan escenarios resueltos correctamente o con NPS≥6. Abandonar 3 escenarios distintos NO suma variedad.</li>
+                <li><strong>Hard cap por abandono:</strong> si más del 40% de las sesiones son abandonadas, la categoría no puede ser Elite/Alto y la recomendación no puede ser "Recomendado", independientemente del PI calculado.</li>
+            </ul>
+            <p>Nuevo bloque <strong>"Fiabilidad de la muestra"</strong> en el perfil VEX que muestra la tasa de abandono con código de color (verde &lt;15%, naranja 15-40%, rojo &gt;40%).</p>
+            <p>Nombres también ajustados en el frontend: <em>"Velocidad &amp; Productividad"</em> → <em>"Velocidad — ART"</em>, descripciones de cada dimensión actualizadas para reflejar las fórmulas reales.</p>
+        </div>
+    </div>
+
     <div class="nov-entry feature" data-type="feature">
         <div class="nov-head">
             <span class="nov-tag feature">Nueva función</span>

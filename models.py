@@ -291,6 +291,7 @@ class VexProfile(db.Model):
     profile_category = db.Column(db.String(30))  # elite, alto, desarrollo, refuerzo
     recommendation = db.Column(db.String(30))  # recomendado, observaciones, no_recomendado
     sessions_analyzed = db.Column(db.Integer, default=0)
+    abandonment_rate = db.Column(db.Float, default=0)  # 0..1 — sesiones con auto-fail / total
     last_updated = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref=db.backref('vex_profile', uselist=False))
