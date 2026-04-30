@@ -101,6 +101,14 @@
                 </div>
                 {% endif %}
 
+                {% if current_user.is_superadmin or current_user.role == 'coordinador' %}
+                <a href="{{ url_for('novedades') }}" class="nav-novedades" title="Ver novedades de la plataforma">
+                    <span class="nav-novedades-icon">✨</span>
+                    <span class="nav-novedades-text">Novedades</span>
+                    <span class="nav-novedades-pulse"></span>
+                </a>
+                {% endif %}
+
                 <a href="{{ url_for('my_profile') }}" class="nav-user-info">
                     <span class="nav-avatar-wrap">
                         {% if current_user.profile_photo %}

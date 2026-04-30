@@ -82,6 +82,7 @@ app.register_blueprint(training_bp)
 
 
 # ===== Auth routes =====
+from decorators import coordinador_or_above
 from flask_login import login_user, logout_user
 import json as json_module
 
@@ -239,6 +240,13 @@ def api_search():
 
 
 # --- Mi Perfil ---
+@app.route('/novedades')
+@coordinador_or_above
+def novedades():
+    """Changelog publico para admins/coordinadores y SuperAdmin."""
+    return render_template('admin/novedades.html')
+
+
 @app.route('/profile')
 @login_required
 def my_profile():
