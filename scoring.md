@@ -10,10 +10,13 @@ sesión de entrenamiento y cómo se agregan los resultados en el perfil VEX del 
 
 ## 1. Capa 1 — Evaluación por sesión (IA)
 
-Cada sesión cerrada se evalúa con OpenAI (GPT-4o-mini). El modelo recibe la
-conversación completa, el escenario, la respuesta esperada y un texto consolidado
-del asesor para revisión ortográfica. Devuelve un JSON estructurado con las
-señales que alimentan el perfil agregado.
+Cada sesión cerrada se evalúa con OpenAI (**GPT-5.4 mini**, ID:
+`gpt-5.4-mini`). El modelo recibe la conversación completa, el escenario, la
+respuesta esperada y un texto consolidado del asesor para revisión ortográfica.
+Devuelve un JSON estructurado con las señales que alimentan el perfil agregado.
+
+> El cliente simulado durante la sesión y la evaluación final usan el mismo
+> modelo. Si necesitás cambiar el modelo, editá `chat.py:166` (`call_openai`).
 
 ### 1.1 Auto-fail
 
