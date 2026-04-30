@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from models import db, Content, ChatConversation, ChatMessage
 from datetime import datetime, timezone
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -163,9 +163,9 @@ def call_openai(messages):
         return "Lo siento, el servicio de IA no está configurado. Contacta al administrador.", 0
 
     payload = json.dumps({
-        'model': 'gpt-4o-mini',
+        'model': 'gpt-5.4-mini',
         'messages': messages,
-        'max_tokens': 1200,
+        'max_completion_tokens': 1200,
         'temperature': 0.2
     }).encode('utf-8')
 
@@ -184,6 +184,14 @@ def call_openai(messages):
             content = data['choices'][0]['message']['content']
             tokens = data.get('usage', {}).get('total_tokens', 0)
             return content, tokens
+    except HTTPError as e:
+        body = ''
+        try:
+            body = e.read().decode('utf-8', errors='replace')[:500]
+        except Exception:
+            pass
+        print(f"[CHAT] OpenAI HTTP {e.code}: {body}", flush=True)
+        return "Lo siento, hubo un error al procesar tu consulta. Intenta de nuevo.", 0
     except URLError as e:
         print(f"[CHAT] OpenAI error: {e}", flush=True)
         return "Lo siento, hubo un error al procesar tu consulta. Intenta de nuevo.", 0
