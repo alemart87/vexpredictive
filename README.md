@@ -8,7 +8,7 @@ Vex People Predictive permite a las organizaciones:
 
 - **Gestionar contenido** de ayuda en linea y knowledge base por operativa
 - **Entrenar agentes** con simulaciones de clientes impulsadas por IA (GPT-4o-mini)
-- **Evaluar competencias** con el sistema Vex People Skill Predictive (6 dimensiones + indice predictivo)
+- **Evaluar competencias** con el sistema Vex People Skill Predictive (6 dimensiones + indice predictivo). Ver [scoring.md](scoring.md) para el detalle de formulas, pesos y umbrales.
 - **Asistente VEX AI** - chatbot inteligente que responde en base al contenido cargado
 - **Analytics** - dashboards de uso, insights y recomendaciones automaticas
 - **Multi-tenancy** - cada Operativa tiene sus propios usuarios, contenido, escenarios y branding personalizado
@@ -93,7 +93,7 @@ OPENAI_API_KEY=sk-tu-api-key-de-openai
 
 Render detecta el `Dockerfile` y ejecuta:
 1. Instala dependencias de `requirements.txt`
-2. Ejecuta migraciones (`migrate_v2.py`, `migrate_v3.py`)
+2. Ejecuta migraciones (`migrate_v2.py`, `migrate_v3.py`, `migrate_v4.py`, `migrate_v5.py`)
 3. Inicia Gunicorn en puerto 10000
 
 ### 4. Post-deploy
@@ -125,6 +125,8 @@ cp .env.example .env  # Editar con tus valores
 # Ejecutar migraciones
 python migrate_v2.py
 python migrate_v3.py
+python migrate_v4.py
+python migrate_v5.py
 
 # Iniciar servidor de desarrollo
 python app.py
@@ -143,8 +145,11 @@ vexpredictive/
 ├── chat.py                 # Blueprint chat (VEX AI asistente)
 ├── analytics.py            # Blueprint analytics (tracking pageviews, clicks)
 ├── decorators.py           # Decoradores de autorizacion
+├── scoring.md              # Documentacion del sistema de scoring (formulas, pesos, ART)
 ├── migrate_v2.py           # Migracion: tablas de training
 ├── migrate_v3.py           # Migracion: multi-tenant (operativas)
+├── migrate_v4.py           # Migracion: profile_photo en users
+├── migrate_v5.py           # Migracion: avg_response_time (ART) en training_sessions
 ├── Dockerfile              # Build y deploy
 ├── requirements.txt        # Dependencias Python
 ├── static/
@@ -159,6 +164,26 @@ vexpredictive/
     ├── admin/              # Templates de administracion
     └── training/           # Templates de entrenamiento
 ```
+
+## Sistema de Scoring (resumen)
+
+Cada sesion de entrenamiento se evalua con IA y produce: NPS (0-10), correctitud, errores ortograficos relevantes y un breakdown de empatia (Nombre / Contexto / Calidez / Resolucion). El perfil VEX agrega los datos en 6 dimensiones:
+
+| Dimension | Peso en Predictive Index |
+|---|---|
+| Empatia (rubrica jerarquica de 4 pilares + NPS) | 25% |
+| Resolucion | 22% |
+| Comunicacion | 18% |
+| Velocidad (basada en ART, no duracion total) | 15% |
+| Adaptabilidad | 10% |
+| Compliance | 10% |
+
+**ART (Average Response Time):** mide el tiempo medio entre el mensaje del cliente y la respuesta del asesor. Meta saludable con multiples chats simultaneos: **120-180s**. No castiga la lentitud del cliente ni la duracion total del chat.
+
+**Categorias:** Elite (overall >=8.5 y todas >=7) / Alto (>=6.5 y todas >=4) / Desarrollo (>=4.5) / Refuerzo (<4.5).
+**Recomendacion:** Recomendado (PI >=65%) / Observaciones (45-65%) / No Recomendado (<45%).
+
+Detalle completo de formulas, pisos minimos y reglas de ortografia leniente en [scoring.md](scoring.md).
 
 ## Licencia
 

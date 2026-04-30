@@ -71,6 +71,13 @@
         if (tabName === 'stats') loadMyStats();
     }
 
+    // Auto-resize textarea (text wraps vertically as it grows)
+    function autoResizeInput() {
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    }
+    inputEl.addEventListener('input', autoResizeInput);
+
     // Send
     sendBtn.addEventListener('click', sendMessage);
     inputEl.addEventListener('keydown', function(e) {
@@ -128,6 +135,7 @@
         if (activeTab !== 'chat') switchTab('chat');
 
         inputEl.value = '';
+        autoResizeInput();
         sendBtn.disabled = true;
         addMessage('user', text);
 

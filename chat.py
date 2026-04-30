@@ -163,7 +163,7 @@ def call_openai(messages):
         return "Lo siento, el servicio de IA no está configurado. Contacta al administrador.", 0
 
     payload = json.dumps({
-        'model': 'gpt-4o-mini',
+        'model': 'gpt-5.4-mini',
         'messages': messages,
         'max_tokens': 1200,
         'temperature': 0.2

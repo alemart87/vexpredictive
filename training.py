@@ -361,27 +361,35 @@ def end_session(session_id):
     session.ended_at = now
     session.duration_seconds = int(safe_elapsed(session.started_at))
 
-    # WPM: estimate active typing time from user message timestamps
+    # WPM + ART (Average Response Time): tiempo entre cada mensaje del cliente
+    # y la respuesta del asesor. ART NO mide la duracion total del chat — solo
+    # cuanto tarda el asesor en responder cada vez que el cliente le escribe.
     user_messages = [m for m in session.messages if m.role == 'user']
+    response_gaps = []  # segundos entre cliente -> asesor
     if user_messages and session.total_words_user:
-        # Estimate typing time: for each user message, count ~3 seconds base
-        # plus the gap between the previous client message and this user message
         typing_seconds = 0
-        prev_time = None
+        prev_client_time = None
         for msg in session.messages:
             if msg.role == 'client':
-                prev_time = msg.created_at
+                prev_client_time = msg.created_at
             elif msg.role == 'user':
-                if prev_time and msg.created_at:
-                    gap = (msg.created_at.replace(tzinfo=None) - prev_time.replace(tzinfo=None)).total_seconds()
-                    # Cap per-message thinking+typing time at 120s to avoid idle inflation
-                    typing_seconds += min(gap, 120)
+                if prev_client_time and msg.created_at:
+                    gap = (msg.created_at.replace(tzinfo=None) - prev_client_time.replace(tzinfo=None)).total_seconds()
+                    # Cap por mensaje a 600s (10min) para no castigar pausas extremas o idle del cliente
+                    capped = max(0, min(gap, 600))
+                    response_gaps.append(capped)
+                    # WPM usa los mismos gaps cap a 120s para estimar tiempo activo de tipeo
+                    typing_seconds += min(capped, 120)
                 else:
-                    typing_seconds += 10  # fallback estimate for first message
-        typing_minutes = max(typing_seconds / 60, 0.1)  # at least 6 seconds
+                    typing_seconds += 10  # primer mensaje sin contexto
+        typing_minutes = max(typing_seconds / 60, 0.1)
         session.words_per_minute = round(session.total_words_user / typing_minutes, 1)
     elif session.duration_seconds > 0 and session.total_words_user:
         session.words_per_minute = round(session.total_words_user / (session.duration_seconds / 60), 1)
+
+    # ART: promedio de tiempos de respuesta. Si no hay gaps medibles (ej: el
+    # asesor habla primero), ART queda en 0 y no penaliza.
+    session.avg_response_time = round(sum(response_gaps) / len(response_gaps), 1) if response_gaps else 0
 
     # Count user messages
     user_msg_count = len(user_messages)
@@ -452,41 +460,66 @@ TEXTO DEL ASESOR (para revisar ortografía):
 {user_texts}
 
 NPS - ANÁLISIS DE SENTIMIENTO DEL CLIENTE (escala 0-10):
-El NPS se determina desde la PERSPECTIVA DEL CLIENTE. Analizá cómo se habría sentido el cliente durante la conversación:
-- NPS 9-10 (Promotor): El cliente se sintió escuchado, atendido con calidez, y su problema fue abordado. Se iría satisfecho y recomendaría el servicio.
-- NPS 7-8 (Promotor leve): El cliente tuvo una buena experiencia general, se sintió bien atendido aunque faltaron algunos detalles.
-- NPS 5-6 (Pasivo): El cliente fue atendido pero sin que la experiencia sea memorable. Ni muy satisfecho ni insatisfecho.
-- NPS 3-4 (Detractor leve): El cliente se sintió poco escuchado, las respuestas fueron frías, genéricas, o no abordaron su necesidad.
-- NPS 0-2 (Detractor): El cliente se sintió ignorado, frustrado o mal atendido. Experiencia negativa.
+El NPS se determina desde la PERSPECTIVA DEL CLIENTE. Sé generoso con la evaluación:
+si el cliente fue atendido con un esfuerzo razonable y obtuvo respuesta a su necesidad, NPS alto.
+- NPS 9-10 (Promotor): El cliente se sintió escuchado y atendido con calidez. Su problema fue abordado.
+- NPS 7-8 (Promotor leve): Buena experiencia general, bien atendido aunque algún detalle podría mejorar.
+- NPS 5-6 (Pasivo): Atendido correctamente pero sin nada destacable. Experiencia neutra.
+- NPS 3-4 (Detractor leve): Respuestas frías o genéricas; el cliente sintió que no abordaron su necesidad.
+- NPS 0-2 (Detractor): El cliente se sintió ignorado o mal atendido. Solo aplicar en casos claros.
 
-Factores que MEJORAN el NPS del cliente:
-- Saludo cálido y personalizado
-- Empatía (entender la situación del cliente)
-- Respuestas claras y útiles
-- Seguimiento y preocupación genuina
+EMPATÍA — RÚBRICA JERÁRQUICA (evaluá EN ORDEN, cada paso vale):
+Esta rúbrica define cómo medimos la empatía. Mencionalas en el feedback.
+1. NOMBRE: ¿El asesor mencionó el nombre del cliente al menos una vez?
+2. CONTEXTO: ¿Demostró comprender el problema del cliente (parafrasear, reconocer la situación)?
+3. CALIDEZ: ¿Usó un tono amable, humano, o emojis adecuados (no robótico ni cortante)?
+4. RESOLUCIÓN: ¿Se enfocó genuinamente en ayudar al cliente, no en recitar un speech?
+Una conversación con los 4 pasos cumplidos es alta empatía. Faltar alguno no es necesariamente
+catastrófico — el orden indica prioridad: la resolución y la calidez pesan más que recitar el nombre.
+
+Factores que MEJORAN el NPS:
+- Saludo personalizado, uso del nombre del cliente
+- Comprensión del problema (parafraseo, reconocimiento)
+- Tono cálido y humano
+- Respuestas útiles y orientadas a resolver
 - Despedida amable
 
-Factores que BAJAN el NPS del cliente:
-- Respuestas frías o robóticas
+Factores que BAJAN el NPS:
+- Respuestas frías, robóticas o tipo speech
 - Ignorar lo que el cliente dice
 - No ofrecer soluciones concretas
-- Monosílabos o respuestas sin esfuerzo
-- Falta de empatía ante la situación del cliente
+- Monosílabos sistemáticos
+- Falta de calidez ante una situación delicada
 
 CRITERIO DE CORRECCIÓN (response_correct):
-- true: El asesor cubrió la esencia del procedimiento esperado (no necesita ser textual, pero debe haber abordado los puntos clave).
-- false: El asesor ignoró el procedimiento o no abordó los puntos principales del caso.
+- true: El asesor cubrió la esencia del procedimiento esperado. NO requiere texto literal; basta con
+  abordar la idea principal. Sé permisivo: si la solución es razonable y resuelve el problema, true.
+- false: El asesor ignoró el procedimiento o falló en abordar el caso.
 
-ORTOGRAFÍA: Contá solo errores claros de ortografía/gramática. No contés tildes omitidas en chat informal ni abreviaciones comunes.
+ORTOGRAFÍA — REGLAS LENIENTES (importante):
+- NO contar como errores: tildes omitidas, mayúsculas iniciales en chat informal, abreviaciones
+  comunes (xq, q, tmb, pq, gracias→graxs), uso de emojis, falta de signos de apertura ¿¡, errores
+  tipográficos menores que NO afectan la comprensión.
+- SÍ contar como error: solo faltas que CAMBIAN EL SIGNIFICADO o IMPIDEN ENTENDER el mensaje
+  (palabras mal escritas que cambian el sentido, conjugaciones incorrectas que confunden, frases
+  ilegibles). Si la duda es razonable, NO lo contés.
+- En la mayoría de chats bien escritos el resultado debe ser 0. Solo subir el conteo cuando
+  hay errores que un cliente real notaría con molestia.
 
 Respondé EXACTAMENTE en este formato JSON (sin markdown, solo JSON puro):
 {{
     "nps_score": <número del 0 al 10>,
     "response_correct": <true o false>,
-    "spelling_errors": <número de errores ortográficos claros>,
-    "feedback": "<retroalimentación constructiva: cómo se habría sentido el cliente, qué hizo bien el asesor, qué puede mejorar>",
-    "strengths": "<2-3 fortalezas observadas desde la perspectiva del cliente>",
-    "improvements": "<2-3 áreas de mejora concretas para mejorar la experiencia del cliente>"
+    "spelling_errors": <número de errores ortográficos que afectan la comprensión>,
+    "empathy_breakdown": {{
+        "nombre": <true o false: ¿mencionó el nombre del cliente?>,
+        "contexto": <true o false: ¿demostró comprender el problema?>,
+        "calidez": <true o false: ¿tono amable/humano/emojis adecuados?>,
+        "resolucion": <true o false: ¿se enfocó en ayudar más que recitar speech?>
+    }},
+    "feedback": "<retroalimentación constructiva desde la perspectiva del cliente, mencionando los 4 pilares de empatía>",
+    "strengths": "<2-3 fortalezas observadas>",
+    "improvements": "<2-3 áreas de mejora concretas>"
 }}"""
 
     eval_messages = [
@@ -512,7 +545,8 @@ Respondé EXACTAMENTE en este formato JSON (sin markdown, solo JSON puro):
         session.ai_feedback = json.dumps({
             'feedback': evaluation.get('feedback', ''),
             'strengths': evaluation.get('strengths', ''),
-            'improvements': evaluation.get('improvements', '')
+            'improvements': evaluation.get('improvements', ''),
+            'empathy_breakdown': evaluation.get('empathy_breakdown', {})
         }, ensure_ascii=False)
     except (json.JSONDecodeError, ValueError) as e:
         print(f"[TRAINING] Eval parse error: {e}", flush=True)
@@ -968,12 +1002,38 @@ def calculate_vex_profile(user_id):
     total_spelling = sum(s.spelling_errors or 0 for s in sessions)
     avg_nps = sum(s.nps_score or 0 for s in sessions) / total_sessions
     avg_wpm = sum(s.words_per_minute or 0 for s in sessions) / total_sessions
-    avg_duration = sum(s.duration_seconds or 0 for s in sessions) / total_sessions
     correct_count = sum(1 for s in sessions if s.response_correct)
     correct_rate = correct_count / total_sessions
+    # Spelling rate: errores por palabra. Solo contamos errores que afectan
+    # comprensión (el prompt de IA ya filtra tildes/abreviaciones).
     spelling_rate = total_spelling / max(total_words, 1)
     unique_scenarios = len(set(s.scenario_id for s in sessions))
     total_scenarios = TrainingScenario.query.filter_by(is_active=True).count() or 1
+
+    # ART (Average Response Time) — promedio del tiempo medio de respuesta
+    # del asesor en cada sesión. Solo considera sesiones con ART medible.
+    art_values = [s.avg_response_time for s in sessions if s.avg_response_time and s.avg_response_time > 0]
+    avg_art = sum(art_values) / len(art_values) if art_values else 0  # segundos
+
+    # Empathy breakdown agregado: promedio del cumplimiento de cada pilar.
+    empathy_pillars = {'nombre': 0, 'contexto': 0, 'calidez': 0, 'resolucion': 0}
+    pillar_count = 0
+    for s in sessions:
+        if not s.ai_feedback:
+            continue
+        try:
+            fb = json.loads(s.ai_feedback)
+            br = fb.get('empathy_breakdown') or {}
+            if br:
+                pillar_count += 1
+                for k in empathy_pillars:
+                    if br.get(k):
+                        empathy_pillars[k] += 1
+        except (json.JSONDecodeError, TypeError):
+            pass
+    empathy_pillar_rate = {
+        k: (v / pillar_count) if pillar_count else 0 for k, v in empathy_pillars.items()
+    }
 
     # Improvement trend (NPS slope across sessions ordered by date)
     sorted_sessions = sorted(sessions, key=lambda s: s.created_at or datetime.min)
@@ -990,33 +1050,74 @@ def calculate_vex_profile(user_id):
         improvement_trend = 0.5
 
     # --- Dimension raw scores (0-100) ---
-    # 1. Communication: inverse spelling rate + message quality
-    comm_raw = (1 - min(spelling_rate * 10, 1)) * 50 + (avg_nps / 10) * 50
+    # Penalización suave por ortografía: una errata cada 25 palabras (4%) = -100%.
+    # Antes era cada 10 palabras (10%); ahora más permisivo.
+    spelling_penalty = min(spelling_rate * 25, 1)
 
-    # 2. Empathy: primarily NPS (NPS captures how well agent treated the client)
-    empathy_raw = avg_nps * 10  # 0-10 → 0-100
+    # 1. Comunicación: NPS pesa más que ortografía. Bonus floor de 30 para
+    #    no hundir a quien aún tiene NPS bajo pero escribe bien.
+    comm_raw = 30 + (1 - spelling_penalty) * 30 + (avg_nps / 10) * 40
 
-    # 3. Resolution: correct rate is king
-    resolution_raw = correct_rate * 70 + (avg_nps / 10) * 30
+    # 2. Empatía: rúbrica jerárquica (Nombre/Contexto/Calidez/Resolución) con
+    #    pesos crecientes según la importancia que pidió el usuario:
+    #    Nombre 15% → Contexto 25% → Calidez 25% → Resolución 35%.
+    #    Si no hay breakdown disponible (sesiones legacy), cae al NPS.
+    if pillar_count > 0:
+        empathy_pillars_score = (
+            empathy_pillar_rate['nombre'] * 15 +
+            empathy_pillar_rate['contexto'] * 25 +
+            empathy_pillar_rate['calidez'] * 25 +
+            empathy_pillar_rate['resolucion'] * 35
+        )  # 0-100
+        # Mezclamos 70% pilares + 30% NPS para que ambos contribuyan
+        empathy_raw = empathy_pillars_score * 0.7 + (avg_nps * 10) * 0.3
+    else:
+        empathy_raw = avg_nps * 10  # fallback legacy
 
-    # 4. Speed: WPM normalized to 30 WPM benchmark (realistic for chat support) + duration
-    speed_wpm = min(100, (avg_wpm / 30) * 100)
-    speed_dur = min(100, max(0, (600 - avg_duration) / 600 * 100))  # 600s = 10min benchmark
-    speed_raw = speed_wpm * 0.6 + speed_dur * 0.4
+    # 3. Resolución: correct rate sigue siendo principal pero con piso de 25
+    #    para no aplastar a quien tuvo malas sesiones puntuales.
+    resolution_raw = 25 + correct_rate * 50 + (avg_nps / 10) * 25
 
-    # 5. Adaptability: improvement + scenario variety
-    variety = min(1, unique_scenarios / max(total_scenarios * 0.5, 1))
-    adapt_raw = improvement_trend * 50 + variety * 50
+    # 4. Velocidad: ahora se basa en ART (Average Response Time), no en duración total.
+    #    Meta saludable: 120-180s para asesor con varios chats simultáneos.
+    #    - ART <= 120s  → 100 puntos (excelente)
+    #    - ART 120-180s → 100→80 (saludable)
+    #    - ART 180-300s → 80→50 (aceptable)
+    #    - ART 300-600s → 50→20 (lento)
+    #    - ART > 600s   → 20 (muy lento, cap)
+    if avg_art <= 0:
+        # Sin datos de ART (sesiones legacy): no penalizar, dar puntaje neutro
+        speed_art = 65
+    elif avg_art <= 120:
+        speed_art = 100
+    elif avg_art <= 180:
+        speed_art = 100 - ((avg_art - 120) / 60) * 20  # 100 → 80
+    elif avg_art <= 300:
+        speed_art = 80 - ((avg_art - 180) / 120) * 30  # 80 → 50
+    elif avg_art <= 600:
+        speed_art = 50 - ((avg_art - 300) / 300) * 30  # 50 → 20
+    else:
+        speed_art = 20
 
-    # 6. Compliance: correct rate + low errors
-    compliance_raw = correct_rate * 60 + (1 - min(spelling_rate * 10, 1)) * 40
+    # WPM como factor secundario (capacidad de escritura). 25 WPM = 100%.
+    speed_wpm = min(100, (avg_wpm / 25) * 100) if avg_wpm > 0 else 50
+    # ART pesa 70%, WPM 30%. La capacidad de respuesta importa más que la velocidad de tipeo.
+    speed_raw = speed_art * 0.7 + speed_wpm * 0.3
+
+    # 5. Adaptabilidad: floor de 30 para que la primera evaluación no parta en 1.
+    variety = min(1, unique_scenarios / max(total_scenarios * 0.4, 1))
+    adapt_raw = 30 + improvement_trend * 35 + variety * 35
+
+    # 6. Compliance: correct rate + ortografía suavizada.
+    compliance_raw = 25 + correct_rate * 45 + (1 - spelling_penalty) * 30
 
     raw_scores = [comm_raw, empathy_raw, resolution_raw, speed_raw, adapt_raw, compliance_raw]
 
     # --- Convert to Sten scale (1-10) ---
+    # Curva más generosa: redondeo hacia arriba para no perder décimas valiosas.
     def to_sten(raw):
-        """Convert 0-100 raw score to 1-10 Sten using criterion-referenced approach."""
-        sten = round(raw / 10)
+        """Convert 0-100 raw score to 1-10 Sten."""
+        sten = int(raw / 10) + (1 if (raw % 10) >= 4 else 0)
         return max(1, min(10, sten))
 
     scores = [to_sten(r) for r in raw_scores]
@@ -1026,24 +1127,26 @@ def calculate_vex_profile(user_id):
     overall = round(sum(scores) / 6, 1)
 
     # --- Predictive Index (weighted composite) ---
-    pi = (resolution * 0.25 + empathy * 0.20 + comm * 0.20 +
+    # Empatía sube a 25% (estaba en 20%) por la nueva rúbrica jerárquica.
+    # Resolución baja a 22%, comunicación 18%, velocidad/adaptabilidad/compliance 35% combinado.
+    pi = (resolution * 0.22 + empathy * 0.25 + comm * 0.18 +
           speed * 0.15 + adapt * 0.10 + compliance * 0.10)
     pi_pct = round(pi * 10, 1)  # Convert to percentage (1-10 → 10-100%)
 
-    # --- Profile Category ---
-    if all(s >= 8 for s in scores):
+    # --- Profile Category (umbrales más alcanzables) ---
+    if overall >= 8.5 and all(s >= 7 for s in scores):
         category = 'elite'
-    elif overall >= 7 and all(s >= 5 for s in scores):
+    elif overall >= 6.5 and all(s >= 4 for s in scores):
         category = 'alto'
-    elif overall >= 5:
+    elif overall >= 4.5:
         category = 'desarrollo'
     else:
         category = 'refuerzo'
 
-    # --- Recommendation ---
-    if pi_pct >= 70:
+    # --- Recommendation (umbrales suavizados) ---
+    if pi_pct >= 65:
         rec = 'recomendado'
-    elif pi_pct >= 50:
+    elif pi_pct >= 45:
         rec = 'observaciones'
     else:
         rec = 'no_recomendado'
