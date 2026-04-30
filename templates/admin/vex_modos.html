@@ -3,39 +3,114 @@
 {% block extra_head %}
 <style>
 .modos-container { max-width: 1100px; margin: 0 auto; }
+
+/* Intro / guia */
 .modos-intro { background:#fff; border-radius:12px; padding:20px 24px; box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:20px; }
 .modos-intro h1 { color:#00B2BF; margin:0 0 8px; font-size:22px; }
 .modos-intro p { font-size:14px; color:#555; margin:6px 0; line-height:1.7; }
+.read-only-note { background:#fff3e0; border-left:4px solid #e65100; padding:10px 16px; margin-bottom:16px; border-radius:6px; font-size:13px; color:#555; }
+.guide-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; margin-top:14px; }
+.guide-pill { background:#f8f9fa; border-left:3px solid #00B2BF; border-radius:6px; padding:10px 14px; }
+.guide-pill h3 { color:#00B2BF; font-size:13px; margin:0 0 4px; }
+.guide-pill p { font-size:12px; color:#666; margin:0; line-height:1.5; }
 
-.guide-section { background:#f8f9fa; border-left:4px solid #00B2BF; border-radius:8px; padding:14px 18px; margin:14px 0; }
-.guide-section h3 { color:#00B2BF; font-size:14px; margin:0 0 4px; }
-.guide-section p { font-size:13px; color:#555; margin:4px 0; line-height:1.6; }
-.guide-section .why { color:#888; font-style:italic; font-size:12px; }
-
-.mode-block { background:#fff; border-radius:12px; padding:24px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,.06); border-top:6px solid; }
+/* Bloque por modo */
+.mode-block { background:#fff; border-radius:14px; padding:24px 28px; margin-bottom:24px; box-shadow:0 4px 16px rgba(0,0,0,.06); border-top:6px solid; }
 .mode-block.flexible { border-top-color:#2e7d32; }
 .mode-block.standard { border-top-color:#0277bd; }
 .mode-block.exigente { border-top-color:#c62828; }
-.mode-block .mode-title { display:flex; align-items:center; gap:10px; margin:0 0 6px; font-size:20px; }
+.mode-block .mode-title { display:flex; align-items:center; gap:10px; margin:0 0 6px; font-size:22px; flex-wrap:wrap; }
 .mode-block .when { color:#555; font-size:13px; line-height:1.6; margin:0 0 8px; }
-.mode-block .summary-list { background:#f8f9fa; border-radius:8px; padding:10px 16px 10px 32px; margin:10px 0; font-size:12px; color:#555; }
-.mode-block .summary-list li { margin:3px 0; line-height:1.6; }
-
-.params-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-top:12px; }
-.param-card { background:#fafafa; border:1px solid #e0e0e0; border-radius:8px; padding:10px 14px; }
-.param-card h4 { font-size:12px; color:#666; margin:0 0 8px; text-transform:uppercase; letter-spacing:.5px; }
-.param-card .row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 0; font-size:12px; }
-.param-card .row label { color:#777; flex:1; }
-.param-card .row input { width:80px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px; text-align:right; font-family:monospace; }
-.param-card .row input:focus { border-color:#E6332A; outline:none; }
-.param-card .row input:read-only { background:#f0f0f0; color:#888; }
-
-.mode-block .actions { margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 .mode-block .badge-status { padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; }
 .mode-block .badge-status.factory { background:#e0f2f1; color:#00695c; }
 .mode-block .badge-status.custom { background:#fff3e0; color:#e65100; }
+.summary-list { background:#fafafa; border-radius:8px; padding:10px 16px 10px 32px; margin:10px 0 18px; font-size:12px; color:#555; }
+.summary-list li { margin:3px 0; line-height:1.6; }
 
-.read-only-note { background:#fff3e0; border-left:4px solid #e65100; padding:10px 16px; margin-bottom:16px; border-radius:6px; font-size:13px; color:#555; }
+/* Secciones del editor */
+.section { margin:22px 0; padding-top:18px; border-top:1px dashed #e0e0e0; }
+.section:first-of-type { border-top:none; padding-top:0; }
+.section h3 { color:#00B2BF; font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+.section .hint { color:#888; font-size:12px; margin:0 0 14px; }
+
+/* Slider row */
+.sld-row { display:grid; grid-template-columns:200px 1fr 90px; gap:12px; align-items:center; padding:8px 0; }
+.sld-row label { font-size:13px; color:#444; font-weight:600; }
+.sld-row .sld-meta { font-size:11px; color:#888; display:block; font-weight:400; margin-top:2px; }
+.sld-row input[type=range] {
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:6px; border-radius:3px; outline:none; cursor:pointer;
+    background:linear-gradient(90deg, #2e7d32 0%, #ffa726 50%, #c62828 100%);
+}
+.sld-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none;
+    width:20px; height:20px; border-radius:50%; background:#fff;
+    border:3px solid #00B2BF; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.2);
+    transition:transform .15s;
+}
+.sld-row input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.15); }
+.sld-row input[type=range]::-moz-range-thumb {
+    width:20px; height:20px; border-radius:50%; background:#fff;
+    border:3px solid #00B2BF; cursor:pointer;
+}
+.sld-row input[type=range]:disabled { opacity:.5; cursor:not-allowed; }
+.sld-row .sld-value {
+    background:#f0f4f8; border:1px solid #d0d8e0; border-radius:6px;
+    padding:6px 10px; text-align:center; font-family:monospace;
+    font-size:13px; font-weight:700; color:#00B2BF;
+}
+.sld-row .sld-translate { font-size:11px; color:#666; grid-column:2 / 4; padding-left:2px; line-height:1.4; }
+
+/* Pesos PI: total en vivo */
+.pi-total { display:flex; align-items:center; gap:14px; padding:12px 16px; border-radius:10px; margin-bottom:14px; transition:background .2s; }
+.pi-total.ok  { background:#e8f5e9; color:#2e7d32; }
+.pi-total.bad { background:#ffebee; color:#c62828; }
+.pi-total .pi-num { font-size:24px; font-weight:700; font-family:monospace; }
+.pi-total .pi-bar { flex:1; height:10px; border-radius:5px; background:#fff; overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.1); }
+.pi-total .pi-fill { height:100%; transition:width .25s, background .25s; }
+.pi-total.ok  .pi-fill { background:linear-gradient(90deg,#66bb6a,#2e7d32); }
+.pi-total.bad .pi-fill { background:linear-gradient(90deg,#ef5350,#c62828); }
+.pi-total button { padding:6px 14px; border:none; border-radius:6px; background:#00B2BF; color:#fff; font-weight:700; cursor:pointer; font-size:12px; }
+.pi-total button:hover { background:#009BA8; }
+.pi-total button:disabled { opacity:.4; cursor:not-allowed; }
+
+/* Timeline ART */
+.art-timeline { margin:8px 0 18px; padding:14px 18px; background:#fafafa; border-radius:10px; }
+.art-timeline .art-track { position:relative; height:36px; margin:14px 0 8px; background:linear-gradient(90deg,#66bb6a 0%,#9ccc65 25%,#ffb74d 55%,#ef5350 100%); border-radius:18px; }
+.art-timeline .art-marker { position:absolute; top:-4px; width:3px; height:44px; background:#333; transform:translateX(-50%); }
+.art-timeline .art-marker::after { content:attr(data-label); position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:10px; color:#555; font-weight:700; white-space:nowrap; background:#fff; padding:2px 6px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.15); }
+.art-timeline .art-zone-labels { display:flex; justify-content:space-between; font-size:10px; color:#777; padding:4px 0; }
+
+/* Categoria stack visual */
+.cat-stack { display:flex; flex-direction:column; gap:6px; padding:10px 0; }
+.cat-row { display:grid; grid-template-columns:120px 1fr 70px; gap:10px; align-items:center; padding:6px 12px; border-radius:8px; }
+.cat-row.elite      { background:#e8f5e9; }
+.cat-row.alto       { background:#e3f2fd; }
+.cat-row.desarrollo { background:#fff3e0; }
+.cat-row.refuerzo   { background:#ffebee; opacity:.7; }
+.cat-row strong { font-size:13px; }
+.cat-row .cat-cond { font-size:11px; color:#555; font-family:monospace; text-align:right; }
+
+/* Avanzado plegable */
+.advanced { margin-top:18px; padding:14px 18px; background:#fafafa; border-radius:10px; border:1px dashed #d0d0d0; }
+.advanced summary { cursor:pointer; font-weight:700; color:#666; font-size:13px; padding:4px 0; }
+.advanced summary:hover { color:#00B2BF; }
+.advanced[open] summary { margin-bottom:10px; border-bottom:1px dashed #d0d0d0; padding-bottom:8px; }
+
+/* Acciones */
+.mode-actions { margin-top:24px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; padding-top:16px; border-top:2px solid #f0f0f0; }
+.mode-actions .btn-save { padding:10px 28px; background:linear-gradient(135deg,#E6332A,#F39200); color:#fff; border:none; border-radius:24px; font-weight:700; cursor:pointer; box-shadow:0 4px 12px rgba(230,51,42,.3); }
+.mode-actions .btn-save:hover { transform:translateY(-1px); }
+.mode-actions .btn-save:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+.mode-actions .btn-reset { padding:8px 18px; background:#fff; color:#666; border:1px solid #ccc; border-radius:24px; cursor:pointer; font-size:13px; }
+.mode-actions .btn-reset:hover { border-color:#E6332A; color:#E6332A; }
+.mode-actions .save-warn { font-size:11px; color:#c62828; flex-basis:100%; }
+
+/* Responsive */
+@media (max-width: 720px) {
+    .sld-row { grid-template-columns:1fr; gap:6px; }
+    .sld-row .sld-translate { grid-column:1; }
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -46,116 +121,296 @@
             <h1>Modos de Scoring Vex Predictive</h1>
             <a href="{{ url_for('training.vex_methodology') }}" class="btn btn-secondary">Metodología completa →</a>
         </div>
-        <p>Cada escenario de entrenamiento usa uno de estos 3 modos. El modo define la severidad con la que se evalúa al asesor. Al iniciar un entrenamiento, el batch hereda el modo del escenario y queda fijo (snapshot).</p>
-        <p><strong>🟢 Flexible</strong> — para nuevos ingresos, capacitación inicial o procesos de selección.<br>
-           <strong>🔵 Standard</strong> — para asesores activos en producción (default recomendado).<br>
-           <strong>🔴 Exigente</strong> — solo para asesores expertos o pruebas de excelencia.</p>
-    </div>
+        <p>Cada escenario de entrenamiento usa uno de 3 modos. El modo define la severidad con la que se evalúa. Al iniciar un entrenamiento, el batch hereda el modo y queda fijo (snapshot).</p>
+        <p style="margin-top:14px">
+            <strong style="color:#2e7d32">🟢 Flexible</strong> — nuevos ingresos, capacitación, selección.&nbsp;&nbsp;
+            <strong style="color:#0277bd">🔵 Standard</strong> — asesores activos (default).&nbsp;&nbsp;
+            <strong style="color:#c62828">🔴 Exigente</strong> — expertos, pruebas de excelencia.
+        </p>
 
-    {% if not is_superadmin %}
-    <div class="read-only-note">
-        ℹ Solo el SuperAdmin puede modificar los parámetros. Vos podés ver qué mide cada modo y elegir cuál usar al crear escenarios.
-    </div>
-    {% endif %}
-
-    <!-- Guia pedagogica -->
-    <div class="modos-intro">
-        <h2 style="color:#00B2BF;font-size:16px;margin:0 0 8px">¿Qué configura cada parámetro?</h2>
-        {% for key, info in pedagogical_guide.items() %}
-        <div class="guide-section">
-            <h3>{{ info.title }}</h3>
-            <p>{{ info.desc }}</p>
-            <p class="why">↳ {{ info.why }}</p>
+        {% if is_superadmin %}
+        <div style="background:#e3f2fd;border-left:4px solid #0277bd;padding:10px 16px;margin-top:16px;border-radius:6px;font-size:13px;color:#444">
+            🛡 <strong>Protecciones automáticas:</strong> Todos los valores se acotan al rango seguro al guardar. Si pones algo fuera de rango, se ajusta solo. Los pesos se balancean automáticamente. No es posible romper el modelo desde aquí.
         </div>
-        {% endfor %}
+        {% else %}
+        <div class="read-only-note">
+            ℹ Solo el SuperAdmin puede modificar los parámetros. Aquí podés ver qué mide cada modo y entender cómo afecta a la evaluación.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Guia pedagogica compacta en pills -->
+    <div class="modos-intro">
+        <h2 style="color:#00B2BF;font-size:16px;margin:0 0 6px">¿Qué configura cada parámetro?</h2>
+        <p style="font-size:12px;color:#888;margin:0">Referencia rápida — cada parámetro de los modos abajo cambia uno de estos aspectos.</p>
+        <div class="guide-grid">
+            {% for key, info in pedagogical_guide.items() %}
+            <div class="guide-pill">
+                <h3>{{ info.title }}</h3>
+                <p>{{ info.desc }}</p>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- 3 modos -->
     {% for m in modes_data %}
     {% set cfg = m.config %}
-    <div class="mode-block {{ m.key }}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-            <div>
-                <h2 class="mode-title" style="color:{{ cfg.color }}">
-                    <span>{{ cfg.icon }}</span>
-                    <span>{{ cfg.label }}</span>
-                    {% if m.is_overridden %}
-                        <span class="badge-status custom">Personalizado</span>
-                    {% else %}
-                        <span class="badge-status factory">De fábrica</span>
-                    {% endif %}
-                </h2>
-                <p class="when">{{ cfg.when_to_use }}</p>
-            </div>
-        </div>
-
+    {% set readonly = not is_superadmin %}
+    <div class="mode-block {{ m.key }}" data-mode="{{ m.key }}">
+        <h2 class="mode-title" style="color:{{ cfg.color }}">
+            <span>{{ cfg.icon }}</span>
+            <span>{{ cfg.label }}</span>
+            {% if m.is_overridden %}
+                <span class="badge-status custom">Personalizado</span>
+            {% else %}
+                <span class="badge-status factory">De fábrica</span>
+            {% endif %}
+        </h2>
+        <p class="when">{{ cfg.when_to_use }}</p>
         <ul class="summary-list">
             {% for line in m.summary %}<li>{{ line }}</li>{% endfor %}
         </ul>
 
-        <form method="POST" action="{{ url_for('training.vex_modos_save') }}">
+        <form method="POST" action="{{ url_for('training.vex_modos_save') }}" class="mode-form">
             <input type="hidden" name="mode" value="{{ m.key }}">
 
-            <div class="params-grid">
-                <!-- Pesos PI -->
-                <div class="param-card">
-                    <h4>Pesos Predictive Index (suman 1.00)</h4>
-                    <div class="row"><label>Empatía</label><input type="number" step="0.01" min="0" max="1" name="w_empathy" value="{{ cfg.pi_weights.empathy }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Resolución</label><input type="number" step="0.01" min="0" max="1" name="w_resolution" value="{{ cfg.pi_weights.resolution }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Comunicación</label><input type="number" step="0.01" min="0" max="1" name="w_communication" value="{{ cfg.pi_weights.communication }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Velocidad</label><input type="number" step="0.01" min="0" max="1" name="w_speed" value="{{ cfg.pi_weights.speed }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Adaptabilidad</label><input type="number" step="0.01" min="0" max="1" name="w_adaptability" value="{{ cfg.pi_weights.adaptability }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Compliance</label><input type="number" step="0.01" min="0" max="1" name="w_compliance" value="{{ cfg.pi_weights.compliance }}" {% if not is_superadmin %}readonly{% endif %}></div>
+            <!-- ============ Sección 1: Pesos PI ============ -->
+            <div class="section">
+                <h3>⚖ Pesos del Predictive Index</h3>
+                <p class="hint">Cuánto pesa cada dimensión en el indicador final. Cada peso entre 5% y 50%. La suma debe ser 100% (usá <strong>Auto-balancear</strong> si te queda desfasado).</p>
+
+                <div class="pi-total" id="piTotal-{{ m.key }}">
+                    <div>
+                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Total</div>
+                        <span class="pi-num"><span class="pi-num-val">100</span>%</span>
+                    </div>
+                    <div class="pi-bar"><div class="pi-fill" style="width:100%"></div></div>
+                    <button type="button" class="pi-balance" {% if readonly %}disabled{% endif %}>Auto-balancear</button>
                 </div>
 
-                <!-- Curva ART -->
-                <div class="param-card">
-                    <h4>Curva ART (segundos)</h4>
-                    <div class="row"><label>Excelente ≤</label><input type="number" step="1" name="art_excellent" value="{{ cfg.art_curve.excellent_max }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Saludable ≤</label><input type="number" step="1" name="art_healthy" value="{{ cfg.art_curve.healthy_max }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Aceptable ≤</label><input type="number" step="1" name="art_acceptable" value="{{ cfg.art_curve.acceptable_max }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Lento ≤</label><input type="number" step="1" name="art_slow" value="{{ cfg.art_curve.slow_max }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Sin datos</label><input type="number" step="1" name="art_no_data" value="{{ cfg.art_curve.no_data_score }}" {% if not is_superadmin %}readonly{% endif %}></div>
+                {% set wlabels = [('empathy','Empatía'),('resolution','Resolución'),('communication','Comunicación'),('speed','Velocidad'),('adaptability','Adaptabilidad'),('compliance','Compliance')] %}
+                {% for wkey, wlabel in wlabels %}
+                <div class="sld-row">
+                    <label>{{ wlabel }}<span class="sld-meta">peso entre 5% y 50%</span></label>
+                    <input type="range" min="5" max="50" step="1" value="{{ (cfg.pi_weights[wkey] * 100) | round(0, 'common') | int }}"
+                        name="w_{{ wkey }}" data-pi-slider data-mode="{{ m.key }}"
+                        {% if readonly %}disabled{% endif %}>
+                    <div class="sld-value"><span data-bind>{{ (cfg.pi_weights[wkey] * 100) | round(0, 'common') | int }}</span>%</div>
+                </div>
+                {% endfor %}
+            </div>
+            <!-- ============ Sección 2: Severidad ============ -->
+            <div class="section">
+                <h3>🎯 Severidad de la evaluación</h3>
+                <p class="hint">Cuán estricto o permisivo es el modo en aspectos clave del análisis.</p>
+
+                <div class="sld-row">
+                    <label>Tolerancia ortográfica
+                        <span class="sld-meta">cuánto castigan los errores</span>
+                    </label>
+                    <input type="range" min="5" max="50" step="1" value="{{ cfg.spelling_multiplier | round(0,'common') | int }}"
+                        name="spelling_multiplier" data-translate="spelling"
+                        {% if readonly %}disabled{% endif %}>
+                    <div class="sld-value"><span data-bind>{{ cfg.spelling_multiplier | round(0,'common') | int }}</span></div>
+                    <p class="sld-translate" data-translate-out="spelling">
+                        <!-- JS la rellena: "Estricta — penaliza al 6.6% de errores" -->
+                    </p>
                 </div>
 
-                <!-- Pisos -->
-                <div class="param-card">
-                    <h4>Pisos por dimensión</h4>
-                    <div class="row"><label>Comunicación</label><input type="number" step="1" min="0" max="100" name="floor_communication" value="{{ cfg.floors.communication }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Resolución</label><input type="number" step="1" min="0" max="100" name="floor_resolution" value="{{ cfg.floors.resolution }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Adaptabilidad</label><input type="number" step="1" min="0" max="100" name="floor_adaptability" value="{{ cfg.floors.adaptability }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Compliance</label><input type="number" step="1" min="0" max="100" name="floor_compliance" value="{{ cfg.floors.compliance }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Velocidad sin datos</label><input type="number" step="1" min="0" max="100" name="floor_speed_no_data" value="{{ cfg.floors.speed_no_data }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                </div>
-
-                <!-- Umbrales -->
-                <div class="param-card">
-                    <h4>Umbrales de categoría</h4>
-                    <div class="row"><label>Elite overall ≥</label><input type="number" step="0.1" min="1" max="10" name="th_elite_overall" value="{{ cfg.thresholds.elite_overall }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Elite min dim ≥</label><input type="number" step="1" min="1" max="10" name="th_elite_min" value="{{ cfg.thresholds.elite_min_dim }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Alto overall ≥</label><input type="number" step="0.1" min="1" max="10" name="th_alto_overall" value="{{ cfg.thresholds.alto_overall }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Alto min dim ≥</label><input type="number" step="1" min="1" max="10" name="th_alto_min" value="{{ cfg.thresholds.alto_min_dim }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Desarrollo ≥</label><input type="number" step="0.1" min="1" max="10" name="th_desarrollo_overall" value="{{ cfg.thresholds.desarrollo_overall }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                </div>
-
-                <!-- Recomendaciones + otros -->
-                <div class="param-card">
-                    <h4>Recomendación (PI %) y otros</h4>
-                    <div class="row"><label>Recomendado ≥</label><input type="number" step="1" min="0" max="100" name="rec_recomendado" value="{{ cfg.recommendation.recomendado }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Observaciones ≥</label><input type="number" step="1" min="0" max="100" name="rec_observaciones" value="{{ cfg.recommendation.observaciones }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Mult. ortografía</label><input type="number" step="1" min="1" max="100" name="spelling_multiplier" value="{{ cfg.spelling_multiplier }}" {% if not is_superadmin %}readonly{% endif %}></div>
-                    <div class="row"><label>Empatía: pilares</label><input type="number" step="0.05" min="0" max="1" name="empathy_pillars_weight" value="{{ cfg.empathy_pillars_weight }}" {% if not is_superadmin %}readonly{% endif %}></div>
+                <div class="sld-row">
+                    <label>Mezcla de empatía
+                        <span class="sld-meta">pilares explícitos vs NPS holístico</span>
+                    </label>
+                    <input type="range" min="0" max="100" step="5" value="{{ (cfg.empathy_pillars_weight * 100) | round(0,'common') | int }}"
+                        name="empathy_pillars_weight" data-translate="empathy"
+                        {% if readonly %}disabled{% endif %}>
+                    <div class="sld-value"><span data-bind>{{ (cfg.empathy_pillars_weight * 100) | round(0,'common') | int }}</span>%</div>
+                    <p class="sld-translate" data-translate-out="empathy">
+                        <!-- JS: "70% pilares + 30% NPS" -->
+                    </p>
                 </div>
             </div>
 
+            <!-- ============ Sección 3: Curva ART ============ -->
+            <div class="section">
+                <h3>⏱ Tiempo de respuesta esperado (ART)</h3>
+                <p class="hint">Cuánto puede tardar el asesor en responderle al cliente antes de bajar puntaje. Los 4 cortes se ajustan en orden — cada uno empuja al siguiente si es necesario.</p>
+
+                <!-- Timeline visual -->
+                <div class="art-timeline" data-art-timeline="{{ m.key }}">
+                    <div class="art-zone-labels">
+                        <span>Excelente (100 pts)</span>
+                        <span>Saludable (80)</span>
+                        <span>Aceptable (50)</span>
+                        <span>Lento (20)</span>
+                    </div>
+                    <div class="art-track">
+                        <div class="art-marker" style="left:25%" data-label="120s" data-marker="excellent"></div>
+                        <div class="art-marker" style="left:50%" data-label="180s" data-marker="healthy"></div>
+                        <div class="art-marker" style="left:75%" data-label="300s" data-marker="acceptable"></div>
+                        <div class="art-marker" style="left:95%" data-label="600s" data-marker="slow"></div>
+                    </div>
+                </div>
+
+                <div class="sld-row">
+                    <label>🟢 Excelente ≤ <span class="sld-meta">cliente nunca espera</span></label>
+                    <input type="range" min="30" max="600" step="5" value="{{ cfg.art_curve.excellent_max | round(0,'common') | int }}"
+                        name="art_excellent" data-art="excellent" data-mode="{{ m.key }}"
+                        {% if readonly %}disabled{% endif %}>
+                    <div class="sld-value"><span data-bind>{{ cfg.art_curve.excellent_max | round(0,'common') | int }}</span>s</div>
+                </div>
+
+                <div class="sld-row">
+                    <label>🟡 Saludable ≤ <span class="sld-meta">meta operativa multitarea</span></label>
+                    <input type="range" min="60" max="900" step="5" value="{{ cfg.art_curve.healthy_max | round(0,'common') | int }}"
+                        name="art_healthy" data-art="healthy" data-mode="{{ m.key }}"
+                        {% if readonly %}disabled{% endif %}>
+                    <div class="sld-value"><span data-bind>{{ cfg.art_curve.healthy_max | round(0,'common') | int }}</span>s</div>
+                </div>
+
+                <div class="sld-row">
+                    <label>🟠 Aceptable ≤ <span class="sld-meta">cliente nota la espera</span></label>
+                    <input type="range" min="120" max="1200" step="10" value="{{ cfg.art_curve.acceptable_max | round(0,'common') | int }}"
+                        name="art_acceptable" data-art="acceptable" data-mode="{{ m.key }}"
+                        {% if readonly %}disabled{% endif %}>
+                    <div class="sld-value"><span data-bind>{{ cfg.art_curve.acceptable_max | round(0,'common') | int }}</span>s</div>
+                </div>
+
+                <div class="sld-row">
+                    <label>🔴 Lento ≤ <span class="sld-meta">cliente percibe abandono</span></label>
+                    <input type="range" min="240" max="1800" step="10" value="{{ cfg.art_curve.slow_max | round(0,'common') | int }}"
+                        name="art_slow" data-art="slow" data-mode="{{ m.key }}"
+                        {% if readonly %}disabled{% endif %}>
+                    <div class="sld-value"><span data-bind>{{ cfg.art_curve.slow_max | round(0,'common') | int }}</span>s</div>
+                </div>
+            </div>
+
+            <!-- ============ Sección 4: Umbrales de categoría ============ -->
+            <div class="section">
+                <h3>🏆 Categoría del perfil</h3>
+                <p class="hint">A partir del overall (promedio de las 6 dimensiones, escala 1-10), en qué categoría cae el asesor. El orden Elite > Alto > Desarrollo se respeta automáticamente.</p>
+
+                <div class="cat-stack">
+                    <div class="cat-row elite">
+                        <strong>🏅 Elite</strong>
+                        <input type="range" min="6.0" max="10.0" step="0.1" value="{{ cfg.thresholds.elite_overall }}"
+                            name="th_elite_overall" data-th="elite" data-mode="{{ m.key }}"
+                            {% if readonly %}disabled{% endif %}>
+                        <span class="cat-cond">overall ≥ <strong data-bind>{{ '%.1f'|format(cfg.thresholds.elite_overall) }}</strong></span>
+                    </div>
+                    <div class="cat-row alto">
+                        <strong>🥈 Alto</strong>
+                        <input type="range" min="4.0" max="9.5" step="0.1" value="{{ cfg.thresholds.alto_overall }}"
+                            name="th_alto_overall" data-th="alto" data-mode="{{ m.key }}"
+                            {% if readonly %}disabled{% endif %}>
+                        <span class="cat-cond">overall ≥ <strong data-bind>{{ '%.1f'|format(cfg.thresholds.alto_overall) }}</strong></span>
+                    </div>
+                    <div class="cat-row desarrollo">
+                        <strong>📈 Desarrollo</strong>
+                        <input type="range" min="2.0" max="9.0" step="0.1" value="{{ cfg.thresholds.desarrollo_overall }}"
+                            name="th_desarrollo_overall" data-th="desarrollo" data-mode="{{ m.key }}"
+                            {% if readonly %}disabled{% endif %}>
+                        <span class="cat-cond">overall ≥ <strong data-bind>{{ '%.1f'|format(cfg.thresholds.desarrollo_overall) }}</strong></span>
+                    </div>
+                    <div class="cat-row refuerzo">
+                        <strong>🔧 Refuerzo</strong>
+                        <span style="font-size:11px;color:#888;font-style:italic">automático para todo lo que no entra arriba</span>
+                        <span class="cat-cond">resto</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ Sección 5: Recomendación ============ -->
+            <div class="section">
+                <h3>📋 Recomendación final</h3>
+                <p class="hint">A partir del Predictive Index (porcentaje 0-100%), si el asesor está listo para la operativa.</p>
+
+                <div class="cat-stack">
+                    <div class="cat-row elite">
+                        <strong>✅ Recomendado</strong>
+                        <input type="range" min="30" max="95" step="1" value="{{ cfg.recommendation.recomendado | round(0,'common') | int }}"
+                            name="rec_recomendado" data-rec="recomendado" data-mode="{{ m.key }}"
+                            {% if readonly %}disabled{% endif %}>
+                        <span class="cat-cond">PI ≥ <strong data-bind>{{ cfg.recommendation.recomendado | round(0,'common') | int }}</strong>%</span>
+                    </div>
+                    <div class="cat-row desarrollo">
+                        <strong>👁 Observaciones</strong>
+                        <input type="range" min="10" max="90" step="1" value="{{ cfg.recommendation.observaciones | round(0,'common') | int }}"
+                            name="rec_observaciones" data-rec="observaciones" data-mode="{{ m.key }}"
+                            {% if readonly %}disabled{% endif %}>
+                        <span class="cat-cond">PI ≥ <strong data-bind>{{ cfg.recommendation.observaciones | round(0,'common') | int }}</strong>%</span>
+                    </div>
+                    <div class="cat-row refuerzo">
+                        <strong>❌ No Recomendado</strong>
+                        <span style="font-size:11px;color:#888;font-style:italic">automático para lo que no llega a Observaciones</span>
+                        <span class="cat-cond">resto</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ Avanzado: pisos + minimos por categoria ============ -->
+            <details class="advanced">
+                <summary>⚙ Avanzado — pisos por dimensión y mínimos por categoría (raramente se tocan)</summary>
+
+                <div style="margin-top:12px">
+                    <h4 style="color:#666;font-size:13px;margin:0 0 8px">Pisos por dimensión</h4>
+                    <p style="font-size:11px;color:#888;margin:0 0 12px">Puntaje base (raw 0-100) que cada dimensión recibe antes de las penalizaciones. Pisos altos = una sesión mala no hunde el perfil.</p>
+
+                    {% set floor_labels = [('communication','Comunicación'),('resolution','Resolución'),('adaptability','Adaptabilidad'),('compliance','Compliance'),('speed_no_data','Velocidad sin datos ART')] %}
+                    {% for fkey, flabel in floor_labels %}
+                    <div class="sld-row">
+                        <label>{{ flabel }}</label>
+                        <input type="range" min="0" max="60" step="5" value="{{ cfg.floors[fkey] | round(0,'common') | int }}"
+                            name="floor_{{ fkey }}"
+                            {% if readonly %}disabled{% endif %}>
+                        <div class="sld-value"><span data-bind>{{ cfg.floors[fkey] | round(0,'common') | int }}</span></div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div style="margin-top:18px">
+                    <h4 style="color:#666;font-size:13px;margin:0 0 8px">Sten mínimo por categoría</h4>
+                    <p style="font-size:11px;color:#888;margin:0 0 12px">Para entrar a Elite o Alto, ninguna dimensión puede estar por debajo de este Sten (1-10).</p>
+
+                    <div class="sld-row">
+                        <label>Elite — sten mínimo en cualquier dimensión</label>
+                        <input type="range" min="5" max="10" step="1" value="{{ cfg.thresholds.elite_min_dim | round(0,'common') | int }}"
+                            name="th_elite_min"
+                            {% if readonly %}disabled{% endif %}>
+                        <div class="sld-value"><span data-bind>{{ cfg.thresholds.elite_min_dim | round(0,'common') | int }}</span></div>
+                    </div>
+                    <div class="sld-row">
+                        <label>Alto — sten mínimo en cualquier dimensión</label>
+                        <input type="range" min="3" max="9" step="1" value="{{ cfg.thresholds.alto_min_dim | round(0,'common') | int }}"
+                            name="th_alto_min"
+                            {% if readonly %}disabled{% endif %}>
+                        <div class="sld-value"><span data-bind>{{ cfg.thresholds.alto_min_dim | round(0,'common') | int }}</span></div>
+                    </div>
+                </div>
+
+                <div style="margin-top:18px">
+                    <h4 style="color:#666;font-size:13px;margin:0 0 8px">ART sin datos</h4>
+                    <p style="font-size:11px;color:#888;margin:0 0 12px">Puntaje neutro que reciben las sesiones sin ART medido (legacy).</p>
+                    <div class="sld-row">
+                        <label>Score neutro</label>
+                        <input type="range" min="30" max="95" step="5" value="{{ cfg.art_curve.no_data_score | round(0,'common') | int }}"
+                            name="art_no_data"
+                            {% if readonly %}disabled{% endif %}>
+                        <div class="sld-value"><span data-bind>{{ cfg.art_curve.no_data_score | round(0,'common') | int }}</span></div>
+                    </div>
+                </div>
+            </details>
+
             {% if is_superadmin %}
-            <div class="actions">
-                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            <div class="mode-actions">
+                <button type="submit" class="btn-save" data-save-btn>💾 Guardar cambios en {{ cfg.label }}</button>
+                <span class="save-warn" data-save-warn style="display:none">⚠ Pesos no suman 100%. Ajustá o usá Auto-balancear antes de guardar.</span>
             </div>
         </form>
 
-        <form method="POST" action="{{ url_for('training.vex_modos_reset', mode=m.key) }}" style="display:inline" onsubmit="return confirm('¿Restaurar el modo &quot;{{ cfg.label }}&quot; a valores de fábrica? Se borrará la personalización guardada.');">
-            <button type="submit" class="btn btn-secondary" style="margin-top:-2px">Volver a Standard de fábrica</button>
+        <form method="POST" action="{{ url_for('training.vex_modos_reset', mode=m.key) }}" style="display:inline-block;margin-top:-50px;float:right" onsubmit="return confirm('¿Restaurar &quot;{{ cfg.label }}&quot; a valores de fábrica? Se borrará la personalización guardada.');">
+            <button type="submit" class="btn-reset">↻ Volver a valores de fábrica</button>
         </form>
             {% else %}
         </form>
@@ -164,4 +419,261 @@
     {% endfor %}
 
 </div>
+
+<script>
+(function() {
+    // ============================================================
+    //  Helpers
+    // ============================================================
+    function $$(sel, scope) { return Array.from((scope||document).querySelectorAll(sel)); }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    // Cada slider tiene un <span data-bind> hermano que muestra el valor.
+    // bindLiveValue actualiza ese span al mover el slider.
+    function bindLiveValue(slider) {
+        var row = slider.closest('.sld-row, .cat-row');
+        if (!row) return;
+        var bind = row.querySelector('[data-bind]');
+        if (!bind) return;
+        function update() {
+            var v = slider.value;
+            // Si el bind padre dice que es decimal (ej: thresholds 0.1), formatear
+            if (slider.step && slider.step.indexOf('.') >= 0) {
+                bind.textContent = parseFloat(v).toFixed(1);
+            } else {
+                bind.textContent = v;
+            }
+        }
+        slider.addEventListener('input', update);
+        update();
+    }
+
+    // ============================================================
+    //  PI Weights: total en vivo + auto-balance
+    // ============================================================
+    function recomputeTotal(modeKey) {
+        var sliders = $$('input[data-pi-slider][data-mode="'+modeKey+'"]');
+        var total = sliders.reduce(function(s, sl){ return s + parseInt(sl.value, 10); }, 0);
+        var bar = document.getElementById('piTotal-' + modeKey);
+        if (!bar) return total;
+        var fill = bar.querySelector('.pi-fill');
+        var num  = bar.querySelector('.pi-num-val');
+        num.textContent = total;
+        var pct = Math.min(100, (total / 100) * 100);
+        fill.style.width = pct + '%';
+        var ok = (total === 100);
+        bar.classList.toggle('ok', ok);
+        bar.classList.toggle('bad', !ok);
+        // Mostrar/ocultar warning + deshabilitar guardar si fuera del rango
+        var form = sliders[0] && sliders[0].closest('form');
+        if (form) {
+            var warn = form.querySelector('[data-save-warn]');
+            var saveBtn = form.querySelector('[data-save-btn]');
+            if (warn) warn.style.display = ok ? 'none' : 'block';
+            if (saveBtn) saveBtn.disabled = !ok;
+        }
+        return total;
+    }
+
+    function autoBalance(modeKey) {
+        var sliders = $$('input[data-pi-slider][data-mode="'+modeKey+'"]');
+        if (!sliders.length) return;
+        var total = sliders.reduce(function(s, sl){ return s + parseInt(sl.value, 10); }, 0);
+        if (total === 100) return;
+        // Escalar proporcionalmente. Si total=0, asignar uniforme.
+        if (total === 0) {
+            var even = Math.floor(100 / sliders.length);
+            sliders.forEach(function(sl, i){ sl.value = even + (i === 0 ? 100 - even * sliders.length : 0); });
+        } else {
+            var factor = 100 / total;
+            // Primer pase: aplicar escala
+            var rounded = sliders.map(function(sl){ return Math.round(parseInt(sl.value, 10) * factor); });
+            // Segundo pase: corregir el residuo
+            var sum = rounded.reduce(function(a,b){ return a+b; }, 0);
+            var diff = 100 - sum;
+            // Ajustar el slider de mayor peso para absorber el residuo, respetando 5-50
+            var maxIdx = rounded.indexOf(Math.max.apply(null, rounded));
+            rounded[maxIdx] = clamp(rounded[maxIdx] + diff, 5, 50);
+            sliders.forEach(function(sl, i){
+                sl.value = clamp(rounded[i], 5, 50);
+                sl.dispatchEvent(new Event('input'));
+            });
+        }
+        recomputeTotal(modeKey);
+    }
+
+    // ============================================================
+    //  ART: ordenamiento (cada cut empuja al siguiente)
+    // ============================================================
+    function enforceArtOrder(modeKey, changedKey) {
+        var order = ['excellent','healthy','acceptable','slow'];
+        var sliders = {};
+        order.forEach(function(k){
+            sliders[k] = document.querySelector('input[data-art="'+k+'"][data-mode="'+modeKey+'"]');
+        });
+        if (!sliders[changedKey]) return;
+        var changedIdx = order.indexOf(changedKey);
+        // Hacia adelante: cada uno >= anterior + 5
+        for (var i = changedIdx + 1; i < order.length; i++) {
+            var prev = parseInt(sliders[order[i-1]].value, 10);
+            var cur  = parseInt(sliders[order[i]].value, 10);
+            if (cur <= prev) {
+                var newV = clamp(prev + 5, parseInt(sliders[order[i]].min, 10), parseInt(sliders[order[i]].max, 10));
+                sliders[order[i]].value = newV;
+                sliders[order[i]].dispatchEvent(new Event('input'));
+            }
+        }
+        // Hacia atras: cada uno <= siguiente - 5
+        for (var j = changedIdx - 1; j >= 0; j--) {
+            var next = parseInt(sliders[order[j+1]].value, 10);
+            var c    = parseInt(sliders[order[j]].value, 10);
+            if (c >= next) {
+                var newV2 = clamp(next - 5, parseInt(sliders[order[j]].min, 10), parseInt(sliders[order[j]].max, 10));
+                sliders[order[j]].value = newV2;
+                sliders[order[j]].dispatchEvent(new Event('input'));
+            }
+        }
+        updateArtTimeline(modeKey);
+    }
+
+    function updateArtTimeline(modeKey) {
+        var tl = document.querySelector('[data-art-timeline="'+modeKey+'"]');
+        if (!tl) return;
+        var slowSlider = document.querySelector('input[data-art="slow"][data-mode="'+modeKey+'"]');
+        if (!slowSlider) return;
+        var maxScale = parseInt(slowSlider.value, 10) * 1.05; // 5% de cola visual
+        ['excellent','healthy','acceptable','slow'].forEach(function(k){
+            var s = document.querySelector('input[data-art="'+k+'"][data-mode="'+modeKey+'"]');
+            var marker = tl.querySelector('[data-marker="'+k+'"]');
+            if (!s || !marker) return;
+            var v = parseInt(s.value, 10);
+            var pct = clamp((v / maxScale) * 100, 0, 100);
+            marker.style.left = pct + '%';
+            marker.setAttribute('data-label', v + 's');
+        });
+    }
+
+    // ============================================================
+    //  Umbrales: ordenamiento Elite > Alto > Desarrollo
+    // ============================================================
+    function enforceThresholdOrder(modeKey, changedKey) {
+        var order = ['elite','alto','desarrollo'];
+        var sliders = {};
+        order.forEach(function(k){
+            sliders[k] = document.querySelector('input[data-th="'+k+'"][data-mode="'+modeKey+'"]');
+        });
+        if (!sliders[changedKey]) return;
+        var changedIdx = order.indexOf(changedKey);
+        // Forzar elite > alto > desarrollo (gap 0.3)
+        for (var i = changedIdx + 1; i < order.length; i++) {
+            var prev = parseFloat(sliders[order[i-1]].value);
+            var cur  = parseFloat(sliders[order[i]].value);
+            if (cur >= prev) {
+                var newV = Math.max(parseFloat(sliders[order[i]].min), prev - 0.3);
+                sliders[order[i]].value = newV.toFixed(1);
+                sliders[order[i]].dispatchEvent(new Event('input'));
+            }
+        }
+        for (var j = changedIdx - 1; j >= 0; j--) {
+            var next = parseFloat(sliders[order[j+1]].value);
+            var c    = parseFloat(sliders[order[j]].value);
+            if (c <= next) {
+                var newV2 = Math.min(parseFloat(sliders[order[j]].max), next + 0.3);
+                sliders[order[j]].value = newV2.toFixed(1);
+                sliders[order[j]].dispatchEvent(new Event('input'));
+            }
+        }
+    }
+
+    // ============================================================
+    //  Recomendacion: Recomendado > Observaciones
+    // ============================================================
+    function enforceRecOrder(modeKey, changedKey) {
+        var rec = document.querySelector('input[data-rec="recomendado"][data-mode="'+modeKey+'"]');
+        var obs = document.querySelector('input[data-rec="observaciones"][data-mode="'+modeKey+'"]');
+        if (!rec || !obs) return;
+        var rv = parseInt(rec.value, 10);
+        var ov = parseInt(obs.value, 10);
+        if (changedKey === 'recomendado' && ov >= rv) {
+            obs.value = clamp(rv - 5, parseInt(obs.min, 10), parseInt(obs.max, 10));
+            obs.dispatchEvent(new Event('input'));
+        } else if (changedKey === 'observaciones' && ov >= rv) {
+            rec.value = clamp(ov + 5, parseInt(rec.min, 10), parseInt(rec.max, 10));
+            rec.dispatchEvent(new Event('input'));
+        }
+    }
+
+    // ============================================================
+    //  Traducciones semanticas (sliders especiales)
+    // ============================================================
+    function bindTranslate(slider) {
+        var kind = slider.dataset.translate;
+        var form = slider.closest('form');
+        var out  = form && form.querySelector('[data-translate-out="'+kind+'"]');
+        if (!out) return;
+        function render() {
+            var v = parseInt(slider.value, 10);
+            if (kind === 'spelling') {
+                // Multiplicador: tasa = 1/v -> %
+                var pct = (1 / v * 100).toFixed(1);
+                var label = v <= 12 ? 'Estricta' : (v <= 25 ? 'Balanceada' : (v <= 35 ? 'Permisiva' : 'Muy permisiva'));
+                out.textContent = label + ' — penaliza al máximo cuando hay 1 error cada ' + Math.round(100/pct*1) + ' palabras (' + pct + '%)';
+            } else if (kind === 'empathy') {
+                var pillars = v;
+                var nps = 100 - v;
+                out.textContent = pillars + '% pilares + ' + nps + '% NPS — ' +
+                    (pillars >= 75 ? 'auditable y entrenable' : (pillars >= 40 ? 'balanceada' : 'guiada por sensación del cliente'));
+            }
+        }
+        slider.addEventListener('input', render);
+        render();
+    }
+
+    // ============================================================
+    //  Init
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Live value en TODOS los sliders
+        $$('input[type=range]').forEach(bindLiveValue);
+
+        // 2. Pesos PI: total + auto-balance
+        $$('input[data-pi-slider]').forEach(function(sl) {
+            sl.addEventListener('input', function() { recomputeTotal(sl.dataset.mode); });
+        });
+        $$('.pi-balance').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var modeKey = btn.closest('.pi-total').id.replace('piTotal-', '');
+                autoBalance(modeKey);
+            });
+        });
+        // Calcular total inicial para los 3 modos
+        ['flexible','standard','exigente'].forEach(recomputeTotal);
+
+        // 3. ART: ordenamiento + timeline
+        $$('input[data-art]').forEach(function(sl) {
+            sl.addEventListener('input', function() {
+                enforceArtOrder(sl.dataset.mode, sl.dataset.art);
+            });
+        });
+        ['flexible','standard','exigente'].forEach(updateArtTimeline);
+
+        // 4. Umbrales categoria
+        $$('input[data-th]').forEach(function(sl) {
+            sl.addEventListener('input', function() {
+                enforceThresholdOrder(sl.dataset.mode, sl.dataset.th);
+            });
+        });
+
+        // 5. Recomendacion
+        $$('input[data-rec]').forEach(function(sl) {
+            sl.addEventListener('input', function() {
+                enforceRecOrder(sl.dataset.mode, sl.dataset.rec);
+            });
+        });
+
+        // 6. Traducciones semanticas (ortografia, empatia)
+        $$('input[data-translate]').forEach(bindTranslate);
+    });
+})();
+</script>
 {% endblock %}
