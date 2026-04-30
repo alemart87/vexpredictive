@@ -116,6 +116,56 @@ nav a:hover { background-color: var(--rojo-vex); }
 nav .nav-admin { background-color: rgba(255,255,255,0.1); }
 nav .nav-logout { color: #ffcccc; }
 
+/* Novedades badge — llamativo, pulsante */
+nav a.nav-novedades {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px 7px 12px;
+    background: linear-gradient(135deg, #E6332A, #F39200);
+    color: #fff !important;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none;
+    box-shadow: 0 2px 10px rgba(230, 51, 42, 0.45);
+    margin-right: 4px;
+    transition: transform 0.18s, box-shadow 0.18s;
+    overflow: visible;
+}
+nav a.nav-novedades:hover {
+    background: linear-gradient(135deg, #C42A23, #E6332A);
+    transform: translateY(-1px) scale(1.04);
+    box-shadow: 0 4px 16px rgba(230, 51, 42, 0.6);
+}
+nav a.nav-novedades .nav-novedades-icon {
+    font-size: 15px;
+    animation: novedadesShine 2.4s ease-in-out infinite;
+}
+nav a.nav-novedades .nav-novedades-pulse {
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 10px; height: 10px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.9);
+    animation: novedadesPulse 1.8s ease-in-out infinite;
+}
+@keyframes novedadesPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.9); }
+    70%  { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+@keyframes novedadesShine {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50%      { transform: scale(1.18) rotate(15deg); }
+}
+@media (max-width: 720px) {
+    nav a.nav-novedades .nav-novedades-text { display: none; }
+    nav a.nav-novedades { padding: 7px 10px; }
+}
+
 /* User info in nav */
 nav a.nav-user-info {
     display: flex;

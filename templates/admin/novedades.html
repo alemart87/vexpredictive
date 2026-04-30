@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Novedades — Vex People Predictive{% endblock %}
+{% block extra_head %}
+<style>
+.nov-container { max-width: 920px; margin: 0 auto; }
+
+/* Hero */
+.nov-hero {
+    background: linear-gradient(135deg, #E6332A, #F39200);
+    color: #fff;
+    padding: 32px 36px;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(230, 51, 42, 0.25);
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+}
+.nov-hero::before {
+    content: '✨';
+    position: absolute;
+    top: -10px; right: 20px;
+    font-size: 110px;
+    opacity: 0.1;
+    transform: rotate(15deg);
+}
+.nov-hero h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: 0.5px; }
+.nov-hero p  { margin: 0; font-size: 14px; opacity: 0.95; line-height: 1.6; max-width: 640px; }
+
+/* Tabs / filter bar */
+.nov-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+.nov-filter-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    color: #555;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+}
+.nov-filter-btn:hover { border-color: #E6332A; color: #E6332A; }
+.nov-filter-btn.active {
+    background: #E6332A;
+    color: #fff;
+    border-color: #E6332A;
+}
+
+/* Entry */
+.nov-entry {
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px 26px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border-left: 5px solid var(--cyan-vex);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.nov-entry:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+.nov-entry.feature  { border-left-color: #2e7d32; }
+.nov-entry.improve  { border-left-color: #0277bd; }
+.nov-entry.fix      { border-left-color: #e65100; }
+.nov-entry.security { border-left-color: #c62828; }
+
+.nov-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.nov-tag {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+.nov-tag.feature  { background: #e8f5e9; color: #2e7d32; }
+.nov-tag.improve  { background: #e3f2fd; color: #0277bd; }
+.nov-tag.fix      { background: #fff3e0; color: #e65100; }
+.nov-tag.security { background: #ffebee; color: #c62828; }
+
+.nov-date { font-size: 12px; color: #888; font-family: monospace; }
+.nov-title { font-size: 16px; font-weight: 700; color: #333; margin: 0; flex: 1; }
+
+.nov-body { font-size: 14px; color: #555; line-height: 1.7; }
+.nov-body ul { padding-left: 22px; margin: 8px 0; }
+.nov-body li { margin: 3px 0; }
+.nov-body code {
+    background: #f0f4f8;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #c62828;
+}
+.nov-body strong { color: #333; }
+
+.nov-footer {
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+    padding: 30px 0 10px;
+    border-top: 1px solid #eee;
+    margin-top: 24px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nov-container">
+
+    <!-- Hero -->
+    <div class="nov-hero">
+        <h1>✨ Novedades de la Plataforma</h1>
+        <p>Acá publicamos las mejoras, nuevas funcionalidades y correcciones que vamos haciendo en Vex People Predictive. Lo más reciente arriba.</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="nov-filters">
+        <button class="nov-filter-btn active" data-filter="all">Todo</button>
+        <button class="nov-filter-btn" data-filter="feature">Nuevas funciones</button>
+        <button class="nov-filter-btn" data-filter="improve">Mejoras</button>
+        <button class="nov-filter-btn" data-filter="fix">Correcciones</button>
+        <button class="nov-filter-btn" data-filter="security">Seguridad</button>
+    </div>
+
+    <!--
+        ─────────────────────────────────────────────────────────────
+        CHANGELOG — Agregar nuevas entradas ARRIBA del primer entry
+        Formato:
+            <div class="nov-entry [feature|improve|fix|security]" data-type="...">
+                <div class="nov-head">
+                    <span class="nov-tag [feature|...]">Tag</span>
+                    <h3 class="nov-title">Titulo corto</h3>
+                    <span class="nov-date">YYYY-MM-DD</span>
+                </div>
+                <div class="nov-body"> ... </div>
+            </div>
+        ─────────────────────────────────────────────────────────────
+    -->
+
+    <!-- 2026-04-30 -->
+    <div class="nov-entry feature" data-type="feature">
+        <div class="nov-head">
+            <span class="nov-tag feature">Nueva función</span>
+            <h3 class="nov-title">Modos de Scoring (Flexible / Standard / Exigente)</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>Cada escenario ahora tiene asignado un modo de evaluación que define la severidad con la que se evalúa al asesor:</p>
+            <ul>
+                <li><strong>🟢 Flexible</strong> — para nuevos ingresos, capacitación inicial o procesos de selección.</li>
+                <li><strong>🔵 Standard</strong> — para asesores activos en producción (default).</li>
+                <li><strong>🔴 Exigente</strong> — solo para asesores expertos o pruebas de excelencia.</li>
+            </ul>
+            <p>Al iniciar un entrenamiento, el batch hereda el modo del escenario y queda fijo (snapshot). El SuperAdmin puede personalizar los parámetros de cada modo en <code>Vex Predictive → Modos de Scoring</code>.</p>
+        </div>
+    </div>
+
+    <div class="nov-entry improve" data-type="improve">
+        <div class="nov-head">
+            <span class="nov-tag improve">Mejora UX</span>
+            <h3 class="nov-title">Editor de modos rediseñado con sliders y zonas seguras</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>El editor de modos ahora usa sliders con rangos seguros, auto-balanceo de pesos del Predictive Index, timeline visual del ART, traducciones en lenguaje natural ("Estricta — penaliza al máximo cuando hay 1 error cada 15 palabras") y badge de advertencia "NO MODIFICAR sin revisión".</p>
+            <p>Los modos arrancan plegados: se ven los 3 de un vistazo y se expande solo el que se quiere editar.</p>
+        </div>
+    </div>
+
+    <div class="nov-entry security" data-type="security">
+        <div class="nov-head">
+            <span class="nov-tag security">Seguridad del modelo</span>
+            <h3 class="nov-title">Validación servidor-side en parámetros de scoring</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>El backend ahora <strong>acota automáticamente</strong> cualquier valor fuera de rango antes de persistir (ej: si alguien manda <code>150000</code> en un piso, se clampea al máximo seguro). Se valida ordenamiento ART (excelente &lt; saludable &lt; aceptable &lt; lento), categorías (Elite &gt; Alto &gt; Desarrollo) y recomendación. Imposible romper el modelo desde la UI.</p>
+        </div>
+    </div>
+
+    <div class="nov-entry feature" data-type="feature">
+        <div class="nov-head">
+            <span class="nov-tag feature">Nueva función</span>
+            <h3 class="nov-title">Empatía con rúbrica jerárquica de 4 pilares</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>La empatía se evalúa con una rúbrica explícita de 4 pilares ordenados por importancia:</p>
+            <ol>
+                <li><strong>Nombre</strong> (15%) — ¿mencionó al cliente por su nombre?</li>
+                <li><strong>Contexto</strong> (25%) — ¿demostró comprender el problema?</li>
+                <li><strong>Calidez</strong> (25%) — ¿tono amable, humano o emojis adecuados?</li>
+                <li><strong>Resolución</strong> (35%) — ¿se enfocó en ayudar, no en recitar?</li>
+            </ol>
+            <p>El feedback de la IA ahora muestra el cumplimiento por pilar, haciendo la evaluación auditable y entrenable.</p>
+        </div>
+    </div>
+
+    <div class="nov-entry feature" data-type="feature">
+        <div class="nov-head">
+            <span class="nov-tag feature">Nueva métrica</span>
+            <h3 class="nov-title">ART (Average Response Time) reemplaza la duración total</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>La velocidad ya no se mide por la duración total del chat sino por el <strong>tiempo medio entre el mensaje del cliente y la respuesta del asesor</strong>. Meta saludable para asesores con varios chats simultáneos: <strong>120-180 segundos</strong>.</p>
+            <p>No castiga la lentitud del cliente ni la duración del caso. Mide exactamente cuánto tiempo el cliente queda "en visto".</p>
+        </div>
+    </div>
+
+    <div class="nov-entry improve" data-type="improve">
+        <div class="nov-head">
+            <span class="nov-tag improve">Mejora</span>
+            <h3 class="nov-title">Scoring suavizado: tolerancia ortográfica y pisos mínimos</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>El sistema ahora es más justo:</p>
+            <ul>
+                <li><strong>Ortografía leniente:</strong> tildes, abreviaciones de chat (xq, q, tmb) y emojis ya no penalizan. Solo errores que afectan la comprensión cuentan.</li>
+                <li><strong>Pisos mínimos por dimensión:</strong> ningún asesor parte de cero — una sesión puntualmente baja no hunde el perfil.</li>
+                <li><strong>Umbrales más alcanzables:</strong> Elite ≥8.5 (antes ≥8 con todos), Recomendado PI ≥65% (antes 70%).</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="nov-entry improve" data-type="improve">
+        <div class="nov-head">
+            <span class="nov-tag improve">Mejora estética</span>
+            <h3 class="nov-title">Inputs de chat con texto que se envuelve hacia abajo</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>Los inputs del chat de entrenamiento y del asistente VEX AI ahora son <code>textarea</code> con auto-resize. Cuando el texto es largo, baja a una línea nueva en vez de scrollear horizontalmente. Scrollbar interna oculta para mantener el look limpio.</p>
+        </div>
+    </div>
+
+    <div class="nov-entry fix" data-type="fix">
+        <div class="nov-head">
+            <span class="nov-tag fix">Corrección</span>
+            <h3 class="nov-title">Modelo IA actualizado a GPT-5.4 mini</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>Migración del modelo de evaluación de <code>gpt-4o-mini</code> a <code>gpt-5.4-mini</code>. Más rápido (~2× más veloz que GPT-5 mini) y con mejor comprensión de matices conversacionales para evaluar empatía y NPS. Logging robusto del API para diagnosticar errores de OpenAI rápidamente.</p>
+        </div>
+    </div>
+
+    <div class="nov-footer">
+        Las novedades se actualizan periódicamente. Volvé cada tanto para enterarte de las últimas mejoras.
+    </div>
+
+</div>
+
+<script>
+(function() {
+    var btns = document.querySelectorAll('.nov-filter-btn');
+    var entries = document.querySelectorAll('.nov-entry');
+    btns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            btns.forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var f = btn.dataset.filter;
+            entries.forEach(function(e) {
+                e.style.display = (f === 'all' || e.dataset.type === f) ? '' : 'none';
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}
