@@ -150,6 +150,23 @@
     <div class="nov-entry feature" data-type="feature">
         <div class="nov-head">
             <span class="nov-tag feature">Nueva función</span>
+            <h3 class="nov-title">Gestión de usuarios con tabs Activos / Inactivos y eliminación segura</h3>
+            <span class="nov-date">2026-04-30</span>
+        </div>
+        <div class="nov-body">
+            <p>La pantalla <code>Admin → Usuarios</code> ahora tiene dos pestañas: <strong>Activos</strong> e <strong>Inactivos</strong>, con conteos en vivo. Reemplaza el flujo destructivo de "borrar usuario" con un modelo en 3 niveles seguros para preservar la integridad de los datos históricos:</p>
+            <ul>
+                <li><strong>Desactivar</strong> (Coordinador y SuperAdmin) — el usuario deja de loguear y no aparece en listas activas, pero todos sus datos se conservan: perfil VEX, sesiones, batches, contenido creado, auditoría.</li>
+                <li><strong>Reactivar</strong> — un click desde la pestaña Inactivos restaura al usuario sin pérdida de datos.</li>
+                <li><strong>Eliminar definitivamente</strong> (solo SuperAdmin) — anonimiza nombre, email, foto y contraseña pero conserva las FK para no romper analytics ni reportes. Pide confirmación tipeando exactamente el nombre del usuario. Acción irreversible.</li>
+            </ul>
+            <p>¿Por qué no eliminación en cascada? Porque destruiría perfiles VEX, históricos de NPS, evolución de talento y audit trail — exactamente lo que la plataforma capitaliza como producto. La anonimización cumple con privacidad sin sacrificar valor analítico.</p>
+        </div>
+    </div>
+
+    <div class="nov-entry feature" data-type="feature">
+        <div class="nov-head">
+            <span class="nov-tag feature">Nueva función</span>
             <h3 class="nov-title">Modos de Scoring (Flexible / Standard / Exigente)</h3>
             <span class="nov-date">2026-04-30</span>
         </div>

@@ -16,6 +16,9 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False)  # superadmin, coordinador, supervisor, operador
     operativa_id = db.Column(db.Integer, db.ForeignKey('operativas.id'), nullable=True)
     is_active_user = db.Column(db.Boolean, default=True)
+    is_purged = db.Column(db.Boolean, default=False)  # PII anonimizada (eliminacion definitiva)
+    purged_at = db.Column(db.DateTime, nullable=True)
+    deactivated_at = db.Column(db.DateTime, nullable=True)
     max_concurrent_training = db.Column(db.Integer, default=1)  # 1-10 simultaneous chats
     profile_photo = db.Column(db.String(500), nullable=True)  # URL to profile photo
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
