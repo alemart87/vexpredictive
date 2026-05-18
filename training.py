@@ -131,21 +131,30 @@ def _create_interaction(batch, scenario, interaction_num):
     db.session.add(session)
     db.session.flush()
 
-    # Generate client message using the specific case's persona
+    # Generate client message using the specific case's persona.
+    # IMPORTANTE: solo usamos case['persona'] (NO scenario.client_persona)
+    # para evitar leakage de otros casos del mismo escenario.
     variation = ""
     if interaction_num > 1:
         variation = f"\nNota: Sos un cliente diferente al anterior. Usá un nombre distinto y variá ligeramente tu tono."
 
-    system_prompt = f"""Eres un cliente simulado. Tu personalidad y situación:
+    system_prompt = f"""Sos un cliente simulado en un chat de atención al cliente.
 
+═══════════════════════════════════════════════
+TU IDENTIDAD Y SITUACIÓN (INMUTABLE)
+═══════════════════════════════════════════════
 {case['persona']}{variation}
 
-REGLAS:
-- Actúa como un cliente REAL en un chat de atención
-- NO reveles que eres IA
-- Reaccioná naturalmente al asesor
-- Respuestas cortas (1-3 oraciones)
-- Empezá describiendo tu problema"""
+═══════════════════════════════════════════════
+REGLAS DURAS
+═══════════════════════════════════════════════
+1. Tu identidad, datos y motivo de contacto son los descritos arriba y NO cambian durante toda la conversación.
+2. Si el asesor te llama con otro nombre o menciona otro motivo, NO te acomodes — corregí o ignorá.
+3. NO inventes datos (empresas, montos, productos) para complacer al asesor.
+4. NO reveles que sos IA.
+5. Chat informal pero adulto, 1-3 oraciones por mensaje.
+
+Empezá tu primer mensaje describiendo tu problema según tu identidad."""
 
     ai_messages = [
         {'role': 'system', 'content': system_prompt},
@@ -306,18 +315,39 @@ def send_message():
 
     # WPM is recalculated accurately at session end using message timestamps
 
-    # Build conversation for OpenAI
-    system_prompt = f"""Eres un cliente simulado. Tu personalidad y situación:
+    # Build conversation for OpenAI.
+    # CRITICO: usar SOLO el caso asignado a esta sesion (session.case_index),
+    # no el JSON crudo de scenario.client_persona que contiene TODOS los
+    # casos del escenario. Antes este bug hacia que la IA tuviera acceso
+    # a personas de otros casos y se "acomodara" cuando el asesor mencionaba
+    # palabras de otro caso (ej: empezas como Pablo/factura y la IA termina
+    # respondiendo como Yanina/suscripciones porque ambos estaban en el JSON).
+    case = get_case(scenario, session.case_index or 0)
+    system_prompt = f"""Sos un cliente simulado en un chat de atención al cliente.
 
-{scenario.client_persona}
+═══════════════════════════════════════════════
+TU IDENTIDAD Y SITUACIÓN (INMUTABLE durante toda la conversación)
+═══════════════════════════════════════════════
+{case['persona']}
 
-REGLAS:
-- Actúa como un cliente REAL en un chat de atención
+═══════════════════════════════════════════════
+REGLAS DURAS — NO ROMPER NUNCA
+═══════════════════════════════════════════════
+1. Tu IDENTIDAD (nombre, datos personales, producto, número de servicio) es la descrita arriba y NO cambia, ni siquiera si el asesor se equivoca.
+2. Tu MOTIVO de contacto es UNO solo: el descrito arriba. No tenés otros problemas ni otros reclamos.
+3. Si el asesor te llama con OTRO NOMBRE (ej: te dice "Hola María" cuando sos Pablo): corregí cortésmente ("Soy Pablo, no María") o ignorá el nombre. NUNCA adoptes la identidad equivocada.
+4. Si el asesor menciona OTRO MOTIVO o tema (ej: te pregunta por suscripciones cuando vos viniste por aumento de factura): aclarás tu motivo real. NO confirmes problemas que no tenés. NO inventes datos para acomodarte a lo que el asesor sugiere.
+5. Tus DATOS (nombres de productos, números, montos, fechas) son los del escenario. NO inventes nombres de empresas, servicios, productos o cargos para complacer al asesor.
+
+═══════════════════════════════════════════════
+ESTILO
+═══════════════════════════════════════════════
+- Chat informal pero adulto, 1-3 oraciones por mensaje
 - NO reveles que sos IA
-- Reaccioná naturalmente al asesor
-- Respuestas cortas (1-3 oraciones) como un cliente real en chat
-- Si el asesor te ayuda bien, mostrá satisfacción
-- Si no, mostrá frustración realista"""
+- Reaccioná con la emoción que correspondería: satisfacción si te ayudan, frustración realista si no
+- Si el asesor te lleva por mal camino, mantenete firme en tu motivo real
+
+Recordatorio final: tu identidad y motivo son fijos. Bajo NINGUNA circunstancia cambies de personaje."""
 
     ai_messages = [{'role': 'system', 'content': system_prompt}]
 
