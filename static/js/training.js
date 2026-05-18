@@ -10,6 +10,9 @@
     var startTime = Date.now();
     var addInterval = null;
     var spawnedCount = 0;
+    // Estado per-sesion para evitar bleed entre chats al cambiar:
+    var drafts = {};    // sid -> texto que el usuario estaba escribiendo
+    var inFlight = {};  // sid -> bool: hay fetch de mensaje en curso
 
     // DOM — use train* IDs to avoid conflict with chat widget
     var chatList = document.getElementById('trainList');
@@ -105,11 +108,30 @@
     }
 
     function selectChat(sid) {
+        // Guardar draft del chat anterior antes de cambiar
+        if (activeSessionId && interactions[activeSessionId]) {
+            drafts[activeSessionId] = chatInput.value;
+        }
         activeSessionId = sid;
         var i = interactions[sid];
         chatHeader.textContent = 'Chat ' + i.number + (i.status === 'completed' ? ' ✅ Completado' : '');
         // Re-render from state (prevents message mixing)
         renderChat(sid);
+
+        // Restaurar draft del chat al que entramos (no bleed entre chats)
+        chatInput.value = drafts[sid] || '';
+        autoResize();
+
+        // Sincronizar typing indicator: solo activo si HAY in-flight para
+        // ESTE chat. Sin esto, el typing de otro chat aparecia aca.
+        if (inFlight[sid]) {
+            chatTyping.classList.add('active');
+        } else {
+            chatTyping.classList.remove('active');
+        }
+
+        // Sincronizar boton Send: deshabilitado solo si in-flight de ESTE chat
+        chatSend.disabled = !!inFlight[sid];
 
         if (i.status === 'completed') {
             document.getElementById('trainInputArea').style.display = 'none';
@@ -169,16 +191,24 @@
         var sendingSid = activeSessionId;  // Capture which chat we're sending from
         var i = interactions[sendingSid];
         if (i.status !== 'active') return;
+        if (inFlight[sendingSid]) return;  // ya hay un mensaje en curso en este chat
         var text = chatInput.value.trim();
         if (!text) return;
 
         chatInput.value = '';
+        drafts[sendingSid] = '';   // limpiar draft de ESTE chat
         autoResize();
-        chatSend.disabled = true;
+        inFlight[sendingSid] = true;
+        // Boton/typing: solo afectar la UI si el usuario sigue en este chat
+        if (activeSessionId == sendingSid) {
+            chatSend.disabled = true;
+            chatTyping.classList.add('active');
+        }
         i.messages.push({role: 'user', content: text});
-        addMsgToDOM('user', text);
-        chatTyping.classList.add('active');
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        if (activeSessionId == sendingSid) {
+            addMsgToDOM('user', text);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
         try {
             var res = await fetch('/api/training/message', {
@@ -187,25 +217,25 @@
                 body: JSON.stringify({session_id: parseInt(sendingSid), message: text})
             });
             var data = await res.json();
-            chatTyping.classList.remove('active');
             if (data.response) {
                 i.messages.push({role: 'client', content: data.response});
-                // Only add to DOM if this chat is still the active one
+                // Solo agregar al DOM si el usuario sigue en este chat
                 if (activeSessionId == sendingSid) {
                     addMsgToDOM('client', data.response);
-                } else {
-                    // User switched chats; sidebar preview will update
-                    renderSidebar();
                 }
             }
         } catch(e) {
-            chatTyping.classList.remove('active');
             if (activeSessionId == sendingSid) {
                 addMsgToDOM('client', 'Error de conexión.');
             }
         }
-        chatSend.disabled = false;
-        if (activeSessionId == sendingSid) chatInput.focus();
+        inFlight[sendingSid] = false;
+        // Solo restaurar UI (typing off, boton on, focus) si el usuario sigue aca
+        if (activeSessionId == sendingSid) {
+            chatTyping.classList.remove('active');
+            chatSend.disabled = false;
+            chatInput.focus();
+        }
         renderSidebar();
     }
 
