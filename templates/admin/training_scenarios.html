@@ -107,6 +107,33 @@
                             <textarea class="case-response" rows="2" placeholder="¿Qué pasos debe seguir el asesor para resolver este caso?"></textarea>
                         </div>
                         <div class="case-images" data-images="[]">
+                            <div class="ci-banner">
+                                <span class="ci-new-tag">✨ NUEVO</span>
+                                <span class="ci-banner-text">Ahora el cliente simulado puede <strong>enviar imágenes</strong> durante el chat (capturas, comprobantes, fotos).</span>
+                                <details class="ci-instructions">
+                                    <summary>📖 Leer instructivo</summary>
+                                    <div class="ci-instructions-content">
+                                        <h5>¿Cómo funciona?</h5>
+                                        <p>El cliente simulado por la IA puede mandar imágenes durante la conversación, como un cliente real que adjunta capturas. Sirve para entrenar al asesor a leer evidencia visual.</p>
+                                        <h5>Qué subir</h5>
+                                        <p>Evidencia que el cliente del caso "tendría a mano": captura de la factura, foto del error, comprobante, screenshot del producto, etc. <strong>Hasta 5 imágenes por caso.</strong></p>
+                                        <h5>Descripción (caption) de cada imagen</h5>
+                                        <p>Escribí qué muestra la imagen. <strong>La IA usa este texto</strong> para saber de qué hablar cuando la envía (no lee el píxel, lee tu descripción). El asesor sí ve la imagen real en el chat.</p>
+                                        <p><em>Ejemplo:</em> <code>Factura de marzo con el aumento marcado</code> mejor que <code>factura</code>.</p>
+                                        <h5>Cuándo se envía</h5>
+                                        <ul>
+                                            <li><strong>⚡ Automática</strong>: aparece junto al primer mensaje del cliente. Ideal para evidencia que el cliente "muestra de entrada".</li>
+                                            <li><strong>📨 A pedido</strong>: la IA la envía cuando el asesor la solicita en el chat (ej: <em>"¿me mandás la factura?"</em>). Es <strong>más realista</strong> y entrena al asesor a pedir evidencia.</li>
+                                        </ul>
+                                        <h5>Tips</h5>
+                                        <ul>
+                                            <li>Mezclá los dos modos: una automática para contexto + una a pedido para premiar al asesor que pregunta.</li>
+                                            <li>Anonimizá la imagen: tachá nombres, números reales y datos sensibles antes de subirla.</li>
+                                            <li>La IA nunca inventa imágenes — solo puede enviar las que vos cargues acá.</li>
+                                        </ul>
+                                    </div>
+                                </details>
+                            </div>
                             <label>🖼 Imágenes del caso (hasta 5)</label>
                             <p class="ci-hint">El cliente simulado puede enviarlas durante la conversación. <strong>Automática</strong>: se muestra al iniciar el caso. <strong>A pedido</strong>: la IA la envía cuando el asesor la solicita.</p>
                             <div class="case-images-grid"></div>
@@ -298,6 +325,24 @@
 .btn-add-image:hover { background:#009BA8; }
 .btn-add-image:disabled { opacity:.5; cursor:wait; }
 .ci-empty { font-size:12px; color:#aaa; font-style:italic; padding:8px 0; }
+
+/* Banner "Nuevo" + instructivo desplegable */
+.ci-banner { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 8px; padding:8px 12px; background:linear-gradient(135deg,#fff4e5,#ffe9d6); border-radius:8px; border:1px solid #ffd4a3; }
+.ci-new-tag { background:linear-gradient(135deg,#E6332A,#F39200); color:#fff; font-size:10px; font-weight:800; padding:3px 9px; border-radius:10px; letter-spacing:.5px; box-shadow:0 2px 6px rgba(230,51,42,.3); animation:ciNewPulse 2s ease-in-out infinite; }
+@keyframes ciNewPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+.ci-banner-text { font-size:12px; color:#7a4b1f; flex:1; min-width:200px; line-height:1.4; }
+.ci-banner-text strong { color:#c4571a; }
+.ci-instructions { margin-left:auto; }
+.ci-instructions > summary { cursor:pointer; font-size:12px; font-weight:700; color:#E6332A; padding:4px 12px; border:1px solid #E6332A; border-radius:14px; background:#fff; list-style:none; transition:all .15s; }
+.ci-instructions > summary::-webkit-details-marker { display:none; }
+.ci-instructions > summary:hover { background:#E6332A; color:#fff; }
+.ci-instructions[open] > summary { background:#E6332A; color:#fff; }
+.ci-instructions-content { margin-top:10px; padding:14px 16px; background:#fff; border-radius:8px; border:1px solid #ffd4a3; font-size:12px; color:#444; line-height:1.7; flex-basis:100%; }
+.ci-instructions-content h5 { margin:0 0 6px; color:#E6332A; font-size:13px; }
+.ci-instructions-content h5:not(:first-child) { margin-top:12px; }
+.ci-instructions-content ul { padding-left:20px; margin:4px 0; }
+.ci-instructions-content li { margin:3px 0; }
+.ci-instructions-content code { background:#f0f4f8; padding:1px 6px; border-radius:4px; font-size:11px; color:#c4571a; }
 @keyframes btnPulse {
     0%, 100% { box-shadow: 0 4px 15px rgba(230, 51, 42, 0.4); }
     50% { box-shadow: 0 4px 25px rgba(230, 51, 42, 0.7), 0 0 40px rgba(230, 51, 42, 0.2); }
@@ -350,9 +395,41 @@ function bindModeSelector(scope) {
     });
 }
 
+// HTML del banner "Nuevo + Leer instructivo" (reutilizable)
+function caseImagesBannerHTML() {
+    return '<div class="ci-banner">' +
+        '<span class="ci-new-tag">✨ NUEVO</span>' +
+        '<span class="ci-banner-text">Ahora el cliente simulado puede <strong>enviar imágenes</strong> durante el chat (capturas, comprobantes, fotos).</span>' +
+        '<details class="ci-instructions">' +
+            '<summary>📖 Leer instructivo</summary>' +
+            '<div class="ci-instructions-content">' +
+                '<h5>¿Cómo funciona?</h5>' +
+                '<p>El cliente simulado por la IA puede mandar imágenes durante la conversación, como un cliente real que adjunta capturas. Sirve para entrenar al asesor a leer evidencia visual.</p>' +
+                '<h5>Qué subir</h5>' +
+                '<p>Evidencia que el cliente del caso "tendría a mano": captura de la factura, foto del error, comprobante, screenshot del producto, etc. <strong>Hasta 5 imágenes por caso.</strong></p>' +
+                '<h5>Descripción (caption) de cada imagen</h5>' +
+                '<p>Escribí qué muestra la imagen. <strong>La IA usa este texto</strong> para saber de qué hablar cuando la envía (no lee el píxel, lee tu descripción). El asesor sí ve la imagen real en el chat.</p>' +
+                '<p><em>Ejemplo:</em> <code>Factura de marzo con el aumento marcado</code> mejor que <code>factura</code>.</p>' +
+                '<h5>Cuándo se envía</h5>' +
+                '<ul>' +
+                    '<li><strong>⚡ Automática</strong>: aparece junto al primer mensaje del cliente. Ideal para evidencia que el cliente "muestra de entrada".</li>' +
+                    '<li><strong>📨 A pedido</strong>: la IA la envía cuando el asesor la solicita en el chat (ej: <em>"¿me mandás la factura?"</em>). Es <strong>más realista</strong> y entrena al asesor a pedir evidencia.</li>' +
+                '</ul>' +
+                '<h5>Tips</h5>' +
+                '<ul>' +
+                    '<li>Mezclá los dos modos: una automática para contexto + una a pedido para premiar al asesor que pregunta.</li>' +
+                    '<li>Anonimizá la imagen: tachá nombres, números reales y datos sensibles antes de subirla.</li>' +
+                    '<li>La IA nunca inventa imágenes — solo puede enviar las que vos cargues acá.</li>' +
+                '</ul>' +
+            '</div>' +
+        '</details>' +
+        '</div>';
+}
+
 // HTML de la zona de imagenes de un caso (reutilizable)
 function caseImagesBlockHTML() {
     return '<div class="case-images" data-images="[]">' +
+        caseImagesBannerHTML() +
         '<label>🖼 Imágenes del caso (hasta 5)</label>' +
         '<p class="ci-hint">El cliente simulado puede enviarlas durante la conversación. <strong>Automática</strong>: se muestra al iniciar el caso. <strong>A pedido</strong>: la IA la envía cuando el asesor la solicita.</p>' +
         '<div class="case-images-grid"></div>' +
