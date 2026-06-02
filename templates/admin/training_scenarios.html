@@ -21,6 +21,11 @@
             <p><strong>Resolución Esperada:</strong> Pasos que el asesor debe seguir.<br>
             <em>Ejemplo: "1) Verificar identidad, 2) Revisar débito en SAC.COM, 3) Iniciar devolución, 4) Informar plazo 48-72hs."</em></p>
             <p><strong>Mejorar con IA:</strong> Escribí un borrador y clickeá "✨ Mejorar con IA" para que la IA genere una instrucción más detallada y profesional.</p>
+            <p><strong>🖼 Imágenes del caso (hasta 5):</strong> El cliente simulado puede enviar imágenes durante la conversación (captura de factura, foto del error, comprobante). Por cada imagen elegís:<br>
+            • <strong>Descripción</strong>: qué muestra (la IA la usa para saber de qué hablar; el asesor ve la imagen real).<br>
+            • <strong>⚡ Automática</strong>: se muestra apenas inicia el caso.<br>
+            • <strong>📨 A pedido</strong>: la IA la envía cuando el asesor la solicita en el chat.<br>
+            <em>Ejemplo: subís la captura de una factura, descripción "Factura de marzo con el aumento", modo "A pedido". Cuando el asesor diga "¿me podés mandar la factura?", el cliente la envía.</em></p>
         </div>
     </details>
 
@@ -100,6 +105,13 @@
                                 <button type="button" class="btn-enhance" onclick="enhanceText(this, 'response')">✨ Mejorar con IA</button>
                             </label>
                             <textarea class="case-response" rows="2" placeholder="¿Qué pasos debe seguir el asesor para resolver este caso?"></textarea>
+                        </div>
+                        <div class="case-images" data-images="[]">
+                            <label>🖼 Imágenes del caso (hasta 5)</label>
+                            <p class="ci-hint">El cliente simulado puede enviarlas durante la conversación. <strong>Automática</strong>: se muestra al iniciar el caso. <strong>A pedido</strong>: la IA la envía cuando el asesor la solicita.</p>
+                            <div class="case-images-grid"></div>
+                            <button type="button" class="btn-add-image" onclick="triggerCaseImageUpload(this)">+ Agregar imagen</button>
+                            <input type="file" class="case-image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="uploadCaseImage(this)">
                         </div>
                     </div>
                 </div>
@@ -270,6 +282,22 @@
 .mode-badge.exigente { background:#ffebee; color:#c62828; }
 .mode-badge.legacy   { background:#f0f0f0; color:#666; }
 .btn-add-case:hover { transform: scale(1.05); }
+
+/* Imagenes del caso */
+.case-images { margin-top:12px; padding-top:12px; border-top:1px dashed #e0e0e0; }
+.case-images > label { display:block; font-size:13px; font-weight:600; color:#444; margin-bottom:2px; }
+.case-images .ci-hint { font-size:11px; color:#888; margin:0 0 10px; line-height:1.4; }
+.case-images-grid { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+.ci-item { width:180px; border:1px solid #e0e0e0; border-radius:8px; padding:8px; background:#fafafa; position:relative; }
+.ci-item img { width:100%; height:90px; object-fit:cover; border-radius:6px; display:block; }
+.ci-item .ci-del { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; background:#c62828; color:#fff; border:none; cursor:pointer; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center; }
+.ci-item .ci-del:hover { background:#a01a1a; }
+.ci-item input.ci-caption { width:100%; box-sizing:border-box; margin-top:6px; padding:5px 7px; border:1px solid #ccc; border-radius:5px; font-size:11px; }
+.ci-item select.ci-trigger { width:100%; box-sizing:border-box; margin-top:5px; padding:4px; border:1px solid #ccc; border-radius:5px; font-size:11px; background:#fff; }
+.btn-add-image { background:#00B2BF; color:#fff; border:none; border-radius:18px; padding:7px 16px; cursor:pointer; font-size:12px; font-weight:700; }
+.btn-add-image:hover { background:#009BA8; }
+.btn-add-image:disabled { opacity:.5; cursor:wait; }
+.ci-empty { font-size:12px; color:#aaa; font-style:italic; padding:8px 0; }
 @keyframes btnPulse {
     0%, 100% { box-shadow: 0 4px 15px rgba(230, 51, 42, 0.4); }
     50% { box-shadow: 0 4px 25px rgba(230, 51, 42, 0.7), 0 0 40px rgba(230, 51, 42, 0.2); }
@@ -301,6 +329,8 @@ function bindAutoGrow(scope) {
 document.addEventListener('DOMContentLoaded', function() {
     bindAutoGrow(document);
     bindModeSelector(document);
+    // Render inicial de las zonas de imagenes ya presentes (Caso 1)
+    document.querySelectorAll('#casesContainer .case-images').forEach(renderCaseImages);
 });
 
 // Selector visual de modo (3 cards). El click sobre el card marca el radio.
@@ -320,6 +350,17 @@ function bindModeSelector(scope) {
     });
 }
 
+// HTML de la zona de imagenes de un caso (reutilizable)
+function caseImagesBlockHTML() {
+    return '<div class="case-images" data-images="[]">' +
+        '<label>🖼 Imágenes del caso (hasta 5)</label>' +
+        '<p class="ci-hint">El cliente simulado puede enviarlas durante la conversación. <strong>Automática</strong>: se muestra al iniciar el caso. <strong>A pedido</strong>: la IA la envía cuando el asesor la solicita.</p>' +
+        '<div class="case-images-grid"></div>' +
+        '<button type="button" class="btn-add-image" onclick="triggerCaseImageUpload(this)">+ Agregar imagen</button>' +
+        '<input type="file" class="case-image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="uploadCaseImage(this)">' +
+        '</div>';
+}
+
 function addCase() {
     caseCount++;
     var html = '<div class="case-card" data-case="' + (caseCount-1) + '">' +
@@ -330,9 +371,83 @@ function addCase() {
         '<textarea class="case-persona" rows="3" placeholder="Describí la personalidad del cliente para este caso..."></textarea></div>' +
         '<div class="form-group"><label>Resolución Esperada del Caso ' + caseCount +
         ' <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
-        '<textarea class="case-response" rows="2" placeholder="Pasos que el asesor debe seguir..."></textarea></div></div>';
+        '<textarea class="case-response" rows="2" placeholder="Pasos que el asesor debe seguir..."></textarea></div>' +
+        caseImagesBlockHTML() + '</div>';
     document.getElementById('casesContainer').insertAdjacentHTML('beforeend', html);
     bindAutoGrow(document.getElementById('casesContainer'));
+}
+
+// ===== Manejo de imágenes de caso =====
+function getCaseImages(box) {
+    try { return JSON.parse(box.dataset.images || '[]'); } catch(e) { return []; }
+}
+function setCaseImages(box, arr) {
+    box.dataset.images = JSON.stringify(arr);
+    renderCaseImages(box);
+}
+function renderCaseImages(box) {
+    var arr = getCaseImages(box);
+    var grid = box.querySelector('.case-images-grid');
+    var addBtn = box.querySelector('.btn-add-image');
+    if (!arr.length) {
+        grid.innerHTML = '<div class="ci-empty">Sin imágenes. El caso funciona igual sin ellas.</div>';
+    } else {
+        grid.innerHTML = arr.map(function(img, idx) {
+            return '<div class="ci-item" data-idx="' + idx + '">' +
+                '<button type="button" class="ci-del" title="Quitar" onclick="removeCaseImage(this)">×</button>' +
+                '<img src="' + img.url + '" alt="">' +
+                '<input class="ci-caption" type="text" placeholder="¿Qué muestra? (ej: factura de marzo)" value="' + escHtml(img.caption || '') + '" onchange="updateCaseImageField(this,\'caption\')">' +
+                '<select class="ci-trigger" onchange="updateCaseImageField(this,\'trigger\')">' +
+                    '<option value="on_request"' + (img.trigger !== 'auto' ? ' selected' : '') + '>📨 A pedido</option>' +
+                    '<option value="auto"' + (img.trigger === 'auto' ? ' selected' : '') + '>⚡ Automática</option>' +
+                '</select></div>';
+        }).join('');
+    }
+    // Deshabilitar boton al llegar a 5
+    if (addBtn) {
+        addBtn.disabled = arr.length >= 5;
+        addBtn.textContent = arr.length >= 5 ? 'Máximo 5 imágenes' : '+ Agregar imagen';
+    }
+}
+function triggerCaseImageUpload(btn) {
+    btn.closest('.case-images').querySelector('.case-image-input').click();
+}
+async function uploadCaseImage(input) {
+    var box = input.closest('.case-images');
+    var arr = getCaseImages(box);
+    if (arr.length >= 5) { alert('Máximo 5 imágenes por caso.'); input.value=''; return; }
+    var file = input.files[0];
+    if (!file) return;
+    var addBtn = box.querySelector('.btn-add-image');
+    addBtn.disabled = true; addBtn.textContent = '⏳ Subiendo...';
+    try {
+        var fd = new FormData();
+        fd.append('image', file);
+        var res = await fetch('/admin/training/upload-case-image', { method: 'POST', body: fd });
+        var data = await res.json();
+        if (data.url) {
+            arr.push({ url: data.url, caption: '', trigger: 'on_request' });
+            setCaseImages(box, arr);
+        } else {
+            alert(data.error || 'Error al subir la imagen');
+        }
+    } catch(e) { alert('Error de conexión al subir la imagen'); }
+    input.value = '';
+    addBtn.disabled = false; addBtn.textContent = '+ Agregar imagen';
+    renderCaseImages(box);
+}
+function removeCaseImage(btn) {
+    var box = btn.closest('.case-images');
+    var idx = parseInt(btn.closest('.ci-item').dataset.idx, 10);
+    var arr = getCaseImages(box);
+    arr.splice(idx, 1);
+    setCaseImages(box, arr);
+}
+function updateCaseImageField(el, field) {
+    var box = el.closest('.case-images');
+    var idx = parseInt(el.closest('.ci-item').dataset.idx, 10);
+    var arr = getCaseImages(box);
+    if (arr[idx]) { arr[idx][field] = el.value; box.dataset.images = JSON.stringify(arr); }
 }
 
 function prepareSubmit() {
@@ -340,8 +455,10 @@ function prepareSubmit() {
     document.querySelectorAll('#casesContainer .case-card').forEach(function(card, i) {
         var p = card.querySelector('.case-persona').value.trim();
         var r = card.querySelector('.case-response').value.trim();
+        var box = card.querySelector('.case-images');
+        var imgs = box ? getCaseImages(box) : [];
         if (p) {
-            personas.push({label: 'Caso ' + (i+1), text: p});
+            personas.push({label: 'Caso ' + (i+1), text: p, images: imgs});
             responses.push({case: i+1, text: r});
         }
     });
@@ -377,7 +494,7 @@ function editScenario(id, data) {
     container.innerHTML = '';
     editCaseCount = 0;
 
-    var cases = data.cases || [{persona: data.client_persona, expected: data.expected_response}];
+    var cases = data.cases || [{persona: data.client_persona, expected: data.expected_response, images: []}];
     cases.forEach(function(c, i) {
         editCaseCount++;
         container.insertAdjacentHTML('beforeend',
@@ -387,7 +504,11 @@ function editScenario(id, data) {
             '<div class="form-group"><label>Persona <button type="button" class="btn-enhance" onclick="enhanceText(this, \'persona\')">✨ Mejorar con IA</button></label>' +
             '<textarea class="case-persona" rows="3">' + escHtml(c.persona) + '</textarea></div>' +
             '<div class="form-group"><label>Resolución <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
-            '<textarea class="case-response" rows="2">' + escHtml(c.expected) + '</textarea></div></div>');
+            '<textarea class="case-response" rows="2">' + escHtml(c.expected) + '</textarea></div>' +
+            caseImagesBlockHTML() + '</div>');
+        // Cargar imagenes existentes del caso
+        var box = container.querySelector('.case-card[data-case="' + i + '"] .case-images');
+        if (box) setCaseImages(box, c.images || []);
     });
 
     document.getElementById('editModal').style.display = 'flex';
@@ -396,14 +517,19 @@ function editScenario(id, data) {
 
 function addEditCase() {
     editCaseCount++;
-    document.getElementById('editCasesList').insertAdjacentHTML('beforeend',
+    var list = document.getElementById('editCasesList');
+    list.insertAdjacentHTML('beforeend',
         '<div class="case-card"><div class="case-header"><strong>Caso ' + editCaseCount + '</strong>' +
         '<button type="button" class="btn-remove-case" onclick="this.closest(\'.case-card\').remove()">Eliminar</button></div>' +
         '<div class="form-group"><label>Persona <button type="button" class="btn-enhance" onclick="enhanceText(this, \'persona\')">✨ Mejorar con IA</button></label>' +
         '<textarea class="case-persona" rows="3" placeholder="Persona del cliente..."></textarea></div>' +
         '<div class="form-group"><label>Resolución <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
-        '<textarea class="case-response" rows="2" placeholder="Pasos esperados..."></textarea></div></div>');
-    bindAutoGrow(document.getElementById('editCasesList'));
+        '<textarea class="case-response" rows="2" placeholder="Pasos esperados..."></textarea></div>' +
+        caseImagesBlockHTML() + '</div>');
+    // Render del grid vacio en la zona recien creada
+    var newBox = list.lastElementChild.querySelector('.case-images');
+    if (newBox) renderCaseImages(newBox);
+    bindAutoGrow(list);
 }
 
 function prepareEditSubmit() {
@@ -411,8 +537,10 @@ function prepareEditSubmit() {
     document.querySelectorAll('#editCasesList .case-card').forEach(function(card, i) {
         var p = card.querySelector('.case-persona').value.trim();
         var r = card.querySelector('.case-response').value.trim();
+        var box = card.querySelector('.case-images');
+        var imgs = box ? getCaseImages(box) : [];
         if (p) {
-            personas.push({label: 'Caso ' + (i+1), text: p});
+            personas.push({label: 'Caso ' + (i+1), text: p, images: imgs});
             responses.push({case: i+1, text: r});
         }
     });

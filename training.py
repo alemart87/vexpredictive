@@ -35,16 +35,21 @@ def parse_cases(scenario):
             cases = []
             for i, p in enumerate(personas):
                 resp = responses[i] if i < len(responses) else {}
+                # images: lista de {url, caption, trigger}. Solo en persona dict.
+                imgs = p.get('images', []) if isinstance(p, dict) else []
+                if not isinstance(imgs, list):
+                    imgs = []
                 cases.append({
                     'persona': p.get('text', '') if isinstance(p, dict) else str(p),
                     'expected': resp.get('text', '') if isinstance(resp, dict) else str(resp),
-                    'label': p.get('label', f'Caso {i+1}') if isinstance(p, dict) else f'Caso {i+1}'
+                    'label': p.get('label', f'Caso {i+1}') if isinstance(p, dict) else f'Caso {i+1}',
+                    'images': imgs
                 })
-            return cases if cases else [{'persona': scenario.client_persona, 'expected': scenario.expected_response, 'label': 'Caso 1'}]
+            return cases if cases else [{'persona': scenario.client_persona, 'expected': scenario.expected_response, 'label': 'Caso 1', 'images': []}]
     except (json.JSONDecodeError, TypeError):
         pass
     # Legacy: single text fields
-    return [{'persona': scenario.client_persona, 'expected': scenario.expected_response, 'label': 'Caso 1'}]
+    return [{'persona': scenario.client_persona, 'expected': scenario.expected_response, 'label': 'Caso 1', 'images': []}]
 
 
 def get_case(scenario, index):
@@ -93,6 +98,55 @@ def index():
     return render_template('training/index.html',
                            scenarios=scenarios, my_batches=my_batches,
                            my_sessions=my_sessions, active_batch=active_batch)
+
+
+def _image_catalog_block(case):
+    """Bloque de texto para el system prompt con las imagenes que el cliente
+    simulado puede enviar. Devuelve '' si el caso no tiene imagenes.
+    Enfoque caption-based: la IA conoce cada imagen por su descripcion, no
+    por vision. El asesor SI ve la imagen real renderizada."""
+    imgs = case.get('images') or []
+    if not imgs:
+        return ''
+    lines = []
+    for idx, img in enumerate(imgs, start=1):
+        cap = (img.get('caption') or 'imagen sin descripción').strip()
+        trig = img.get('trigger', 'on_request')
+        when = 'YA fue enviada al inicio, NO la reenvíes' if trig == 'auto' else 'enviá cuando el asesor la pida o sea relevante a tu reclamo'
+        lines.append(f"[IMG:{idx}] {cap} — ({when})")
+    catalog = "\n".join(lines)
+    return f"""
+
+═══════════════════════════════════════════════
+IMÁGENES QUE PODÉS ENVIAR
+═══════════════════════════════════════════════
+Tenés estas imágenes disponibles. Para enviar una, escribí su token (ej: [IMG:1]) dentro de tu mensaje. El asesor la verá renderizada en el chat.
+{catalog}
+
+REGLAS DE IMÁGENES:
+- Enviá una imagen SOLO cuando sea natural (el asesor la pide, o aporta a tu reclamo).
+- Escribí el token tal cual aparece: [IMG:1]. Podés acompañarlo con texto, ej: "Te paso la captura: [IMG:1]".
+- NO inventes imágenes fuera de esta lista ni uses tokens inexistentes."""
+
+
+def _extract_sent_images(text, case):
+    """Busca tokens [IMG:n] en la respuesta del cliente. Devuelve
+    (texto_sin_tokens, lista_de_urls). Ignora tokens fuera de rango."""
+    imgs = case.get('images') or []
+    sent = []
+
+    def repl(m):
+        n = int(m.group(1))
+        if 1 <= n <= len(imgs):
+            url = imgs[n - 1].get('url')
+            if url and url not in sent:
+                sent.append(url)
+        return ''
+
+    clean = re.sub(r'\[IMG:\s*(\d+)\s*\]', repl, text or '')
+    clean = re.sub(r'[ \t]{2,}', ' ', clean)
+    clean = re.sub(r'\n{3,}', '\n\n', clean).strip()
+    return clean, sent
 
 
 def _create_interaction(batch, scenario, interaction_num):
@@ -152,7 +206,7 @@ REGLAS DURAS
 2. Si el asesor te llama con otro nombre o menciona otro motivo, NO te acomodes — corregí o ignorá.
 3. NO inventes datos (empresas, montos, productos) para complacer al asesor.
 4. NO reveles que sos IA.
-5. Chat informal pero adulto, 1-3 oraciones por mensaje.
+5. Chat informal pero adulto, 1-3 oraciones por mensaje.{_image_catalog_block(case)}
 
 Empezá tu primer mensaje describiendo tu problema según tu identidad."""
 
@@ -162,13 +216,21 @@ Empezá tu primer mensaje describiendo tu problema según tu identidad."""
     ]
     response_text, tokens = call_openai(ai_messages)
 
+    # Parsear tokens [IMG:n] que la IA pudiera haber usado en el saludo
+    clean_text, sent_urls = _extract_sent_images(response_text, case)
+    # Adjuntar imagenes con trigger 'auto' al primer mensaje del cliente
+    auto_urls = [img['url'] for img in (case.get('images') or [])
+                 if img.get('trigger') == 'auto' and img.get('url')]
+    all_urls = auto_urls + [u for u in sent_urls if u not in auto_urls]
+
     msg = TrainingMessage(
         session_id=session.id, role='client',
-        content=response_text, word_count=len(response_text.split())
+        content=clean_text, word_count=len(clean_text.split()),
+        images=json.dumps(all_urls) if all_urls else None
     )
     db.session.add(msg)
     session.tokens_used = tokens
-    return session, response_text
+    return session, clean_text, all_urls
 
 
 @training_bp.route('/api/training/batch/start/<int:scenario_id>', methods=['POST'])
@@ -199,7 +261,7 @@ def start_batch(scenario_id):
     db.session.flush()
 
     # Create first interaction
-    session, first_msg = _create_interaction(batch, scenario, 1)
+    session, first_msg, first_imgs = _create_interaction(batch, scenario, 1)
     db.session.commit()
 
     return jsonify({
@@ -210,6 +272,7 @@ def start_batch(scenario_id):
             'session_id': session.id,
             'interaction_number': 1,
             'first_message': first_msg,
+            'first_images': first_imgs,
             'status': 'active'
         }]
     })
@@ -229,13 +292,14 @@ def add_interaction(batch_id):
         return jsonify({'error': 'Máximo de interacciones alcanzado'}), 400
 
     scenario = batch.scenario
-    session, first_msg = _create_interaction(batch, scenario, current_count + 1)
+    session, first_msg, first_imgs = _create_interaction(batch, scenario, current_count + 1)
     db.session.commit()
 
     return jsonify({
         'session_id': session.id,
         'interaction_number': current_count + 1,
         'first_message': first_msg,
+        'first_images': first_imgs,
         'status': 'active'
     })
 
@@ -347,7 +411,7 @@ ESTILO
 - Reaccioná con la emoción que correspondería: satisfacción si te ayudan, frustración realista si no
 - Si el asesor te lleva por mal camino, mantenete firme en tu motivo real
 
-Recordatorio final: tu identidad y motivo son fijos. Bajo NINGUNA circunstancia cambies de personaje."""
+Recordatorio final: tu identidad y motivo son fijos. Bajo NINGUNA circunstancia cambies de personaje.{_image_catalog_block(case)}"""
 
     ai_messages = [{'role': 'system', 'content': system_prompt}]
 
@@ -358,19 +422,34 @@ Recordatorio final: tu identidad y motivo son fijos. Bajo NINGUNA circunstancia 
 
     response_text, tokens = call_openai(ai_messages)
 
+    # Parsear tokens [IMG:n]: extraer imagenes que el cliente "envia" y
+    # limpiar los tokens del texto visible.
+    clean_text, sent_urls = _extract_sent_images(response_text, case)
+    # Evitar reenviar imagenes que ya se mostraron antes en esta sesion
+    already_sent = set()
+    for m in session.messages:
+        if m.role == 'client' and m.images:
+            try:
+                already_sent.update(json.loads(m.images))
+            except (json.JSONDecodeError, TypeError):
+                pass
+    new_urls = [u for u in sent_urls if u not in already_sent]
+
     # Save client response
     client_msg = TrainingMessage(
         session_id=session.id,
         role='client',
-        content=response_text,
-        word_count=len(response_text.split())
+        content=clean_text,
+        word_count=len(clean_text.split()),
+        images=json.dumps(new_urls) if new_urls else None
     )
     db.session.add(client_msg)
     session.tokens_used = (session.tokens_used or 0) + tokens
     db.session.commit()
 
     return jsonify({
-        'response': response_text,
+        'response': clean_text,
+        'images': new_urls,
         'metrics': {
             'messages': session.total_messages,
             'words': session.total_words_user,
@@ -467,11 +546,16 @@ def end_session(session_id):
 
         return jsonify({'ok': True, 'session_id': session.id, 'batch_id': batch_id, 'batch_complete': batch_complete})
 
-    # Build full conversation text for evaluation
+    # Build full conversation text for evaluation. Cuando el cliente envio
+    # imagenes, se anota para que la IA evaluadora considere que el cliente
+    # compartio evidencia visual (y evalue si el asesor la pidio/aprovecho).
     conversation_text = ""
     for msg in session.messages:
         label = "ASESOR" if msg.role == 'user' else "CLIENTE"
-        conversation_text += f"{label}: {msg.content}\n\n"
+        line = msg.content or ''
+        if msg.role == 'client' and msg.image_list:
+            line += f"  [el cliente adjuntó {len(msg.image_list)} imagen(es) en este mensaje]"
+        conversation_text += f"{label}: {line}\n\n"
 
     # Get user messages for spelling check
     user_texts = ' '.join(m.content for m in session.messages if m.role == 'user')
@@ -736,6 +820,37 @@ def admin_scenario_save():
     db.session.commit()
     flash('Escenario guardado.', 'success')
     return redirect(url_for('training.admin_scenarios'))
+
+
+@training_bp.route('/admin/training/upload-case-image', methods=['POST'])
+@coordinador_or_above
+def upload_case_image():
+    """Sube una imagen de caso. Guarda en UPLOAD_DIR con nombre uuid unico
+    (mismo patron que las fotos de perfil pero sin colisiones) y devuelve la
+    URL servida via /imagenes/. Maximo 5 imagenes por caso lo valida el
+    frontend; aca solo validamos tipo y tamano."""
+    import uuid
+    from flask import current_app
+    from werkzeug.utils import secure_filename
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No se envió archivo'}), 400
+    file = request.files['image']
+    if not file.filename:
+        return jsonify({'error': 'Archivo sin nombre'}), 400
+
+    allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed:
+        return jsonify({'error': 'Tipo no permitido. Usá PNG, JPG, GIF o WEBP.'}), 400
+
+    # Nombre unico: caso_<uuid>.<ext> — evita pisar archivos con mismo nombre
+    filename = f"caso_{uuid.uuid4().hex}.{ext}"
+    upload_dir = current_app.config['UPLOAD_DIR']
+    os.makedirs(upload_dir, exist_ok=True)
+    file.save(os.path.join(upload_dir, filename))
+
+    return jsonify({'url': '/imagenes/' + filename})
 
 
 @training_bp.route('/admin/training/scenarios/<int:s_id>/delete', methods=['POST'])
@@ -1008,6 +1123,7 @@ def admin_session_detail(session_id):
         'messages': [{
             'role': m.role,
             'content': m.content,
+            'images': m.image_list,
             'created_at': m.created_at.strftime('%H:%M:%S') if m.created_at else ''
         } for m in s.messages]
     })

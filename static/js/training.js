@@ -142,11 +142,30 @@
         renderSidebar();
     }
 
-    function addMsgToDOM(role, content) {
-        var typing = document.getElementById('trainTyping');
+    function buildMsgNode(role, content, images) {
         var div = document.createElement('div');
         div.className = 'training-msg ' + role;
-        div.textContent = content;
+        if (content) {
+            var txt = document.createElement('div');
+            txt.className = 'tm-text';
+            txt.textContent = content;
+            div.appendChild(txt);
+        }
+        // Imagenes que el cliente "envia"
+        (images || []).forEach(function(url) {
+            var a = document.createElement('a');
+            a.href = url; a.target = '_blank'; a.className = 'tm-img-link';
+            var img = document.createElement('img');
+            img.src = url; img.className = 'tm-img'; img.alt = 'Imagen del cliente';
+            a.appendChild(img);
+            div.appendChild(a);
+        });
+        return div;
+    }
+
+    function addMsgToDOM(role, content, images) {
+        var typing = document.getElementById('trainTyping');
+        var div = buildMsgNode(role, content, images);
         // Insert before typing indicator
         if (typing) chatMessages.insertBefore(div, typing);
         else chatMessages.appendChild(div);
@@ -161,11 +180,9 @@
         var typing = document.getElementById('trainTyping');
         chatMessages.innerHTML = '';
         if (typing) chatMessages.appendChild(typing);
-        // Re-add all messages from state
+        // Re-add all messages from state (incluye imagenes)
         i.messages.forEach(function(m) {
-            var div = document.createElement('div');
-            div.className = 'training-msg ' + m.role;
-            div.textContent = m.content;
+            var div = buildMsgNode(m.role, m.content, m.images);
             if (typing) chatMessages.insertBefore(div, typing);
             else chatMessages.appendChild(div);
         });
@@ -204,9 +221,9 @@
             chatSend.disabled = true;
             chatTyping.classList.add('active');
         }
-        i.messages.push({role: 'user', content: text});
+        i.messages.push({role: 'user', content: text, images: []});
         if (activeSessionId == sendingSid) {
-            addMsgToDOM('user', text);
+            addMsgToDOM('user', text, []);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
@@ -218,10 +235,11 @@
             });
             var data = await res.json();
             if (data.response) {
-                i.messages.push({role: 'client', content: data.response});
+                var imgs = data.images || [];
+                i.messages.push({role: 'client', content: data.response, images: imgs});
                 // Solo agregar al DOM si el usuario sigue en este chat
                 if (activeSessionId == sendingSid) {
-                    addMsgToDOM('client', data.response);
+                    addMsgToDOM('client', data.response, imgs);
                 }
             }
         } catch(e) {
@@ -292,7 +310,7 @@
                     interactions[data.session_id] = {
                         number: data.interaction_number,
                         status: 'active',
-                        messages: [{role: 'client', content: data.first_message}],
+                        messages: [{role: 'client', content: data.first_message, images: data.first_images || []}],
                         words: 0, msgs: 0
                     };
                     renderSidebar();

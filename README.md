@@ -93,7 +93,7 @@ OPENAI_API_KEY=sk-tu-api-key-de-openai
 
 Render detecta el `Dockerfile` y ejecuta:
 1. Instala dependencias de `requirements.txt`
-2. Ejecuta migraciones (`migrate_v2.py`, `migrate_v3.py`, `migrate_v4.py`, `migrate_v5.py`, `migrate_v6.py`)
+2. Ejecuta migraciones (`migrate_v2.py` … `migrate_v9.py`)
 3. Inicia Gunicorn en puerto 10000
 
 ### 4. Post-deploy
@@ -128,6 +128,9 @@ python migrate_v3.py
 python migrate_v4.py
 python migrate_v5.py
 python migrate_v6.py
+python migrate_v7.py
+python migrate_v8.py
+python migrate_v9.py
 
 # Iniciar servidor de desarrollo
 python app.py
@@ -152,6 +155,9 @@ vexpredictive/
 ├── migrate_v4.py           # Migracion: profile_photo en users
 ├── migrate_v5.py           # Migracion: avg_response_time (ART) en training_sessions
 ├── migrate_v6.py           # Migracion: modos de scoring (scenario.scoring_mode + overrides)
+├── migrate_v7.py           # Migracion: soft-delete de usuarios (is_purged, deactivated_at)
+├── migrate_v8.py           # Migracion: abandonment_rate en vex_profiles
+├── migrate_v9.py           # Migracion: imagenes en mensajes de training (training_messages.images)
 ├── scoring_modes.py        # 3 modos predefinidos (Flexible/Standard/Exigente) + helpers
 ├── Dockerfile              # Build y deploy
 ├── requirements.txt        # Dependencias Python

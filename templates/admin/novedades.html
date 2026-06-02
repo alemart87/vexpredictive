@@ -146,6 +146,26 @@
         ─────────────────────────────────────────────────────────────
     -->
 
+    <!-- 2026-05-01 -->
+    <div class="nov-entry feature" data-type="feature">
+        <div class="nov-head">
+            <span class="nov-tag feature">Nueva función</span>
+            <h3 class="nov-title">Imágenes en los casos: el cliente puede enviar capturas durante el chat</h3>
+            <span class="nov-date">2026-05-01</span>
+        </div>
+        <div class="nov-body">
+            <p>Ahora cada caso de un escenario puede tener <strong>hasta 5 imágenes</strong> (captura de factura, foto del error, comprobante). El cliente simulado las envía durante la conversación, como en un chat real.</p>
+            <p>Al cargar cada imagen elegís:</p>
+            <ul>
+                <li><strong>Descripción</strong> — qué muestra la imagen. La IA la usa para saber de qué hablar (enfoque eficiente: no "ve" el píxel, conoce la imagen por tu descripción). El asesor sí ve la imagen real renderizada en el chat.</li>
+                <li><strong>⚡ Automática</strong> — se muestra apenas inicia el caso.</li>
+                <li><strong>📨 A pedido</strong> — la IA la envía cuando el asesor la solicita ("¿me mandás una captura?").</li>
+            </ul>
+            <p>La IA envía la imagen escribiendo un token interno (<code>[IMG:1]</code>) que el sistema reemplaza por la imagen real, evitando que invente imágenes inexistentes. Las imágenes quedan guardadas en el historial de la sesión y se ven en "Ver Detalles" del perfil VEX. La evaluación considera si el asesor pidió/aprovechó la evidencia visual.</p>
+            <p><em>Las imágenes se almacenan en el disco persistente de la plataforma con nombres únicos.</em></p>
+        </div>
+    </div>
+
     <!-- 2026-04-30 -->
     <div class="nov-entry feature" data-type="feature">
         <div class="nov-head">
