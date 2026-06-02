@@ -114,6 +114,15 @@
     color: #fff;
     border-bottom-right-radius: 4px;
 }
+/* Imagenes que el cliente envia en el chat */
+.training-msg .tm-text + .tm-img-link { margin-top: 8px; }
+.training-msg .tm-img-link { display: block; margin-top: 6px; }
+.training-msg .tm-img {
+    max-width: 220px; max-height: 220px; width: auto; height: auto;
+    border-radius: 10px; border: 1px solid #e0e0e0; display: block;
+    cursor: zoom-in; transition: transform .15s;
+}
+.training-msg .tm-img:hover { transform: scale(1.02); }
 
 .training-input-area {
     padding: 14px 16px;

@@ -260,7 +260,22 @@ class TrainingMessage(db.Model):
     role = db.Column(db.String(20), nullable=False)  # 'user' or 'client'
     content = db.Column(db.Text, nullable=False)
     word_count = db.Column(db.Integer, default=0)
+    # JSON array de URLs de imagenes que el cliente "envio" en este mensaje.
+    # Solo aplica a mensajes role='client'. Null/vacio = sin imagenes.
+    images = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @property
+    def image_list(self):
+        """Lista de URLs de imagenes parseada (vacia si no hay)."""
+        if not self.images:
+            return []
+        try:
+            import json as _json
+            v = _json.loads(self.images)
+            return v if isinstance(v, list) else []
+        except (ValueError, TypeError):
+            return []
 
 
 class TrainingViewPermission(db.Model):

@@ -67,7 +67,7 @@ window.BATCH_INTERACTIONS = [
         session_id: {{ s.id }},
         interaction_number: {{ s.interaction_number }},
         status: '{{ s.status }}',
-        messages: [{% for m in s.messages %}{role:'{{ m.role }}',content:{{ m.content|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]
+        messages: [{% for m in s.messages %}{role:'{{ m.role }}',content:{{ m.content|tojson }},images:{{ m.image_list|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];

@@ -804,6 +804,93 @@ disparados.
 
 ---
 
+## 4-quater. Imágenes en casos (el cliente envía capturas)
+
+Feature para que el cliente simulado envíe hasta 5 imágenes por caso
+durante la conversación. Enfoque **caption-based**: la IA conoce cada
+imagen por su descripción de texto (no por vision), y el asesor ve la
+imagen real renderizada.
+
+### 4-quater.1 Modelo + migración
+
+```python
+# models.py — TrainingMessage
+images = db.Column(db.Text, nullable=True)  # JSON array de URLs
+
+@property
+def image_list(self):
+    if not self.images: return []
+    try:
+        v = json.loads(self.images)
+        return v if isinstance(v, list) else []
+    except (ValueError, TypeError):
+        return []
+```
+
+`migrate_v9.py`: `ALTER TABLE training_messages ADD COLUMN images TEXT`
+(idempotente). Las imágenes **por caso** se guardan dentro del JSON de
+`scenario.client_persona` (campo `images` por caso), no requieren columna.
+
+### 4-quater.2 Estructura del caso en el JSON
+
+```json
+{
+  "label": "Caso 1",
+  "text": "Sos Pablo...",
+  "images": [
+    {"url": "/imagenes/caso_<uuid>.png", "caption": "Factura de marzo", "trigger": "on_request"},
+    {"url": "/imagenes/caso_<uuid>.png", "caption": "Captura del error", "trigger": "auto"}
+  ]
+}
+```
+
+`parse_cases()` extrae `images` por caso. El filtro `scenario_json` en
+`app.py` ya devuelve `cases` completo, así que el modal de edición las
+recibe sin cambios.
+
+### 4-quater.3 Endpoint de upload
+
+`/admin/training/upload-case-image` (POST, coordinador_or_above). Mismo
+patrón que las fotos de perfil pero con nombre **uuid único**
+(`caso_<uuid>.<ext>`) para no pisar archivos. Guarda en `UPLOAD_DIR`
+(disco persistente en Render), sirve vía `/imagenes/`.
+
+### 4-quater.4 Mecánica de envío (el truco)
+
+Dos helpers en `training.py`:
+
+- `_image_catalog_block(case)`: arma un bloque para el system prompt con
+  cada imagen numerada `[IMG:n]`, su caption y cuándo enviarla. La IA
+  escribe el token `[IMG:1]` cuando quiere enviar la imagen.
+- `_extract_sent_images(text, case)`: parsea los tokens `[IMG:n]` de la
+  respuesta, los quita del texto visible y devuelve las URLs reales.
+
+Flujo:
+- **trigger `auto`**: en `_create_interaction` se adjuntan directo al
+  primer mensaje del cliente (`msg.images`).
+- **trigger `on_request`**: en `send_message` la IA escribe `[IMG:n]`,
+  se parsea, se deduplica contra imágenes ya enviadas en la sesión, y se
+  guarda en `TrainingMessage.images`. La respuesta JSON incluye `images`.
+
+### 4-quater.5 Frontend
+
+- `training_scenarios.html`: zona `.case-images` por caso (upload,
+  preview, caption, selector trigger, borrar). Estado en
+  `dataset.images` (JSON). `prepareSubmit`/`prepareEditSubmit` lo
+  incluyen en el JSON del caso.
+- `session.html`: `BATCH_INTERACTIONS` incluye `images:{{ m.image_list|tojson }}`.
+- `training.js`: `buildMsgNode(role, content, images)` renderiza texto +
+  `<img>`. `sendMsg` usa `data.images`. El spawn usa `first_images`.
+- `vex_profile.html`: el modal "Ver Detalles" renderiza imágenes.
+- `admin_session_detail` devuelve `images` por mensaje.
+
+### 4-quater.6 Evaluación
+
+`conversation_text` anota `[el cliente adjuntó N imagen(es)]` para que la
+IA evaluadora considere si el asesor pidió/aprovechó la evidencia visual.
+
+---
+
 ## 5. Documentación
 
 Si tu otro proyecto tiene una página de metodología visible al usuario:

@@ -21,6 +21,11 @@
             <p><strong>Resolución Esperada:</strong> Pasos que el asesor debe seguir.<br>
             <em>Ejemplo: "1) Verificar identidad, 2) Revisar débito en SAC.COM, 3) Iniciar devolución, 4) Informar plazo 48-72hs."</em></p>
             <p><strong>Mejorar con IA:</strong> Escribí un borrador y clickeá "✨ Mejorar con IA" para que la IA genere una instrucción más detallada y profesional.</p>
+            <p><strong>🖼 Imágenes del caso (hasta 5):</strong> El cliente simulado puede enviar imágenes durante la conversación (captura de factura, foto del error, comprobante). Por cada imagen elegís:<br>
+            • <strong>Descripción</strong>: qué muestra (la IA la usa para saber de qué hablar; el asesor ve la imagen real).<br>
+            • <strong>⚡ Automática</strong>: se muestra apenas inicia el caso.<br>
+            • <strong>📨 A pedido</strong>: la IA la envía cuando el asesor la solicita en el chat.<br>
+            <em>Ejemplo: subís la captura de una factura, descripción "Factura de marzo con el aumento", modo "A pedido". Cuando el asesor diga "¿me podés mandar la factura?", el cliente la envía.</em></p>
         </div>
     </details>
 
@@ -100,6 +105,40 @@
                                 <button type="button" class="btn-enhance" onclick="enhanceText(this, 'response')">✨ Mejorar con IA</button>
                             </label>
                             <textarea class="case-response" rows="2" placeholder="¿Qué pasos debe seguir el asesor para resolver este caso?"></textarea>
+                        </div>
+                        <div class="case-images" data-images="[]">
+                            <div class="ci-banner">
+                                <span class="ci-new-tag">✨ NUEVO</span>
+                                <span class="ci-banner-text">Ahora el cliente simulado puede <strong>enviar imágenes</strong> durante el chat (capturas, comprobantes, fotos).</span>
+                                <details class="ci-instructions">
+                                    <summary>📖 Leer instructivo</summary>
+                                    <div class="ci-instructions-content">
+                                        <h5>¿Cómo funciona?</h5>
+                                        <p>El cliente simulado por la IA puede mandar imágenes durante la conversación, como un cliente real que adjunta capturas. Sirve para entrenar al asesor a leer evidencia visual.</p>
+                                        <h5>Qué subir</h5>
+                                        <p>Evidencia que el cliente del caso "tendría a mano": captura de la factura, foto del error, comprobante, screenshot del producto, etc. <strong>Hasta 5 imágenes por caso.</strong></p>
+                                        <h5>Descripción (caption) de cada imagen</h5>
+                                        <p>Escribí qué muestra la imagen. <strong>La IA usa este texto</strong> para saber de qué hablar cuando la envía (no lee el píxel, lee tu descripción). El asesor sí ve la imagen real en el chat.</p>
+                                        <p><em>Ejemplo:</em> <code>Factura de marzo con el aumento marcado</code> mejor que <code>factura</code>.</p>
+                                        <h5>Cuándo se envía</h5>
+                                        <ul>
+                                            <li><strong>⚡ Automática</strong>: aparece junto al primer mensaje del cliente. Ideal para evidencia que el cliente "muestra de entrada".</li>
+                                            <li><strong>📨 A pedido</strong>: la IA la envía cuando el asesor la solicita en el chat (ej: <em>"¿me mandás la factura?"</em>). Es <strong>más realista</strong> y entrena al asesor a pedir evidencia.</li>
+                                        </ul>
+                                        <h5>Tips</h5>
+                                        <ul>
+                                            <li>Mezclá los dos modos: una automática para contexto + una a pedido para premiar al asesor que pregunta.</li>
+                                            <li>Anonimizá la imagen: tachá nombres, números reales y datos sensibles antes de subirla.</li>
+                                            <li>La IA nunca inventa imágenes — solo puede enviar las que vos cargues acá.</li>
+                                        </ul>
+                                    </div>
+                                </details>
+                            </div>
+                            <label>🖼 Imágenes del caso (hasta 5)</label>
+                            <p class="ci-hint">El cliente simulado puede enviarlas durante la conversación. <strong>Automática</strong>: se muestra al iniciar el caso. <strong>A pedido</strong>: la IA la envía cuando el asesor la solicita.</p>
+                            <div class="case-images-grid"></div>
+                            <button type="button" class="btn-add-image" onclick="triggerCaseImageUpload(this)">+ Agregar imagen</button>
+                            <input type="file" class="case-image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="uploadCaseImage(this)">
                         </div>
                     </div>
                 </div>
@@ -270,6 +309,40 @@
 .mode-badge.exigente { background:#ffebee; color:#c62828; }
 .mode-badge.legacy   { background:#f0f0f0; color:#666; }
 .btn-add-case:hover { transform: scale(1.05); }
+
+/* Imagenes del caso */
+.case-images { margin-top:12px; padding-top:12px; border-top:1px dashed #e0e0e0; }
+.case-images > label { display:block; font-size:13px; font-weight:600; color:#444; margin-bottom:2px; }
+.case-images .ci-hint { font-size:11px; color:#888; margin:0 0 10px; line-height:1.4; }
+.case-images-grid { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+.ci-item { width:180px; border:1px solid #e0e0e0; border-radius:8px; padding:8px; background:#fafafa; position:relative; }
+.ci-item img { width:100%; height:90px; object-fit:cover; border-radius:6px; display:block; }
+.ci-item .ci-del { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; background:#c62828; color:#fff; border:none; cursor:pointer; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center; }
+.ci-item .ci-del:hover { background:#a01a1a; }
+.ci-item input.ci-caption { width:100%; box-sizing:border-box; margin-top:6px; padding:5px 7px; border:1px solid #ccc; border-radius:5px; font-size:11px; }
+.ci-item select.ci-trigger { width:100%; box-sizing:border-box; margin-top:5px; padding:4px; border:1px solid #ccc; border-radius:5px; font-size:11px; background:#fff; }
+.btn-add-image { background:#00B2BF; color:#fff; border:none; border-radius:18px; padding:7px 16px; cursor:pointer; font-size:12px; font-weight:700; }
+.btn-add-image:hover { background:#009BA8; }
+.btn-add-image:disabled { opacity:.5; cursor:wait; }
+.ci-empty { font-size:12px; color:#aaa; font-style:italic; padding:8px 0; }
+
+/* Banner "Nuevo" + instructivo desplegable */
+.ci-banner { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 8px; padding:8px 12px; background:linear-gradient(135deg,#fff4e5,#ffe9d6); border-radius:8px; border:1px solid #ffd4a3; }
+.ci-new-tag { background:linear-gradient(135deg,#E6332A,#F39200); color:#fff; font-size:10px; font-weight:800; padding:3px 9px; border-radius:10px; letter-spacing:.5px; box-shadow:0 2px 6px rgba(230,51,42,.3); animation:ciNewPulse 2s ease-in-out infinite; }
+@keyframes ciNewPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+.ci-banner-text { font-size:12px; color:#7a4b1f; flex:1; min-width:200px; line-height:1.4; }
+.ci-banner-text strong { color:#c4571a; }
+.ci-instructions { margin-left:auto; }
+.ci-instructions > summary { cursor:pointer; font-size:12px; font-weight:700; color:#E6332A; padding:4px 12px; border:1px solid #E6332A; border-radius:14px; background:#fff; list-style:none; transition:all .15s; }
+.ci-instructions > summary::-webkit-details-marker { display:none; }
+.ci-instructions > summary:hover { background:#E6332A; color:#fff; }
+.ci-instructions[open] > summary { background:#E6332A; color:#fff; }
+.ci-instructions-content { margin-top:10px; padding:14px 16px; background:#fff; border-radius:8px; border:1px solid #ffd4a3; font-size:12px; color:#444; line-height:1.7; flex-basis:100%; }
+.ci-instructions-content h5 { margin:0 0 6px; color:#E6332A; font-size:13px; }
+.ci-instructions-content h5:not(:first-child) { margin-top:12px; }
+.ci-instructions-content ul { padding-left:20px; margin:4px 0; }
+.ci-instructions-content li { margin:3px 0; }
+.ci-instructions-content code { background:#f0f4f8; padding:1px 6px; border-radius:4px; font-size:11px; color:#c4571a; }
 @keyframes btnPulse {
     0%, 100% { box-shadow: 0 4px 15px rgba(230, 51, 42, 0.4); }
     50% { box-shadow: 0 4px 25px rgba(230, 51, 42, 0.7), 0 0 40px rgba(230, 51, 42, 0.2); }
@@ -301,6 +374,8 @@ function bindAutoGrow(scope) {
 document.addEventListener('DOMContentLoaded', function() {
     bindAutoGrow(document);
     bindModeSelector(document);
+    // Render inicial de las zonas de imagenes ya presentes (Caso 1)
+    document.querySelectorAll('#casesContainer .case-images').forEach(renderCaseImages);
 });
 
 // Selector visual de modo (3 cards). El click sobre el card marca el radio.
@@ -320,6 +395,49 @@ function bindModeSelector(scope) {
     });
 }
 
+// HTML del banner "Nuevo + Leer instructivo" (reutilizable)
+function caseImagesBannerHTML() {
+    return '<div class="ci-banner">' +
+        '<span class="ci-new-tag">✨ NUEVO</span>' +
+        '<span class="ci-banner-text">Ahora el cliente simulado puede <strong>enviar imágenes</strong> durante el chat (capturas, comprobantes, fotos).</span>' +
+        '<details class="ci-instructions">' +
+            '<summary>📖 Leer instructivo</summary>' +
+            '<div class="ci-instructions-content">' +
+                '<h5>¿Cómo funciona?</h5>' +
+                '<p>El cliente simulado por la IA puede mandar imágenes durante la conversación, como un cliente real que adjunta capturas. Sirve para entrenar al asesor a leer evidencia visual.</p>' +
+                '<h5>Qué subir</h5>' +
+                '<p>Evidencia que el cliente del caso "tendría a mano": captura de la factura, foto del error, comprobante, screenshot del producto, etc. <strong>Hasta 5 imágenes por caso.</strong></p>' +
+                '<h5>Descripción (caption) de cada imagen</h5>' +
+                '<p>Escribí qué muestra la imagen. <strong>La IA usa este texto</strong> para saber de qué hablar cuando la envía (no lee el píxel, lee tu descripción). El asesor sí ve la imagen real en el chat.</p>' +
+                '<p><em>Ejemplo:</em> <code>Factura de marzo con el aumento marcado</code> mejor que <code>factura</code>.</p>' +
+                '<h5>Cuándo se envía</h5>' +
+                '<ul>' +
+                    '<li><strong>⚡ Automática</strong>: aparece junto al primer mensaje del cliente. Ideal para evidencia que el cliente "muestra de entrada".</li>' +
+                    '<li><strong>📨 A pedido</strong>: la IA la envía cuando el asesor la solicita en el chat (ej: <em>"¿me mandás la factura?"</em>). Es <strong>más realista</strong> y entrena al asesor a pedir evidencia.</li>' +
+                '</ul>' +
+                '<h5>Tips</h5>' +
+                '<ul>' +
+                    '<li>Mezclá los dos modos: una automática para contexto + una a pedido para premiar al asesor que pregunta.</li>' +
+                    '<li>Anonimizá la imagen: tachá nombres, números reales y datos sensibles antes de subirla.</li>' +
+                    '<li>La IA nunca inventa imágenes — solo puede enviar las que vos cargues acá.</li>' +
+                '</ul>' +
+            '</div>' +
+        '</details>' +
+        '</div>';
+}
+
+// HTML de la zona de imagenes de un caso (reutilizable)
+function caseImagesBlockHTML() {
+    return '<div class="case-images" data-images="[]">' +
+        caseImagesBannerHTML() +
+        '<label>🖼 Imágenes del caso (hasta 5)</label>' +
+        '<p class="ci-hint">El cliente simulado puede enviarlas durante la conversación. <strong>Automática</strong>: se muestra al iniciar el caso. <strong>A pedido</strong>: la IA la envía cuando el asesor la solicita.</p>' +
+        '<div class="case-images-grid"></div>' +
+        '<button type="button" class="btn-add-image" onclick="triggerCaseImageUpload(this)">+ Agregar imagen</button>' +
+        '<input type="file" class="case-image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="uploadCaseImage(this)">' +
+        '</div>';
+}
+
 function addCase() {
     caseCount++;
     var html = '<div class="case-card" data-case="' + (caseCount-1) + '">' +
@@ -330,9 +448,83 @@ function addCase() {
         '<textarea class="case-persona" rows="3" placeholder="Describí la personalidad del cliente para este caso..."></textarea></div>' +
         '<div class="form-group"><label>Resolución Esperada del Caso ' + caseCount +
         ' <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
-        '<textarea class="case-response" rows="2" placeholder="Pasos que el asesor debe seguir..."></textarea></div></div>';
+        '<textarea class="case-response" rows="2" placeholder="Pasos que el asesor debe seguir..."></textarea></div>' +
+        caseImagesBlockHTML() + '</div>';
     document.getElementById('casesContainer').insertAdjacentHTML('beforeend', html);
     bindAutoGrow(document.getElementById('casesContainer'));
+}
+
+// ===== Manejo de imágenes de caso =====
+function getCaseImages(box) {
+    try { return JSON.parse(box.dataset.images || '[]'); } catch(e) { return []; }
+}
+function setCaseImages(box, arr) {
+    box.dataset.images = JSON.stringify(arr);
+    renderCaseImages(box);
+}
+function renderCaseImages(box) {
+    var arr = getCaseImages(box);
+    var grid = box.querySelector('.case-images-grid');
+    var addBtn = box.querySelector('.btn-add-image');
+    if (!arr.length) {
+        grid.innerHTML = '<div class="ci-empty">Sin imágenes. El caso funciona igual sin ellas.</div>';
+    } else {
+        grid.innerHTML = arr.map(function(img, idx) {
+            return '<div class="ci-item" data-idx="' + idx + '">' +
+                '<button type="button" class="ci-del" title="Quitar" onclick="removeCaseImage(this)">×</button>' +
+                '<img src="' + img.url + '" alt="">' +
+                '<input class="ci-caption" type="text" placeholder="¿Qué muestra? (ej: factura de marzo)" value="' + escHtml(img.caption || '') + '" onchange="updateCaseImageField(this,\'caption\')">' +
+                '<select class="ci-trigger" onchange="updateCaseImageField(this,\'trigger\')">' +
+                    '<option value="on_request"' + (img.trigger !== 'auto' ? ' selected' : '') + '>📨 A pedido</option>' +
+                    '<option value="auto"' + (img.trigger === 'auto' ? ' selected' : '') + '>⚡ Automática</option>' +
+                '</select></div>';
+        }).join('');
+    }
+    // Deshabilitar boton al llegar a 5
+    if (addBtn) {
+        addBtn.disabled = arr.length >= 5;
+        addBtn.textContent = arr.length >= 5 ? 'Máximo 5 imágenes' : '+ Agregar imagen';
+    }
+}
+function triggerCaseImageUpload(btn) {
+    btn.closest('.case-images').querySelector('.case-image-input').click();
+}
+async function uploadCaseImage(input) {
+    var box = input.closest('.case-images');
+    var arr = getCaseImages(box);
+    if (arr.length >= 5) { alert('Máximo 5 imágenes por caso.'); input.value=''; return; }
+    var file = input.files[0];
+    if (!file) return;
+    var addBtn = box.querySelector('.btn-add-image');
+    addBtn.disabled = true; addBtn.textContent = '⏳ Subiendo...';
+    try {
+        var fd = new FormData();
+        fd.append('image', file);
+        var res = await fetch('/admin/training/upload-case-image', { method: 'POST', body: fd });
+        var data = await res.json();
+        if (data.url) {
+            arr.push({ url: data.url, caption: '', trigger: 'on_request' });
+            setCaseImages(box, arr);
+        } else {
+            alert(data.error || 'Error al subir la imagen');
+        }
+    } catch(e) { alert('Error de conexión al subir la imagen'); }
+    input.value = '';
+    addBtn.disabled = false; addBtn.textContent = '+ Agregar imagen';
+    renderCaseImages(box);
+}
+function removeCaseImage(btn) {
+    var box = btn.closest('.case-images');
+    var idx = parseInt(btn.closest('.ci-item').dataset.idx, 10);
+    var arr = getCaseImages(box);
+    arr.splice(idx, 1);
+    setCaseImages(box, arr);
+}
+function updateCaseImageField(el, field) {
+    var box = el.closest('.case-images');
+    var idx = parseInt(el.closest('.ci-item').dataset.idx, 10);
+    var arr = getCaseImages(box);
+    if (arr[idx]) { arr[idx][field] = el.value; box.dataset.images = JSON.stringify(arr); }
 }
 
 function prepareSubmit() {
@@ -340,8 +532,10 @@ function prepareSubmit() {
     document.querySelectorAll('#casesContainer .case-card').forEach(function(card, i) {
         var p = card.querySelector('.case-persona').value.trim();
         var r = card.querySelector('.case-response').value.trim();
+        var box = card.querySelector('.case-images');
+        var imgs = box ? getCaseImages(box) : [];
         if (p) {
-            personas.push({label: 'Caso ' + (i+1), text: p});
+            personas.push({label: 'Caso ' + (i+1), text: p, images: imgs});
             responses.push({case: i+1, text: r});
         }
     });
@@ -377,7 +571,7 @@ function editScenario(id, data) {
     container.innerHTML = '';
     editCaseCount = 0;
 
-    var cases = data.cases || [{persona: data.client_persona, expected: data.expected_response}];
+    var cases = data.cases || [{persona: data.client_persona, expected: data.expected_response, images: []}];
     cases.forEach(function(c, i) {
         editCaseCount++;
         container.insertAdjacentHTML('beforeend',
@@ -387,7 +581,11 @@ function editScenario(id, data) {
             '<div class="form-group"><label>Persona <button type="button" class="btn-enhance" onclick="enhanceText(this, \'persona\')">✨ Mejorar con IA</button></label>' +
             '<textarea class="case-persona" rows="3">' + escHtml(c.persona) + '</textarea></div>' +
             '<div class="form-group"><label>Resolución <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
-            '<textarea class="case-response" rows="2">' + escHtml(c.expected) + '</textarea></div></div>');
+            '<textarea class="case-response" rows="2">' + escHtml(c.expected) + '</textarea></div>' +
+            caseImagesBlockHTML() + '</div>');
+        // Cargar imagenes existentes del caso
+        var box = container.querySelector('.case-card[data-case="' + i + '"] .case-images');
+        if (box) setCaseImages(box, c.images || []);
     });
 
     document.getElementById('editModal').style.display = 'flex';
@@ -396,14 +594,19 @@ function editScenario(id, data) {
 
 function addEditCase() {
     editCaseCount++;
-    document.getElementById('editCasesList').insertAdjacentHTML('beforeend',
+    var list = document.getElementById('editCasesList');
+    list.insertAdjacentHTML('beforeend',
         '<div class="case-card"><div class="case-header"><strong>Caso ' + editCaseCount + '</strong>' +
         '<button type="button" class="btn-remove-case" onclick="this.closest(\'.case-card\').remove()">Eliminar</button></div>' +
         '<div class="form-group"><label>Persona <button type="button" class="btn-enhance" onclick="enhanceText(this, \'persona\')">✨ Mejorar con IA</button></label>' +
         '<textarea class="case-persona" rows="3" placeholder="Persona del cliente..."></textarea></div>' +
         '<div class="form-group"><label>Resolución <button type="button" class="btn-enhance" onclick="enhanceText(this, \'response\')">✨ Mejorar con IA</button></label>' +
-        '<textarea class="case-response" rows="2" placeholder="Pasos esperados..."></textarea></div></div>');
-    bindAutoGrow(document.getElementById('editCasesList'));
+        '<textarea class="case-response" rows="2" placeholder="Pasos esperados..."></textarea></div>' +
+        caseImagesBlockHTML() + '</div>');
+    // Render del grid vacio en la zona recien creada
+    var newBox = list.lastElementChild.querySelector('.case-images');
+    if (newBox) renderCaseImages(newBox);
+    bindAutoGrow(list);
 }
 
 function prepareEditSubmit() {
@@ -411,8 +614,10 @@ function prepareEditSubmit() {
     document.querySelectorAll('#editCasesList .case-card').forEach(function(card, i) {
         var p = card.querySelector('.case-persona').value.trim();
         var r = card.querySelector('.case-response').value.trim();
+        var box = card.querySelector('.case-images');
+        var imgs = box ? getCaseImages(box) : [];
         if (p) {
-            personas.push({label: 'Caso ' + (i+1), text: p});
+            personas.push({label: 'Caso ' + (i+1), text: p, images: imgs});
             responses.push({case: i+1, text: r});
         }
     });
