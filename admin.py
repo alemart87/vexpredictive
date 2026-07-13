@@ -270,18 +270,48 @@ def user_save():
     max_concurrent = int(request.form.get('max_concurrent', 1) or 1)
     operativa_id = request.form.get('operativa_id')
 
-    # Validate role based on current user's permissions
+    if not email or not name:
+        flash('Usuario/email y nombre son obligatorios.', 'error')
+        return redirect(url_for('admin.user_list'))
+
+    # Si es edicion, cargamos el usuario ANTES de validar el rol: necesitamos
+    # su rol actual para poder conservarlo cuando el actor no puede asignarlo.
+    user = None
+    if user_id:
+        user = User.query.get_or_404(int(user_id))
+        if user.is_superadmin:
+            flash('No puedes editar al SuperAdmin desde aqui.', 'error')
+            return redirect(url_for('admin.user_list'))
+        if user.is_purged:
+            flash('Este usuario fue eliminado definitivamente y no se puede editar.', 'error')
+            return redirect(url_for('admin.user_list'))
+        if not current_user.is_superadmin:
+            if user.operativa_id != current_user.operativa_id:
+                flash('No tenes permiso sobre este usuario.', 'error')
+                return redirect(url_for('admin.user_list'))
+            if user.is_coordinador and user.id != current_user.id:
+                flash('Solo el SuperAdmin puede editar a otro Coordinador.', 'error')
+                return redirect(url_for('admin.user_list'))
+
+    # Roles que el actor puede asignar
     if current_user.is_superadmin:
         valid_roles = ('coordinador', 'supervisor', 'operador')
     else:
         valid_roles = ('supervisor', 'operador')
 
-    if role not in valid_roles:
+    if user is not None and not current_user.is_superadmin and user.is_coordinador:
+        # Solo el SuperAdmin cambia el rol de un Coordinador. Sin esto, un
+        # coordinador que edita su propia clave se degradaba a operador porque
+        # el form no puede enviar 'coordinador' (no esta en sus valid_roles).
+        role = user.role
+    elif role not in valid_roles:
         flash('Rol no valido.', 'error')
         return redirect(url_for('admin.user_list'))
 
-    if not email or not name:
-        flash('Usuario/email y nombre son obligatorios.', 'error')
+    # Email unico tambien en edicion (antes solo se validaba al crear)
+    existing = User.query.filter_by(email=email).first()
+    if existing and (user is None or existing.id != user.id):
+        flash('Ya existe un usuario con ese email/usuario.', 'error')
         return redirect(url_for('admin.user_list'))
 
     # Determine operativa_id
@@ -292,14 +322,9 @@ def user_save():
     else:
         target_operativa_id = None
 
-    if user_id:
-        user = User.query.get_or_404(int(user_id))
-        if user.is_superadmin:
-            flash('No puedes editar al SuperAdmin desde aqui.', 'error')
-            return redirect(url_for('admin.user_list'))
-        if user.is_purged:
-            flash('Este usuario fue eliminado definitivamente y no se puede editar.', 'error')
-            return redirect(url_for('admin.user_list'))
+    if user is not None:
+        if user.id == current_user.id:
+            is_active = True  # nadie puede desactivarse a si mismo (igual que user_deactivate)
         user.email = email
         user.name = name
         user.role = role
@@ -317,9 +342,6 @@ def user_save():
     else:
         if not password:
             flash('La contrasena es obligatoria para nuevos usuarios.', 'error')
-            return redirect(url_for('admin.user_list'))
-        if User.query.filter_by(email=email).first():
-            flash('Ya existe un usuario con ese email/usuario.', 'error')
             return redirect(url_for('admin.user_list'))
         user = User(email=email, name=name, role=role, is_active_user=is_active,
                     max_concurrent_training=max(1, min(10, max_concurrent)),
