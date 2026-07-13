@@ -126,11 +126,28 @@ def login():
                 user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
                 login_user(user, remember=True)
+                if user.must_change_password:
+                    return redirect(url_for('change_password'))
                 return redirect(url_for('index'))
 
         flash('Usuario o contrasena incorrectos.', 'error')
 
     return render_template('login.html')
+
+
+@app.before_request
+def enforce_password_change():
+    """Mientras el usuario tenga un cambio de clave pendiente (cambio de rol o
+    reset por un admin), no puede navegar: toda ruta lo lleva a elegir su
+    nueva contrasena. La pagina le explica el motivo."""
+    if not current_user.is_authenticated:
+        return
+    if not current_user.must_change_password:
+        return
+    exempt = {'change_password', 'logout', 'login', 'static', 'serve_image'}
+    if request.endpoint is None or request.endpoint in exempt:
+        return
+    return redirect(url_for('change_password'))
 
 
 @app.route('/logout')
@@ -358,6 +375,38 @@ def update_profile():
     return redirect(url_for('my_profile'))
 
 
+@app.route('/profile/password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Cambio de contrasena propio. Tambien atiende el cambio FORZADO
+    (must_change_password): la pagina explica el motivo y el usuario no
+    puede navegar hasta elegir su nueva clave (ver enforce_password_change)."""
+    if request.method == 'POST':
+        current_pw = request.form.get('current_password', '')
+        new_pw = request.form.get('new_password', '')
+        confirm_pw = request.form.get('confirm_password', '')
+
+        if not current_user.check_password(current_pw):
+            flash('La contrasena actual no es correcta.', 'error')
+        elif len(new_pw) < 6:
+            flash('La nueva contrasena debe tener al menos 6 caracteres.', 'error')
+        elif new_pw != confirm_pw:
+            flash('La confirmacion no coincide con la nueva contrasena.', 'error')
+        elif new_pw == current_pw:
+            flash('La nueva contrasena debe ser distinta a la actual.', 'error')
+        else:
+            current_user.set_password(new_pw)
+            current_user.must_change_password = False
+            current_user.password_change_reason = None
+            db.session.commit()
+            flash('Tu contrasena fue actualizada correctamente.', 'success')
+            return redirect(url_for('my_profile'))
+
+    return render_template('change_password.html',
+        forced=current_user.must_change_password,
+        reason=current_user.password_change_reason)
+
+
 @app.route('/verified/<token>/og.svg')
 def verified_og_image(token):
     """Dynamic SVG Open Graph image for verified profiles."""
@@ -474,6 +523,18 @@ with app.app_context():
                     WHERE table_name = 'users' AND column_name = 'profile_photo'
                 ) THEN
                     ALTER TABLE users ADD COLUMN profile_photo VARCHAR(500);
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'must_change_password'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'password_change_reason'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN password_change_reason VARCHAR(500);
                 END IF;
             END $$;
         """))

@@ -555,6 +555,14 @@
                 <input type="text" name="name" value="{{ user.name }}" required>
                 <button type="submit">Guardar</button>
             </form>
+
+            <!-- Seguridad -->
+            <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--gris-claro);">
+                <label style="font-size:13px;color:var(--gris-meta);font-weight:600;display:block;margin-bottom:8px;">Seguridad</label>
+                <a href="{{ url_for('change_password') }}" style="display:inline-flex;align-items:center;gap:8px;background:var(--cyan-vex);color:var(--blanco);padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">
+                    &#128274; Cambiar mi contraseña
+                </a>
+            </div>
         </div>
 
         <!-- Estadisticas de actividad -->

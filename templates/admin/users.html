@@ -84,7 +84,7 @@
     </div>
 
     <h2>Crear Nuevo Usuario</h2>
-    <form method="POST" action="{{ url_for('admin.user_save') }}" class="inline-form">
+    <form method="POST" action="{{ url_for('admin.user_save') }}" class="inline-form" autocomplete="off">
         <div class="form-row">
             <div class="form-group">
                 <label>Nombre</label>
@@ -106,7 +106,7 @@
             </div>
             <div class="form-group">
                 <label>Contrasena</label>
-                <input type="password" name="password" required minlength="6" placeholder="Min. 6 caracteres">
+                <input type="password" name="password" required minlength="6" placeholder="Min. 6 caracteres" autocomplete="new-password">
             </div>
         </div>
         <div class="form-row">
@@ -212,7 +212,7 @@
 <div id="editModal" class="modal" style="display:none">
     <div class="modal-content">
         <h2>Editar Usuario</h2>
-        <form method="POST" action="{{ url_for('admin.user_save') }}">
+        <form method="POST" action="{{ url_for('admin.user_save') }}" autocomplete="off">
             <input type="hidden" name="id" id="editId">
             <div class="form-group">
                 <label>Nombre</label>
@@ -220,16 +220,18 @@
             </div>
             <div class="form-group">
                 <label>Email o Usuario</label>
-                <input type="text" name="email" id="editEmail" required>
+                <input type="text" name="email" id="editEmail" required autocomplete="off">
             </div>
             <div class="form-group">
                 <label>Rol</label>
                 <select name="role" id="editRole">
                     <option value="operador">Operador</option>
                     <option value="supervisor">Supervisor</option>
-                    {% if current_user.is_superadmin %}
-                    <option value="coordinador">Coordinador / Gerente / SubGerente</option>
-                    {% endif %}
+                    {# La opcion coordinador existe siempre para que el select pueda
+                       MOSTRAR el rol real de un coordinador que se edita a si mismo;
+                       si no existe, el select cae en "operador" y el guardado lo
+                       degrada. Solo el SuperAdmin puede asignarla (backend lo valida). #}
+                    <option value="coordinador" id="editRoleCoord" {% if not current_user.is_superadmin %}data-sa-only="1" disabled{% endif %}>Coordinador / Gerente / SubGerente</option>
                 </select>
             </div>
             {% if current_user.is_superadmin and operativas %}
@@ -245,7 +247,7 @@
             {% endif %}
             <div class="form-group">
                 <label>Nueva Contrasena (dejar vacio para no cambiar)</label>
-                <input type="password" name="password" minlength="6">
+                <input type="password" name="password" id="editPassword" minlength="6" autocomplete="new-password">
             </div>
             <div class="form-group">
                 <label>Chats Simultaneos (entrenamiento)</label>
@@ -300,7 +302,23 @@ function editUser(id, name, email, role, active, maxConcurrent, operativaId) {
     document.getElementById('editName').value = name;
     document.getElementById('editMaxConcurrent').value = maxConcurrent || 1;
     document.getElementById('editEmail').value = email;
-    document.getElementById('editRole').value = role;
+
+    var roleSel = document.getElementById('editRole');
+    var coordOpt = document.getElementById('editRoleCoord');
+    if (coordOpt && coordOpt.dataset.saOnly) {
+        // Actor no-superadmin: si edita a un coordinador (solo puede ser el
+        // mismo), mostramos su rol real y bloqueamos el select para que no
+        // se degrade sin querer. El backend conserva el rol de todas formas.
+        coordOpt.disabled = (role !== 'coordinador');
+        roleSel.disabled = (role === 'coordinador');
+    }
+    roleSel.value = role;
+
+    // Limpiar SIEMPRE la clave: un valor residual de una edicion anterior o
+    // el autocompletado del navegador se guardaria como "nueva clave" y
+    // pisaria la clave del usuario editado sin que el admin lo note.
+    document.getElementById('editPassword').value = '';
+
     document.getElementById('editActive').checked = active;
     var opSelect = document.getElementById('editOperativa');
     if (opSelect) opSelect.value = operativaId || '';
