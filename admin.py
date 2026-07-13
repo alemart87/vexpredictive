@@ -325,6 +325,21 @@ def user_save():
     if user is not None:
         if user.id == current_user.id:
             is_active = True  # nadie puede desactivarse a si mismo (igual que user_deactivate)
+
+        # Motivos que fuerzan al usuario a elegir una nueva clave al ingresar
+        motivos = []
+        if role != user.role:
+            motivos.append(
+                f'Tu rol en la plataforma cambio de "{user.role.capitalize()}" a "{role.capitalize()}". '
+                'Como tus permisos de acceso son distintos, por seguridad necesitamos que '
+                'confirmes tu identidad estableciendo una nueva contrasena personal.'
+            )
+        if password and user.id != current_user.id:
+            motivos.append(
+                'Un administrador restablecio tu contrasena con una clave temporal. '
+                'Debes elegir una contrasena personal que solo vos conozcas.'
+            )
+
         user.email = email
         user.name = name
         user.role = role
@@ -339,6 +354,14 @@ def user_save():
             user.operativa_id = target_operativa_id
         if password:
             user.set_password(password)
+
+        if motivos:
+            user.must_change_password = True
+            user.password_change_reason = ' '.join(motivos)
+        elif password and user.id == current_user.id:
+            # El usuario eligio su propia clave: cualquier cambio pendiente queda saldado
+            user.must_change_password = False
+            user.password_change_reason = None
     else:
         if not password:
             flash('La contrasena es obligatoria para nuevos usuarios.', 'error')

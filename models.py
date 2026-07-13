@@ -21,6 +21,10 @@ class User(UserMixin, db.Model):
     deactivated_at = db.Column(db.DateTime, nullable=True)
     max_concurrent_training = db.Column(db.Integer, default=1)  # 1-10 simultaneous chats
     profile_photo = db.Column(db.String(500), nullable=True)  # URL to profile photo
+    # Cambio de clave forzado: se activa al cambiar el rol o cuando un admin
+    # resetea la clave; el usuario debe elegir una clave propia al ingresar.
+    must_change_password = db.Column(db.Boolean, default=False)
+    password_change_reason = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
 
