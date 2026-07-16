@@ -196,6 +196,9 @@ class TrainingScenario(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     scoring_mode = db.Column(db.String(20), nullable=True)  # flexible/standard/exigente, null=legacy
+    # Voz del cliente simulado en entrenamiento por VOZ (Realtime API).
+    # null = default del sistema. La elige quien configura el escenario.
+    voice_name = db.Column(db.String(30), nullable=True)
 
     sessions = db.relationship('TrainingSession', backref='scenario', lazy=True)
     creator = db.relationship('User', foreign_keys=[created_by])
@@ -351,3 +354,62 @@ class ScoringModeOverride(db.Model):
                            onupdate=lambda: datetime.now(timezone.utc))
 
     editor = db.relationship('User', foreign_keys=[updated_by])
+
+
+# ===== Entrenamiento por VOZ (modulo independiente, ver voice_training.py) =====
+# Tablas separadas de training_sessions a proposito: los dashboards e insights
+# del chat y calculate_vex_profile consultan TrainingSession sin filtro de
+# canal; mezclar voz ahi alteraria silenciosamente esas estadisticas.
+
+class VoiceSession(db.Model):
+    __tablename__ = 'voice_sessions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    scenario_id = db.Column(db.Integer, db.ForeignKey('training_scenarios.id'), nullable=False)
+    case_index = db.Column(db.Integer, default=0)
+    scoring_mode = db.Column(db.String(20), nullable=True)  # snapshot al iniciar
+    voice_name = db.Column(db.String(30), nullable=True)    # snapshot de la voz usada
+    status = db.Column(db.String(20), default='active')  # active/completed/abandoned/error
+    started_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    ended_at = db.Column(db.DateTime)
+    duration_seconds = db.Column(db.Integer, default=0)
+    openai_session_id = db.Column(db.String(100), nullable=True)
+    last_heartbeat = db.Column(db.DateTime, nullable=True)
+
+    # Metricas de conversacion (calculadas desde voice_turns + cliente)
+    total_turns = db.Column(db.Integer, default=0)          # turnos del asesor
+    total_words_user = db.Column(db.Integer, default=0)     # palabras habladas por el asesor
+    talk_ratio = db.Column(db.Float, default=0)             # 0..1: tiempo hablado asesor / total hablado
+    avg_response_latency = db.Column(db.Float, default=0)   # seg: fin habla cliente -> inicio habla asesor (analogo ART)
+    speech_rate_wpm = db.Column(db.Float, default=0)        # palabras/min habladas (analogo WPM)
+    interruptions = db.Column(db.Integer, default=0)        # veces que el asesor piso al cliente
+    long_silences = db.Column(db.Integer, default=0)        # silencios > 5s
+
+    # Evaluacion (misma filosofia que TrainingSession)
+    nps_score = db.Column(db.Integer)                       # 0-10
+    response_correct = db.Column(db.Boolean)
+    filler_words = db.Column(db.Integer, default=0)         # muletillas (analogo spelling_errors)
+    ai_feedback = db.Column(db.Text)                        # JSON: feedback/strengths/improvements/empathy_breakdown/voice_breakdown
+    tokens_used = db.Column(db.Integer, default=0)
+    estimated_cost_usd = db.Column(db.Float, default=0)
+
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    turns = db.relationship('VoiceTurn', backref='session', lazy=True,
+                            order_by='VoiceTurn.started_at_ms')
+    user = db.relationship('User', backref='voice_sessions')
+    scenario = db.relationship('TrainingScenario')
+
+
+class VoiceTurn(db.Model):
+    __tablename__ = 'voice_turns'
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('voice_sessions.id'), nullable=False)
+    role = db.Column(db.String(20), nullable=False)  # 'user' (asesor) / 'client' (IA) — misma convencion que TrainingMessage
+    transcript = db.Column(db.Text, nullable=False)
+    started_at_ms = db.Column(db.BigInteger, default=0)  # ms relativos al inicio de la llamada
+    ended_at_ms = db.Column(db.BigInteger, default=0)
+    word_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

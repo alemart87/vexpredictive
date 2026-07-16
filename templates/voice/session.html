@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Llamada en curso - Entrenamiento por Voz{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_training.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="voice-container">
+    <h1>🎙 {{ scenario.title }}</h1>
+    <div style="font-size:13px;color:var(--gris-meta);">
+        Dificultad: {{ scenario.difficulty|capitalize }}
+        {% if scenario.category %} · {{ scenario.category }}{% endif %}
+        · Llamada de práctica — atendé como si fuera un cliente real
+    </div>
+
+    <div class="voice-call-box" id="voiceCall">
+        <div class="voice-status voice-status-connecting" id="voiceStatus">
+            <span id="voiceStatusText">Preparando la llamada...</span>
+        </div>
+        <div class="voice-timer" id="voiceTimer">00:00</div>
+        <div class="voice-warn" id="voiceWarn">⏰ Quedan menos de 2 minutos de llamada.</div>
+        <button class="voice-end-btn" id="voiceEndBtn">📞 Finalizar llamada</button>
+
+        <div class="voice-transcript" id="voiceTranscript"></div>
+    </div>
+
+    <audio id="voiceRemoteAudio" autoplay></audio>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.VOICE_SESSION_ID = {{ vs.id }};
+    window.VOICE_MAX_SECONDS = {{ max_call_seconds }};
+</script>
+<script src="{{ url_for('static', filename='js/voice_training.js') }}"></script>
+{% endblock %}

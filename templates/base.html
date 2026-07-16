@@ -66,9 +66,11 @@
                     <button class="nav-dropdown-btn">Entrenamiento &#9662;</button>
                     <div class="nav-dropdown-menu">
                         <a href="{{ url_for('training.index') }}">Mis Entrenamientos</a>
+                        <a href="{{ url_for('voice.index') }}">&#127908; Entrenamiento por Voz</a>
                         {% if current_user.is_superadmin or current_user.role == 'coordinador' %}
                         <a href="{{ url_for('training.admin_scenarios') }}">Crear Escenarios</a>
                         <a href="{{ url_for('training.admin_dashboard') }}">CX Dashboard</a>
+                        <a href="{{ url_for('voice.admin_dashboard') }}">Dashboard de Voz</a>
                         {% endif %}
                     </div>
                 </div>

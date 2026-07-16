@@ -74,11 +74,13 @@ from admin import admin_bp
 from analytics import analytics_bp
 from chat import chat_bp
 from training import training_bp
+from voice_training import voice_bp
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(analytics_bp)
 app.register_blueprint(chat_bp)
 app.register_blueprint(training_bp)
+app.register_blueprint(voice_bp)
 
 
 # ===== Auth routes =====
@@ -108,6 +110,7 @@ def scenario_json_filter(scenario):
         'difficulty': scenario.difficulty,
         'category': scenario.category or '',
         'scoring_mode': scenario.scoring_mode or 'standard',
+        'voice_name': scenario.voice_name or 'marin',
         'cases': cases
     }, ensure_ascii=False)
 

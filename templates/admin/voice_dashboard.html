@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de Voz - Admin{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_training.css') }}">
+<style>
+.vd-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:16px 0; }
+@media (min-width:768px) { .vd-stats { grid-template-columns:repeat(4,1fr); } }
+.vd-stat { background:var(--blanco); border-radius:10px; box-shadow:var(--sombra-sm); padding:16px; text-align:center; }
+.vd-stat .n { font-size:26px; font-weight:700; color:var(--purpura-vex); }
+.vd-stat .l { font-size:12px; color:var(--gris-meta); }
+#vdDetail { display:none; background:var(--blanco); border-radius:10px; box-shadow:var(--sombra-md); padding:18px; margin-top:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>🎙 Dashboard de Entrenamiento por Voz</h1>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Entrenamiento</a>
+        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">Vex Predictive</a>
+        <a href="{{ url_for('voice.admin_dashboard') }}" class="btn btn-primary">Voz</a>
+    </div>
+
+    <div class="vd-stats">
+        <div class="vd-stat"><div class="n">{{ stats.completed }}</div><div class="l">Llamadas completadas</div></div>
+        <div class="vd-stat"><div class="n">{{ stats.avg_nps }}</div><div class="l">NPS promedio</div></div>
+        <div class="vd-stat"><div class="n">{{ stats.correct_rate }}%</div><div class="l">Resolución correcta</div></div>
+        <div class="vd-stat"><div class="n">{{ stats.avg_latency }}s</div><div class="l">Latencia media de respuesta</div></div>
+        <div class="vd-stat"><div class="n">{{ (stats.avg_duration // 60)|int }}m {{ (stats.avg_duration % 60)|int }}s</div><div class="l">Duración promedio</div></div>
+        <div class="vd-stat"><div class="n">${{ '%.2f'|format(stats.total_cost) }}</div><div class="l">Costo estimado (últimas 50)</div></div>
+    </div>
+
+    <h2>Llamadas recientes</h2>
+    <div class="table-responsive" style="background:var(--blanco);border-radius:8px;padding:12px;box-shadow:var(--sombra-sm);">
+        <table class="admin-table">
+            <thead>
+                <tr><th>Fecha</th><th>Usuario</th><th>Escenario</th><th>Estado</th><th>NPS</th><th>Correcta</th><th>Latencia</th><th>Duración</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td>{{ s.created_at.strftime('%d/%m %H:%M') if s.created_at else '-' }}</td>
+                    <td>{{ s.user.name if s.user else '-' }}</td>
+                    <td>{{ s.scenario.title if s.scenario else '-' }}</td>
+                    <td><span class="voice-badge voice-badge-{{ s.status }}">{{ {'completed':'Completada','abandoned':'Abandonada','active':'En curso','error':'Error'}.get(s.status, s.status) }}</span></td>
+                    <td>{{ s.nps_score if s.nps_score is not none else '-' }}</td>
+                    <td>{% if s.status == 'completed' %}{{ '✔' if s.response_correct else '✘' }}{% else %}-{% endif %}</td>
+                    <td>{{ s.avg_response_latency or '-' }}{% if s.avg_response_latency %}s{% endif %}</td>
+                    <td>{{ (s.duration_seconds or 0) // 60 }}m {{ (s.duration_seconds or 0) % 60 }}s</td>
+                    <td><button class="btn-action btn-edit" onclick="vdShowDetail({{ s.id }})">Ver</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="vdDetail"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function vdShowDetail(id) {
+    fetch('/admin/voice/session/' + id + '/detail')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (d.error) { alert(d.error); return; }
+            var fb = d.feedback || {};
+            var html = '<h3>Llamada #' + d.id + ' — ' + d.user + ' · ' + d.scenario + '</h3>' +
+                '<p style="font-size:13px;color:#888">Voz: ' + (d.voice || '-') + ' · NPS: ' + (d.nps_score ?? '-') +
+                ' · Correcta: ' + (d.response_correct ? 'Sí' : 'No') + ' · Muletillas: ' + (d.filler_words ?? 0) +
+                ' · Costo est.: $' + (d.estimated_cost_usd || 0).toFixed(4) + '</p>' +
+                '<p style="font-size:14px">' + (fb.feedback || '') + '</p>';
+            html += '<div style="max-height:300px;overflow-y:auto;background:#f9f9f9;border-radius:8px;padding:12px;margin-top:8px">';
+            (d.turns || []).forEach(function (t) {
+                html += '<div style="margin-bottom:8px;font-size:13px"><strong style="color:' +
+                    (t.role === 'user' ? '#009BA8' : '#E6332A') + '">' +
+                    (t.role === 'user' ? 'ASESOR' : 'CLIENTE') + ':</strong> ' + t.transcript + '</div>';
+            });
+            html += '</div>';
+            var box = document.getElementById('vdDetail');
+            box.innerHTML = html;
+            box.style.display = 'block';
+            box.scrollIntoView({ behavior: 'smooth' });
+        });
+}
+</script>
+{% endblock %}

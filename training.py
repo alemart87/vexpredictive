@@ -774,9 +774,11 @@ def admin_scenarios():
     if not current_user.is_superadmin and current_user.operativa_id:
         q = q.filter_by(operativa_id=current_user.operativa_id)
     scenarios = q.order_by(TrainingScenario.is_active.desc(), TrainingScenario.created_at.desc()).all()
+    from realtime_client import VOICES
     return render_template('admin/training_scenarios.html',
                            scenarios=scenarios,
-                           scoring_modes=list_modes())
+                           scoring_modes=list_modes(),
+                           voices=VOICES)
 
 
 @training_bp.route('/admin/training/scenarios/save', methods=['POST'])
@@ -792,6 +794,8 @@ def admin_scenario_save():
     scoring_mode = request.form.get('scoring_mode', 'standard')
     if scoring_mode not in ('flexible', 'standard', 'exigente'):
         scoring_mode = 'standard'
+    from realtime_client import valid_voice
+    voice_name = valid_voice(request.form.get('voice_name', ''))
 
     if not title or not client_persona or not expected_response:
         flash('Título, persona del cliente y respuesta esperada son obligatorios.', 'error')
@@ -806,12 +810,14 @@ def admin_scenario_save():
         s.difficulty = difficulty
         s.category = category
         s.scoring_mode = scoring_mode
+        s.voice_name = voice_name
     else:
         s = TrainingScenario(
             title=title, description=description,
             client_persona=client_persona, expected_response=expected_response,
             difficulty=difficulty, category=category,
             scoring_mode=scoring_mode,
+            voice_name=voice_name,
             created_by=current_user.id,
             operativa_id=current_user.operativa_id
         )

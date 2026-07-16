@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Entrenamiento por Voz - Vex People Predictive{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_training.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="voice-container">
+    <h1>🎙 Entrenamiento por Voz</h1>
+    <p style="color:var(--gris-meta);font-size:14px;">
+        Atendé una llamada de un cliente simulado y recibí tu evaluación: NPS, empatía,
+        resolución y calidad de voz. Necesitás un micrófono (auriculares recomendados).
+    </p>
+
+    {% if active_session %}
+    <div style="background:#cce5ff;color:#004085;border-radius:10px;padding:14px 18px;margin:14px 0;">
+        Tenés una llamada en curso.
+        <a href="{{ url_for('voice.session_view', vs_id=active_session.id) }}" style="font-weight:700;color:#004085;">Volver a la llamada →</a>
+    </div>
+    {% endif %}
+
+    <h2 style="margin-top:22px;">Escenarios disponibles</h2>
+    {% if not scenarios %}
+    <p style="color:var(--gris-meta);">No hay escenarios activos en tu operativa todavía.</p>
+    {% else %}
+    <div class="voice-scenarios">
+        {% for s in scenarios %}
+        <div class="voice-card">
+            <h3>{{ s.title }}</h3>
+            <div class="voice-meta">
+                <span>📊 {{ s.difficulty|capitalize }}</span>
+                {% if s.category %}<span>🏷 {{ s.category }}</span>{% endif %}
+                <span>🔊 Voz: {{ voices.get(s.voice_name, 'Marin') }}</span>
+            </div>
+            {% if s.description %}<div class="voice-desc">{{ s.description }}</div>{% endif %}
+            <button class="voice-start-btn" data-scenario-id="{{ s.id }}" {% if active_session %}disabled{% endif %}>🎙 Iniciar llamada</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="voice-history">
+        <h2>Mis llamadas recientes</h2>
+        {% if not my_sessions %}
+        <p style="color:var(--gris-meta);">Todavía no hiciste entrenamientos por voz.</p>
+        {% else %}
+        <div class="table-responsive">
+        <table>
+            <thead>
+                <tr><th>Fecha</th><th>Escenario</th><th>Estado</th><th>NPS</th><th>Duración</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for vs in my_sessions %}
+                <tr>
+                    <td>{{ vs.created_at.strftime('%d/%m/%Y %H:%M') if vs.created_at else '-' }}</td>
+                    <td>{{ vs.scenario.title if vs.scenario else '-' }}</td>
+                    <td><span class="voice-badge voice-badge-{{ vs.status }}">{{ {'completed':'Completada','abandoned':'Abandonada','active':'En curso','error':'Error'}.get(vs.status, vs.status) }}</span></td>
+                    <td>{{ vs.nps_score if vs.nps_score is not none else '-' }}</td>
+                    <td>{{ (vs.duration_seconds or 0) // 60 }}m {{ (vs.duration_seconds or 0) % 60 }}s</td>
+                    <td>
+                        {% if vs.status == 'completed' %}
+                        <a href="{{ url_for('voice.result_view', vs_id=vs.id) }}" style="color:var(--cyan-oscuro);font-weight:700;">Ver resultado</a>
+                        {% elif vs.status == 'active' %}
+                        <a href="{{ url_for('voice.session_view', vs_id=vs.id) }}" style="color:var(--cyan-oscuro);font-weight:700;">Retomar</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/voice_training.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado de la llamada - Entrenamiento por Voz{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_training.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="voice-container">
+    <h1>Resultado de tu llamada</h1>
+    <div style="font-size:13px;color:var(--gris-meta);">
+        {{ vs.scenario.title if vs.scenario else '' }} ·
+        {{ vs.created_at.strftime('%d/%m/%Y %H:%M') if vs.created_at else '' }} ·
+        Duración: {{ (vs.duration_seconds or 0) // 60 }}m {{ (vs.duration_seconds or 0) % 60 }}s
+    </div>
+
+    <div class="voice-result-grid">
+        <div class="voice-result-card">
+            <h3>NPS del cliente</h3>
+            {% set nps = vs.nps_score or 0 %}
+            <div class="voice-nps {% if nps >= 7 %}voice-nps-good{% elif nps >= 5 %}voice-nps-mid{% else %}voice-nps-low{% endif %}">{{ nps }}/10</div>
+            <div style="text-align:center;font-size:13px;margin-top:6px;">
+                {% if vs.response_correct %}
+                <span class="voice-pill voice-pill-ok">✔ Resolución correcta</span>
+                {% else %}
+                <span class="voice-pill voice-pill-no">✘ Procedimiento incompleto</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="voice-result-card">
+            <h3>Métricas de la llamada</h3>
+            <div class="voice-stat-row"><span>Latencia media de respuesta</span><span>{{ vs.avg_response_latency or 0 }}s</span></div>
+            <div class="voice-stat-row"><span>Ritmo de habla</span><span>{{ vs.speech_rate_wpm or 0 }} palabras/min</span></div>
+            <div class="voice-stat-row"><span>Proporción de habla</span><span>{{ ((vs.talk_ratio or 0) * 100)|round|int }}%</span></div>
+            <div class="voice-stat-row"><span>Muletillas detectadas</span><span>{{ vs.filler_words or 0 }}</span></div>
+            <div class="voice-stat-row"><span>Interrupciones al cliente</span><span>{{ vs.interruptions or 0 }}</span></div>
+            <div class="voice-stat-row"><span>Silencios largos</span><span>{{ vs.long_silences or 0 }}</span></div>
+        </div>
+
+        <div class="voice-result-card">
+            <h3>Empatía (4 pilares)</h3>
+            {% set emp = feedback.get('empathy_breakdown', {}) %}
+            {% for key, label in [('nombre','Usó el nombre'), ('contexto','Comprendió el problema'), ('calidez','Tono cálido'), ('resolucion','Enfocado en resolver')] %}
+            <span class="voice-pill {% if emp.get(key) %}voice-pill-ok{% else %}voice-pill-no{% endif %}">{{ '✔' if emp.get(key) else '✘' }} {{ label }}</span>
+            {% endfor %}
+        </div>
+
+        <div class="voice-result-card">
+            <h3>Calidad de voz</h3>
+            {% set vb = feedback.get('voice_breakdown', {}) %}
+            {% for key, label in [('claridad','Claridad'), ('tono','Tono profesional'), ('ritmo','Ritmo adecuado'), ('escucha','Escucha activa')] %}
+            <span class="voice-pill {% if vb.get(key) %}voice-pill-ok{% else %}voice-pill-no{% endif %}">{{ '✔' if vb.get(key) else '✘' }} {{ label }}</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="voice-result-card" style="margin-top:14px;">
+        <h3>Feedback del analista CX</h3>
+        <p style="font-size:14px;line-height:1.6;">{{ feedback.get('feedback', 'Sin feedback disponible.') }}</p>
+        {% if feedback.get('strengths') %}
+        <p style="font-size:13px;"><strong style="color:#155724;">Fortalezas:</strong> {{ feedback.get('strengths') }}</p>
+        {% endif %}
+        {% if feedback.get('improvements') %}
+        <p style="font-size:13px;"><strong style="color:var(--rojo-vex);">A mejorar:</strong> {{ feedback.get('improvements') }}</p>
+        {% endif %}
+    </div>
+
+    {% if turns %}
+    <div class="voice-result-card" style="margin-top:14px;">
+        <h3>Transcripción de la llamada</h3>
+        <div class="voice-transcript" style="max-height:400px;">
+            {% for t in turns %}
+            <div class="voice-line voice-line-{{ t.role }}">
+                <span class="voice-line-who">{{ 'Vos' if t.role == 'user' else 'Cliente' }}</span>
+                <span>{{ t.transcript }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="margin:20px 0;">
+        <a href="{{ url_for('voice.index') }}" class="btn btn-primary" style="text-decoration:none;">← Volver a Entrenamiento por Voz</a>
+    </div>
+</div>
+{% endblock %}
