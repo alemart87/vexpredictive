@@ -104,14 +104,28 @@ def result_view(vs_id):
 
 # ---------- API de sesion ----------
 
+VOICE_DAILY_LIMIT = int(__import__('os').environ.get('VOICE_DAILY_LIMIT', '20'))
+
+
 @voice_bp.route('/api/voice/session/start/<int:scenario_id>', methods=['POST'])
 @login_required
 def api_start(scenario_id):
+    """Crea la sesion en DB y redirige a la pantalla de llamada. El token
+    efimero NO se acuna aca sino en api_token, al momento de atender: asi el
+    TTL corto nunca expira esperando y la reconexion usa el mismo camino."""
     import random
 
     _sweep_abandoned(current_user.id)
     if _own_active_session():
         return jsonify({'error': 'Ya tenes una llamada en curso. Finalizala antes de iniciar otra.'}), 400
+
+    # Tope diario por usuario (control de costos)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = VoiceSession.query.filter(
+        VoiceSession.user_id == current_user.id,
+        VoiceSession.created_at >= today_start).count()
+    if today_count >= VOICE_DAILY_LIMIT:
+        return jsonify({'error': f'Alcanzaste el limite de {VOICE_DAILY_LIMIT} llamadas de entrenamiento por dia.'}), 429
 
     scenario = TrainingScenario.query.get_or_404(scenario_id)
     if not scenario.is_active:
@@ -122,35 +136,70 @@ def api_start(scenario_id):
 
     cases = parse_cases(scenario)
     case_idx = random.randrange(len(cases)) if cases else 0
-    case = get_case(scenario, case_idx)
-
-    voice = realtime_client.valid_voice(scenario.voice_name or realtime_client.DEFAULT_VOICE)
-    instructions = voice_scoring.build_voice_instructions(case, scenario.title)
-
-    secret, err = realtime_client.mint_client_secret(instructions, voice=voice)
-    if err:
-        return jsonify({'error': err}), 502
 
     vs = VoiceSession(
         user_id=current_user.id,
         scenario_id=scenario.id,
         case_index=case_idx,
         scoring_mode=scenario.scoring_mode,
-        voice_name=voice,
+        voice_name=realtime_client.valid_voice(scenario.voice_name or realtime_client.DEFAULT_VOICE),
         status='active',
         started_at=datetime.utcnow(),
         last_heartbeat=datetime.utcnow(),
-        openai_session_id=secret.get('session_id'),
     )
     db.session.add(vs)
     db.session.commit()
 
     return jsonify({
         'session_id': vs.id,
+        'redirect': url_for('voice.session_view', vs_id=vs.id),
+    })
+
+
+@voice_bp.route('/api/voice/session/<int:vs_id>/token', methods=['POST'])
+@login_required
+def api_token(vs_id):
+    """Acuna un token efimero para atender (o RETOMAR) la llamada. Si la
+    sesion ya tiene turnos, la nueva sesion Realtime arranca con el contexto
+    de lo conversado para continuar donde quedo (la conexion anterior murio
+    con la pestana/recarga)."""
+    vs = VoiceSession.query.get_or_404(vs_id)
+    if vs.user_id != current_user.id or vs.status != 'active':
+        return jsonify({'error': 'Sesion invalida.'}), 400
+
+    case = get_case(vs.scenario, vs.case_index or 0)
+    instructions = voice_scoring.build_voice_instructions(case, vs.scenario.title)
+
+    prior_turns = VoiceTurn.query.filter_by(session_id=vs.id).order_by(VoiceTurn.started_at_ms).all()
+    if prior_turns:
+        resumen = '\n'.join(
+            f"{'ASESOR' if t.role == 'user' else 'VOS (cliente)'}: {t.transcript}"
+            for t in prior_turns[-12:])
+        instructions += f"""
+
+═══════════════════════════════════════════════
+LA LLAMADA SE CORTO Y SE RETOMA
+═══════════════════════════════════════════════
+Esto ya se habló antes del corte:
+{resumen}
+
+Retomá la llamada con naturalidad ("¿hola? se había cortado...") SIN volver a
+presentarte desde cero ni repetir lo ya resuelto."""
+
+    vs.last_heartbeat = datetime.utcnow()
+    secret, err = realtime_client.mint_client_secret(instructions, voice=vs.voice_name)
+    if err:
+        db.session.commit()
+        return jsonify({'error': err}), 502
+
+    vs.openai_session_id = secret.get('session_id')
+    db.session.commit()
+
+    return jsonify({
         'client_secret': secret['client_secret'],
         'model': secret['model'],
         'expires_at': secret.get('expires_at'),
-        'redirect': url_for('voice.session_view', vs_id=vs.id),
+        'resumed': bool(prior_turns),
     })
 
 

@@ -17,11 +17,12 @@
 
     <div class="voice-call-box" id="voiceCall">
         <div class="voice-status voice-status-connecting" id="voiceStatus">
-            <span id="voiceStatusText">Preparando la llamada...</span>
+            <span id="voiceStatusText">Cliente en linea, esperando que atiendas</span>
         </div>
         <div class="voice-timer" id="voiceTimer">00:00</div>
         <div class="voice-warn" id="voiceWarn">⏰ Quedan menos de 2 minutos de llamada.</div>
-        <button class="voice-end-btn" id="voiceEndBtn">📞 Finalizar llamada</button>
+        <button class="voice-answer-btn" id="voiceAnswerBtn">📞 Atender llamada</button>
+        <button class="voice-end-btn" id="voiceEndBtn" style="display:none">📞 Finalizar llamada</button>
 
         <div class="voice-transcript" id="voiceTranscript"></div>
     </div>

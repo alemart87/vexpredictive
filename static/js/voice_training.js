@@ -1,5 +1,7 @@
 /* Entrenamiento por Voz — WebRTC directo navegador <-> OpenAI Realtime.
-   El backend solo acuna el token efimero; el audio no pasa por Flask.
+   El backend solo acuna tokens efimeros; el audio no pasa por Flask.
+   El token se pide AL ATENDER (gesto del usuario: requisito de autoplay de
+   los navegadores) y el mismo camino sirve para reconectar tras un corte.
    Namespace propio (voice*) para no chocar con training.js ni chat.js. */
 (function () {
     'use strict';
@@ -9,14 +11,11 @@
         btn.addEventListener('click', function () {
             var scenarioId = btn.getAttribute('data-scenario-id');
             btn.disabled = true;
-            btn.textContent = 'Conectando...';
+            btn.textContent = 'Creando sesion...';
             fetch('/api/voice/session/start/' + scenarioId, { method: 'POST' })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.error) throw new Error(data.error);
-                    sessionStorage.setItem('voice_boot_' + data.session_id, JSON.stringify({
-                        secret: data.client_secret, model: data.model
-                    }));
                     window.location.href = data.redirect;
                 })
                 .catch(function (e) {
@@ -40,20 +39,24 @@
         statusText: document.getElementById('voiceStatusText'),
         timer: document.getElementById('voiceTimer'),
         transcript: document.getElementById('voiceTranscript'),
+        answerBtn: document.getElementById('voiceAnswerBtn'),
         endBtn: document.getElementById('voiceEndBtn'),
         audio: document.getElementById('voiceRemoteAudio'),
         warn: document.getElementById('voiceWarn')
     };
 
     var pc = null, dc = null, micStream = null;
-    var callStart = 0;              // performance.now() al conectar
-    var ended = false;
+    var connecting = false, ended = false;
+    var callStart = 0;          // performance.now() de la conexion vigente
+    var elapsedBase = 0;        // ms acumulados de conexiones anteriores (reconexion)
     var usage = { input_tokens: 0, output_tokens: 0 };
-    var userSpeech = { start: 0, end: 0 };   // ms relativos, del VAD
-    var clientSpeech = { start: 0 };         // inicio del audio del cliente
+    var userSpeech = { start: 0, end: 0 };
+    var clientSpeech = { start: 0 };
     var timerInt = null, hbInt = null;
 
-    function nowMs() { return callStart ? Math.round(performance.now() - callStart) : 0; }
+    function nowMs() {
+        return elapsedBase + (callStart ? Math.round(performance.now() - callStart) : 0);
+    }
 
     function setStatus(kind, text) {
         if (els.status) els.status.className = 'voice-status voice-status-' + kind;
@@ -90,7 +93,6 @@
 
     function handleEvent(ev) {
         switch (ev.type) {
-            // --- VAD del microfono del asesor ---
             case 'input_audio_buffer.speech_started':
                 userSpeech.start = nowMs();
                 setStatus('speaking', 'Te esta escuchando...');
@@ -100,7 +102,6 @@
                 setStatus('thinking', 'El cliente esta pensando...');
                 break;
 
-            // --- Transcripcion de lo que dijo el asesor ---
             case 'conversation.item.input_audio_transcription.completed':
                 var t = (ev.transcript || '').trim();
                 if (t) {
@@ -109,17 +110,15 @@
                 }
                 break;
 
-            // --- Audio del cliente (IA) ---
             case 'output_audio_buffer.started':
                 clientSpeech.start = nowMs();
                 setStatus('client', 'El cliente esta hablando...');
                 break;
             case 'output_audio_buffer.stopped':
             case 'output_audio_buffer.cleared':
-                setStatus('listening', 'Tu turno — hablá con naturalidad');
+                setStatus('listening', 'Tu turno — habla con naturalidad');
                 break;
 
-            // --- Transcripcion de lo que dijo el cliente ---
             case 'response.output_audio_transcript.done':
                 var ct = (ev.transcript || '').trim();
                 if (ct) {
@@ -142,6 +141,7 @@
     }
 
     function startTimer() {
+        if (timerInt) return;
         timerInt = setInterval(function () {
             var s = Math.floor(nowMs() / 1000);
             if (els.timer) {
@@ -150,27 +150,61 @@
                 els.timer.textContent = mm + ':' + ss;
             }
             if (s >= WARN_SECONDS && els.warn) els.warn.style.display = 'block';
-            if (s >= MAX_SECONDS) endCall('Tiempo maximo alcanzado');
+            if (s >= MAX_SECONDS) endCall('timeout');
         }, 1000);
         hbInt = setInterval(function () {
             fetch('/api/voice/heartbeat/' + SESSION_ID, { method: 'POST' }).catch(function () {});
         }, 30000);
     }
 
-    function cleanup() {
-        if (timerInt) clearInterval(timerInt);
-        if (hbInt) clearInterval(hbInt);
+    function stopTimers() {
+        if (timerInt) { clearInterval(timerInt); timerInt = null; }
+        if (hbInt) { clearInterval(hbInt); hbInt = null; }
+    }
+
+    function teardownConnection() {
+        elapsedBase = nowMs();
+        callStart = 0;
+        stopTimers();
         try { if (dc) dc.close(); } catch (e) {}
         try { if (pc) pc.close(); } catch (e) {}
-        if (micStream) micStream.getTracks().forEach(function (tr) { tr.stop(); });
+        dc = null; pc = null;
+        if (micStream) { micStream.getTracks().forEach(function (tr) { tr.stop(); }); micStream = null; }
+    }
+
+    function showAnswerButton(label, statusKind, statusText) {
+        if (els.answerBtn) {
+            els.answerBtn.style.display = 'inline-block';
+            els.answerBtn.disabled = false;
+            els.answerBtn.textContent = label;
+        }
+        if (els.endBtn) els.endBtn.style.display = 'none';
+        setStatus(statusKind, statusText);
+    }
+
+    function showCallUI() {
+        if (els.answerBtn) els.answerBtn.style.display = 'none';
+        if (els.endBtn) { els.endBtn.style.display = 'inline-block'; els.endBtn.disabled = false; }
+    }
+
+    function onConnectionLost() {
+        if (ended || connecting) return;
+        teardownConnection();
+        showAnswerButton('🔁 Reconectar llamada', 'error',
+            'Se corto la conexion. Podes reconectar y continuar donde quedaste.');
     }
 
     function endCall(reason) {
         if (ended) return;
         ended = true;
-        cleanup();
+        teardownConnection();
         setStatus('ended', 'Finalizando y evaluando la llamada...');
-        if (els.endBtn) { els.endBtn.disabled = true; els.endBtn.textContent = 'Evaluando...'; }
+        if (els.answerBtn) els.answerBtn.style.display = 'none';
+        if (els.endBtn) {
+            els.endBtn.style.display = 'inline-block';
+            els.endBtn.disabled = true;
+            els.endBtn.textContent = 'Evaluando...';
+        }
         fetch('/api/voice/end/' + SESSION_ID, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -183,30 +217,23 @@
             .catch(function () { window.location.href = '/voice-training'; });
     }
 
-    function fatal(msg) {
-        setStatus('error', msg);
-        if (els.endBtn) els.endBtn.textContent = 'Volver';
-        ended = true;
-        cleanup();
-        if (els.endBtn) els.endBtn.onclick = function () {
-            fetch('/api/voice/end/' + SESSION_ID, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ usage: usage, reason: 'error' })
-            }).finally(function () { window.location.href = '/voice-training'; });
-        };
-    }
-
     function connect() {
-        var bootRaw = sessionStorage.getItem('voice_boot_' + SESSION_ID);
-        if (!bootRaw) {
-            fatal('La sesion de conexion expiro (¿recargaste la pagina?). Finalizá y volvé a iniciar la llamada.');
-            return;
-        }
-        var boot = JSON.parse(bootRaw);
-        sessionStorage.removeItem('voice_boot_' + SESSION_ID);
+        if (connecting || ended) return;
+        connecting = true;
+        if (els.answerBtn) els.answerBtn.disabled = true;
+        setStatus('connecting', 'Preparando la llamada...');
 
-        setStatus('connecting', 'Pidiendo acceso al microfono...');
-        navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+        var boot = null;
+        fetch('/api/voice/session/' + SESSION_ID + '/token', { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.error) throw new Error(data.error);
+                boot = data;
+                setStatus('connecting', 'Pidiendo acceso al microfono...');
+                return navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true }
+                });
+            })
             .then(function (stream) {
                 micStream = stream;
                 setStatus('connecting', 'Conectando la llamada...');
@@ -215,8 +242,8 @@
                 pc.addTrack(stream.getTracks()[0], stream);
                 pc.ontrack = function (e) { if (els.audio) els.audio.srcObject = e.streams[0]; };
                 pc.onconnectionstatechange = function () {
-                    if (!ended && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) {
-                        endCall('connection_lost');
+                    if (pc && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) {
+                        onConnectionLost();
                     }
                 };
 
@@ -225,8 +252,12 @@
                     try { handleEvent(JSON.parse(e.data)); } catch (err) {}
                 };
                 dc.onopen = function () {
+                    connecting = false;
                     callStart = performance.now();
-                    setStatus('client', 'Llamada conectada — el cliente va a hablar');
+                    showCallUI();
+                    setStatus('client', boot.resumed
+                        ? 'Llamada retomada — segui la conversacion'
+                        : 'Llamada conectada — el cliente va a hablar');
                     startTimer();
                 };
 
@@ -236,7 +267,7 @@
                         return fetch('https://api.openai.com/v1/realtime/calls?model=' + encodeURIComponent(boot.model), {
                             method: 'POST',
                             headers: {
-                                'Authorization': 'Bearer ' + boot.secret,
+                                'Authorization': 'Bearer ' + boot.client_secret,
                                 'Content-Type': 'application/sdp'
                             },
                             body: pc.localDescription.sdp
@@ -251,20 +282,23 @@
                     });
             })
             .catch(function (e) {
+                connecting = false;
+                teardownConnection();
+                var msg;
                 if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')) {
-                    fatal('Necesitamos acceso al microfono para entrenar por voz. Habilitalo en el navegador y volve a intentar.');
+                    msg = 'Necesitamos acceso al microfono. Habilitalo en el navegador y volve a intentar.';
                 } else {
-                    fatal((e && e.message) || 'No se pudo conectar la llamada.');
+                    msg = (e && e.message) || 'No se pudo conectar la llamada.';
                 }
+                showAnswerButton('🔁 Reintentar', 'error', msg);
             });
     }
 
+    if (els.answerBtn) els.answerBtn.addEventListener('click', connect);
     if (els.endBtn) {
         els.endBtn.addEventListener('click', function () {
             if (!ended && confirm('¿Finalizar la llamada? Se evaluara tu desempeño.')) endCall('user');
         });
     }
-    window.addEventListener('beforeunload', function () { cleanup(); });
-
-    connect();
+    window.addEventListener('beforeunload', function () { teardownConnection(); });
 })();
