@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}VEX Voz - Resultados{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_training.css') }}">
+<style>
+.vvx-cat { padding:3px 12px; border-radius:12px; font-size:11px; font-weight:700; text-transform:uppercase; }
+.vvx-cat-elite { background:#d4edda; color:#155724; }
+.vvx-cat-alto { background:#cce5ff; color:#004085; }
+.vvx-cat-desarrollo { background:#fff3cd; color:#856404; }
+.vvx-cat-refuerzo { background:#f8d7da; color:#721c24; }
+.vvx-rec-recomendado { color:#155724; font-weight:700; }
+.vvx-rec-observaciones { color:#856404; font-weight:700; }
+.vvx-rec-no_recomendado { color:#721c24; font-weight:700; }
+.vvx-pi { font-size:16px; font-weight:700; color:var(--purpura-vex); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>🎙 VEX Predictive — Canal Voz</h1>
+    <p style="color:var(--gris-meta);font-size:13px;max-width:760px;">
+        Índice predictivo calculado exclusivamente sobre llamadas de entrenamiento por voz.
+        Misma metodología que el VEX de chat (6 dimensiones Sten, modos, hard caps), con
+        métricas propias del canal: latencia de respuesta hablada, ritmo de habla y muletillas.
+        Requiere al menos 2 llamadas completadas por asesor.
+    </p>
+
+    <div class="admin-nav">
+        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">VEX Chat</a>
+        <a href="{{ url_for('voice.vex_voice_dashboard') }}" class="btn btn-primary">VEX Voz</a>
+        <a href="{{ url_for('voice.admin_dashboard') }}" class="btn btn-secondary">Dashboard de Voz</a>
+        <a href="{{ url_for('training.vex_methodology') }}" class="btn btn-secondary">Metodología</a>
+    </div>
+
+    {% if not profiles %}
+    <p style="color:var(--gris-meta);padding:24px;background:var(--blanco);border-radius:10px;">
+        Todavía no hay perfiles de voz. Se generan automáticamente cuando un asesor completa
+        al menos 2 llamadas de entrenamiento.
+    </p>
+    {% else %}
+    <div class="table-responsive" style="background:var(--blanco);border-radius:8px;padding:12px;box-shadow:var(--sombra-sm);">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>#</th><th>Asesor</th><th>Índice Predictivo</th><th>Overall</th>
+                    <th>Com</th><th>Emp</th><th>Res</th><th>Vel</th><th>Ada</th><th>Cum</th>
+                    <th>Categoría</th><th>Recomendación</th><th>Llamadas</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in profiles %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ p.user.name if p.user else '-' }}</td>
+                    <td><span class="vvx-pi">{{ p.predictive_index }}%</span></td>
+                    <td><strong>{{ p.overall_score }}</strong>/10</td>
+                    <td>{{ p.communication_score|int }}</td>
+                    <td>{{ p.empathy_score|int }}</td>
+                    <td>{{ p.resolution_score|int }}</td>
+                    <td>{{ p.speed_score|int }}</td>
+                    <td>{{ p.adaptability_score|int }}</td>
+                    <td>{{ p.compliance_score|int }}</td>
+                    <td><span class="vvx-cat vvx-cat-{{ p.profile_category }}">{{ p.profile_category|capitalize }}</span></td>
+                    <td><span class="vvx-rec-{{ p.recommendation }}">{{ {'recomendado':'Recomendado','observaciones':'Con observaciones','no_recomendado':'No recomendado'}.get(p.recommendation, p.recommendation) }}</span></td>
+                    <td>{{ p.sessions_analyzed }}</td>
+                    <td><a href="{{ url_for('voice.vex_voice_profile', user_id=p.user_id) }}" class="btn-action btn-edit" style="text-decoration:none;">Ver perfil</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

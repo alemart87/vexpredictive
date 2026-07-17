@@ -248,3 +248,221 @@ def parse_eval_response(raw):
             'ai_feedback': {'feedback': raw, 'strengths': '', 'improvements': '',
                             'empathy_breakdown': {}, 'voice_breakdown': {}},
         }
+
+
+# ============================================================
+#  VEX Profile de Voz — indice predictivo del canal voz
+# ============================================================
+# Misma metodologia que calculate_vex_profile (chat): 6 dimensiones raw
+# 0-100 -> Sten 1-10, pesos/pisos/umbrales del modo activo y hard caps
+# universales. Adaptaciones del canal: muletillas en lugar de ortografia,
+# latencia de respuesta hablada en lugar del ART del chat (otra escala),
+# ritmo de habla en lugar de WPM de tipeo, y los pilares de calidad de voz
+# (claridad/tono/ritmo/escucha) alimentando comunicacion y compliance.
+
+MIN_SESSIONS_FOR_PROFILE = 2
+
+# Latencia hablada (seg) -> puntaje. En una llamada, responder en 2s es
+# natural; mas de 8s se siente como silencio incomodo. Escala propia del
+# canal (el art_curve del chat esta en minutos de tipeo, no aplica).
+def _latency_score(lat, no_data_score):
+    if lat is None or lat <= 0:
+        return no_data_score
+    if lat <= 2:
+        return 100.0
+    if lat <= 4:
+        return 100.0 - (lat - 2) / 2 * 20     # 100 -> 80
+    if lat <= 8:
+        return 80.0 - (lat - 4) / 4 * 30      # 80 -> 50
+    if lat <= 15:
+        return 50.0 - (lat - 8) / 7 * 30      # 50 -> 20
+    return 10.0
+
+
+def _speech_band_score(wpm):
+    """Ritmo conversacional en espanol: 110-160 wpm es natural."""
+    if not wpm:
+        return 60.0
+    if 110 <= wpm <= 160:
+        return 100.0
+    if 90 <= wpm < 110 or 160 < wpm <= 185:
+        return 70.0
+    return 40.0
+
+
+def calculate_voice_vex_profile(user_id):
+    """Calcula/actualiza el VoiceVexProfile del usuario. Devuelve el perfil
+    o None si no hay muestra suficiente (< 2 llamadas completadas)."""
+    from models import db, VoiceSession, VoiceVexProfile
+    from scoring_modes import get_effective_mode
+    from datetime import datetime
+
+    sessions = (VoiceSession.query
+                .filter(VoiceSession.user_id == user_id,
+                        VoiceSession.status.in_(('completed', 'abandoned')))
+                .order_by(VoiceSession.created_at.asc()).all())
+    completed = [s for s in sessions if s.status == 'completed']
+    if len(completed) < MIN_SESSIONS_FOR_PROFILE:
+        return None
+
+    def _is_autofail(s):
+        return (s.total_turns or 0) < MIN_USER_TURNS or (s.total_words_user or 0) < MIN_USER_WORDS
+
+    total = len(sessions)
+    failed = sum(1 for s in sessions if s.status == 'abandoned') + \
+        sum(1 for s in completed if _is_autofail(s))
+    abandonment_rate = failed / total if total else 0.0
+
+    # Modo activo = el de la sesion mas reciente (snapshot), igual que chat
+    mode_name, is_legacy, mode_cfg = get_effective_mode(sessions[-1].scoring_mode)
+    pi_weights = mode_cfg['pi_weights']
+    floors = mode_cfg['floors']
+    thresholds = mode_cfg['thresholds']
+    rec_thresholds = mode_cfg['recommendation']
+    pillars_w = mode_cfg.get('empathy_pillars_weight', 0.7)
+
+    # --- Agregados ---
+    avg_nps = sum(s.nps_score or 0 for s in completed) / len(completed)
+    correct_rate = sum(1 for s in completed if s.response_correct) / len(completed)
+
+    total_words = sum(s.total_words_user or 0 for s in completed)
+    total_fillers = sum(s.filler_words or 0 for s in completed)
+    filler_per_100 = (total_fillers / total_words * 100) if total_words else 0.0
+    # Saturacion: hablar con algunas muletillas es normal; toleramos ~3x lo
+    # que el chat tolera de ortografia con el mismo multiplier del modo.
+    filler_penalty = min(1.0, (total_fillers / total_words if total_words else 0)
+                         * mode_cfg.get('spelling_multiplier', 25) / 3.0)
+
+    lats = [s.avg_response_latency for s in completed if (s.avg_response_latency or 0) > 0]
+    avg_latency = sum(lats) / len(lats) if lats else None
+    rates = [s.speech_rate_wpm for s in completed if (s.speech_rate_wpm or 0) > 0]
+    avg_speech = sum(rates) / len(rates) if rates else 0.0
+
+    # Pilares (sobre el total de completadas: los auto-fail arrastran False)
+    def _pillar_rates(key, names):
+        counts = {n: 0 for n in names}
+        for s in completed:
+            fb = {}
+            try:
+                fb = json.loads(s.ai_feedback) if s.ai_feedback else {}
+            except (json.JSONDecodeError, TypeError):
+                pass
+            block = fb.get(key) or {}
+            for n in names:
+                if block.get(n):
+                    counts[n] += 1
+        return {n: counts[n] / len(completed) for n in names}
+
+    emp = _pillar_rates('empathy_breakdown', ('nombre', 'contexto', 'calidez', 'resolucion'))
+    vb = _pillar_rates('voice_breakdown', ('claridad', 'tono', 'ritmo', 'escucha'))
+
+    # Tendencia de NPS (regresion lineal simple sobre el orden cronologico)
+    n = len(completed)
+    xs = list(range(n))
+    ys = [s.nps_score or 0 for s in completed]
+    mean_x, mean_y = sum(xs) / n, sum(ys) / n
+    var_x = sum((x - mean_x) ** 2 for x in xs)
+    slope = (sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / var_x) if var_x else 0.0
+    trend = max(0.0, min(1.0, 0.5 + slope / 2.0))
+
+    distinct_ok = len({s.scenario_id for s in completed if s.response_correct})
+    variety = min(1.0, distinct_ok / 4.0)
+
+    # --- Dimensiones raw 0-100 ---
+    pillars_score = (emp['nombre'] * 0.15 + emp['contexto'] * 0.25 +
+                     emp['calidez'] * 0.25 + emp['resolucion'] * 0.35)
+
+    comm_raw = floors['communication'] + (1 - filler_penalty) * 15 + \
+        vb['claridad'] * 15 + (avg_nps / 10) * 40
+    empathy_raw = pillars_score * 100 * pillars_w + avg_nps * 10 * (1 - pillars_w)
+    resolution_raw = floors['resolution'] + correct_rate * 50 + (avg_nps / 10) * 25
+    speed_raw = _latency_score(avg_latency, floors.get('speed_no_data', 60)) * 0.7 + \
+        _speech_band_score(avg_speech) * 0.3
+    adapt_raw = floors['adaptability'] + trend * 35 + variety * 35
+    compliance_raw = floors['compliance'] + correct_rate * 45 + \
+        (1 - filler_penalty) * 15 + vb['escucha'] * 15
+
+    raw_scores = [comm_raw, empathy_raw, resolution_raw, speed_raw, adapt_raw, compliance_raw]
+
+    def to_sten(raw):
+        sten = int(raw / 10) + (1 if (raw % 10) >= 4 else 0)
+        return max(1, min(10, sten))
+
+    scores = [to_sten(r) for r in raw_scores]
+    comm, empathy, resolution, speed, adapt, compliance = scores
+    overall = round(sum(scores) / 6, 1)
+
+    pi = (resolution * pi_weights['resolution'] + empathy * pi_weights['empathy'] +
+          comm * pi_weights['communication'] + speed * pi_weights['speed'] +
+          adapt * pi_weights['adaptability'] + compliance * pi_weights['compliance'])
+    pi_pct = round(pi * 10, 1)
+
+    if overall >= thresholds['elite_overall'] and all(s >= thresholds['elite_min_dim'] for s in scores):
+        category = 'elite'
+    elif overall >= thresholds['alto_overall'] and all(s >= thresholds['alto_min_dim'] for s in scores):
+        category = 'alto'
+    elif overall >= thresholds['desarrollo_overall']:
+        category = 'desarrollo'
+    else:
+        category = 'refuerzo'
+
+    if pi_pct >= rec_thresholds['recomendado']:
+        rec = 'recomendado'
+    elif pi_pct >= rec_thresholds['observaciones']:
+        rec = 'observaciones'
+    else:
+        rec = 'no_recomendado'
+
+    # Hard caps universales (mismas 3 reglas que el chat)
+    cap_reasons = []
+    if abandonment_rate > 0.40:
+        cap_reasons.append({
+            'rule': 'abandonment',
+            'detail': f'{int(abandonment_rate*100)}% de llamadas abandonadas o vacias (limite 40%)',
+            'effect': 'Categoria max "Desarrollo", recomendacion max "Observaciones"'})
+    if correct_rate < 0.50:
+        cap_reasons.append({
+            'rule': 'low_correct_rate',
+            'detail': f'Solo {int(correct_rate*100)}% de resoluciones correctas (limite 50%)',
+            'effect': 'Recomendacion max "Observaciones"'})
+    if avg_nps < 4.0:
+        cap_reasons.append({
+            'rule': 'low_nps',
+            'detail': f'NPS promedio {avg_nps:.1f} (limite 4.0). Clientes mayormente detractores.',
+            'effect': 'Recomendacion max "Observaciones"'})
+    if cap_reasons:
+        if category in ('elite', 'alto'):
+            category = 'desarrollo'
+        if rec == 'recomendado':
+            rec = 'observaciones'
+
+    profile = VoiceVexProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        profile = VoiceVexProfile(user_id=user_id)
+        db.session.add(profile)
+
+    profile.communication_score = comm
+    profile.empathy_score = empathy
+    profile.resolution_score = resolution
+    profile.speed_score = speed
+    profile.adaptability_score = adapt
+    profile.compliance_score = compliance
+    profile.overall_score = overall
+    profile.predictive_index = pi_pct
+    profile.profile_category = category
+    profile.recommendation = rec
+    profile.sessions_analyzed = total
+    profile.abandonment_rate = round(abandonment_rate, 3)
+    profile.avg_response_latency = round(avg_latency, 2) if avg_latency else 0.0
+    profile.avg_speech_rate = round(avg_speech, 1)
+    profile.filler_rate = round(filler_per_100, 2)
+    profile.last_updated = datetime.utcnow()
+    # Volatiles para el render (no persisten), igual que el perfil de chat
+    profile._cap_reasons = cap_reasons
+    profile._active_mode = mode_name
+    profile._is_legacy_mode = is_legacy
+    profile._mode_cfg = mode_cfg
+    profile._voice_pillars = vb
+    profile._empathy_pillars = emp
+    db.session.commit()
+    return profile
