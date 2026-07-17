@@ -438,3 +438,14 @@ def vex_voice_profile(user_id):
     return render_template('admin/vex_voice_profile.html',
                            target=target, profile=profile, sessions=sessions,
                            min_sessions=voice_scoring.MIN_SESSIONS_FOR_PROFILE)
+
+
+@voice_bp.route('/admin/voz/guia')
+@supervisor_or_above
+def voice_guide():
+    """Guia: como configurar casos de voz y como se mide. Documentacion
+    estatica para coordinadores y supervisores."""
+    return render_template('admin/voice_guide.html',
+                           voices=realtime_client.VOICES,
+                           max_call_minutes=MAX_CALL_SECONDS // 60,
+                           daily_limit=VOICE_DAILY_LIMIT)

@@ -51,7 +51,9 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>🎙 Voz del cliente (entrenamiento por voz)</label>
+                    <label>🎙 Voz del cliente (entrenamiento por voz)
+                        <a href="{{ url_for('voice.voice_guide') }}" style="font-size:11px;font-weight:700;color:var(--cyan-oscuro);text-decoration:none;margin-left:6px;">¿Cómo funciona? Ver guía <span class="ci-new-tag" style="font-size:9px;padding:2px 7px;">✨ NUEVO</span></a>
+                    </label>
                     <select name="voice_name">
                         {% for v in voices %}
                         <option value="{{ v.id }}" {% if v.id == 'marin' %}selected{% endif %}>{{ v.label }} — {{ v.desc }}</option>
