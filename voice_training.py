@@ -11,8 +11,9 @@ acuna el token, persiste transcripciones y evalua al cierre.
 """
 import json
 import os
+import time
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload
@@ -30,6 +31,39 @@ voice_bp = Blueprint('voice', __name__)
 HEARTBEAT_STALE_MINUTES = 3
 MAX_CALL_SECONDS = realtime_client.MAX_CALL_SECONDS
 VOICE_DAILY_LIMIT = int(os.environ.get('VOICE_DAILY_LIMIT', '20'))
+RECORDING_RETENTION_DAYS = int(os.environ.get('VOICE_RECORDING_RETENTION_DAYS', '15'))
+RECORDING_MAX_BYTES = 15 * 1024 * 1024  # una llamada de 10 min en Opus pesa ~2 MB
+
+
+def _recordings_dir():
+    """Directorio de grabaciones en el disco persistente. Subcarpeta de
+    UPLOAD_DIR, pero NUNCA servida por /imagenes/ (app.serve_image la
+    bloquea): el audio solo sale por el endpoint autenticado de abajo."""
+    base = os.environ.get('VOICE_RECORDINGS_DIR')
+    return base or os.path.join(current_app.config['UPLOAD_DIR'], 'voice_recordings')
+
+
+def _cleanup_expired_recordings():
+    """Borra grabaciones con mas de RECORDING_RETENTION_DAYS dias y limpia
+    recording_path de esas sesiones. Corre oportunisticamente (sin cron)."""
+    d = _recordings_dir()
+    if not os.path.isdir(d):
+        return
+    cutoff_ts = time.time() - RECORDING_RETENTION_DAYS * 86400
+    removed = []
+    for fn in os.listdir(d):
+        p = os.path.join(d, fn)
+        try:
+            if os.path.isfile(p) and os.path.getmtime(p) < cutoff_ts:
+                os.remove(p)
+                removed.append(fn)
+        except OSError:
+            pass
+    if removed:
+        VoiceSession.query.filter(VoiceSession.recording_path.in_(removed)) \
+            .update({'recording_path': None}, synchronize_session=False)
+        db.session.commit()
+        print(f'[VOICE] {len(removed)} grabaciones expiradas eliminadas', flush=True)
 
 
 def _sweep_abandoned(user_id=None):
@@ -62,6 +96,23 @@ def _feedback_dict(vs):
         return json.loads(vs.ai_feedback) if vs.ai_feedback else {}
     except (json.JSONDecodeError, TypeError):
         return {'feedback': vs.ai_feedback or ''}
+
+
+def _can_view_session(vs):
+    """Regla unica de acceso a resultados/grabaciones: el dueno, el
+    superadmin, o un coordinador de la MISMA operativa."""
+    if vs.user_id == current_user.id or current_user.is_superadmin:
+        return True
+    return (current_user.can_manage_users and vs.user is not None and
+            vs.user.operativa_id == current_user.operativa_id)
+
+
+def _recording_file(vs):
+    """Ruta absoluta de la grabacion si existe en disco, o None."""
+    if not vs.recording_path:
+        return None
+    path = os.path.join(_recordings_dir(), vs.recording_path)
+    return path if os.path.isfile(path) else None
 
 
 # ---------- Vistas de usuario ----------
@@ -105,17 +156,15 @@ def session_view(vs_id):
 @login_required
 def result_view(vs_id):
     vs = VoiceSession.query.get_or_404(vs_id)
-    if vs.user_id != current_user.id:
-        # Un coordinador solo ve resultados de SU operativa (mismo criterio
-        # que admin_session_detail); sin esto se filtran transcripts entre tenants
-        allowed = current_user.is_superadmin or (
-            current_user.can_manage_users and vs.user is not None and
-            vs.user.operativa_id == current_user.operativa_id)
-        if not allowed:
-            flash('No tenes acceso a esa sesion.', 'error')
-            return redirect(url_for('voice.index'))
+    # Un coordinador solo ve resultados de SU operativa (sin esto se
+    # filtrarian transcripts y grabaciones entre tenants)
+    if not _can_view_session(vs):
+        flash('No tenes acceso a esa sesion.', 'error')
+        return redirect(url_for('voice.index'))
     return render_template('voice/result.html', vs=vs, feedback=_feedback_dict(vs),
-                           turns=vs.turns)
+                           turns=vs.turns,
+                           has_recording=_recording_file(vs) is not None,
+                           retention_days=RECORDING_RETENTION_DAYS)
 
 
 # ---------- API de sesion ----------
@@ -340,12 +389,63 @@ def api_end(vs_id):
     return jsonify({'ok': True, 'redirect': url_for('voice.result_view', vs_id=vs.id)})
 
 
+# ---------- Grabaciones ----------
+
+@voice_bp.route('/api/voice/recording/<int:vs_id>', methods=['POST'])
+@login_required
+def api_recording_upload(vs_id):
+    """Recibe la grabacion mezclada (mic + cliente) que el navegador arma
+    con MediaRecorder al finalizar la llamada. Solo el dueno de la sesion."""
+    vs = VoiceSession.query.get_or_404(vs_id)
+    if vs.user_id != current_user.id:
+        return jsonify({'error': 'Sesion invalida.'}), 403
+    if vs.status not in ('active', 'completed'):
+        return jsonify({'error': 'La sesion ya no admite grabacion.'}), 400
+
+    f = request.files.get('audio')
+    if not f:
+        return jsonify({'error': 'No se recibio audio.'}), 400
+
+    mimetype = (f.mimetype or '').lower()
+    ext = 'mp4' if 'mp4' in mimetype else 'webm'  # Safari graba mp4; el resto webm/opus
+    d = _recordings_dir()
+    os.makedirs(d, exist_ok=True)
+    filename = f'rec_{vs.id}.{ext}'
+    path = os.path.join(d, filename)
+    f.save(path)
+
+    if os.path.getsize(path) > RECORDING_MAX_BYTES:
+        os.remove(path)
+        return jsonify({'error': 'Grabacion demasiado grande.'}), 413
+
+    vs.recording_path = filename
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@voice_bp.route('/api/voice/recording/<int:vs_id>')
+@login_required
+def api_recording_get(vs_id):
+    """Sirve el audio con la MISMA regla de acceso que el resultado.
+    Las grabaciones nunca se sirven por /imagenes/ (ruta publica)."""
+    vs = VoiceSession.query.get_or_404(vs_id)
+    if not _can_view_session(vs):
+        return jsonify({'error': 'Sin permiso sobre esta grabacion.'}), 403
+    path = _recording_file(vs)
+    if not path:
+        return jsonify({'error': 'La grabacion no existe o ya expiro.'}), 404
+    mimetype = 'audio/mp4' if path.endswith('.mp4') else 'audio/webm'
+    # conditional=True habilita Range requests (necesario para adelantar/atrasar)
+    return send_file(path, mimetype=mimetype, conditional=True)
+
+
 # ---------- Admin ----------
 
 @voice_bp.route('/admin/voice')
 @can_view_training
 def admin_dashboard():
     _sweep_abandoned()
+    _cleanup_expired_recordings()
     # joinedload evita el N+1 del template (s.user.name / s.scenario.title)
     q = (VoiceSession.query
          .options(joinedload(VoiceSession.user), joinedload(VoiceSession.scenario)))
@@ -400,6 +500,7 @@ def admin_session_detail(vs_id):
         },
         'feedback': feedback,
         'estimated_cost_usd': vs.estimated_cost_usd,
+        'has_recording': _recording_file(vs) is not None,
         'turns': [{'role': t.role, 'transcript': t.transcript,
                    'started_at_ms': t.started_at_ms} for t in vs.turns],
     })
@@ -448,4 +549,5 @@ def voice_guide():
     return render_template('admin/voice_guide.html',
                            voices=realtime_client.VOICES,
                            max_call_minutes=MAX_CALL_SECONDS // 60,
-                           daily_limit=VOICE_DAILY_LIMIT)
+                           daily_limit=VOICE_DAILY_LIMIT,
+                           recording_days=RECORDING_RETENTION_DAYS)

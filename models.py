@@ -376,6 +376,9 @@ class VoiceSession(db.Model):
     duration_seconds = db.Column(db.Integer, default=0)
     openai_session_id = db.Column(db.String(100), nullable=True)
     last_heartbeat = db.Column(db.DateTime, nullable=True)
+    # Grabacion de la llamada (archivo en el disco persistente, retencion
+    # limitada; null = sin grabacion o ya expirada)
+    recording_path = db.Column(db.String(500), nullable=True)
 
     # Metricas de conversacion (calculadas desde voice_turns + cliente)
     total_turns = db.Column(db.Integer, default=0)          # turnos del asesor
