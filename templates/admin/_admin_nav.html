@@ -1,0 +1,45 @@
+{# ============================================================
+   Sub-navegacion admin UNIFICADA (unica fuente de verdad).
+   Uso en cada pagina admin:
+       {% set nav_area = 'admin'|'training'|'voice'|'vex' %}
+       {% set nav_page = '<clave de pagina>' %}
+       {% include 'admin/_admin_nav.html' %}
+   Fila 1: areas (siempre las mismas, en el mismo orden).
+   Fila 2: paginas del area activa (siempre las mismas, en el mismo orden).
+   ============================================================ #}
+<div class="admin-subnav">
+    <div class="asn-areas">
+        {% if current_user.can_manage_users %}
+        <a class="asn-area {% if nav_area == 'admin' %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">&#9881;&#65039; Administraci&oacute;n</a>
+        <a class="asn-area {% if nav_area == 'training' %}active{% endif %}" href="{{ url_for('training.admin_dashboard') }}">&#128172; Entrenamiento Chat</a>
+        <a class="asn-area {% if nav_area == 'voice' %}active{% endif %}" href="{{ url_for('voice.admin_dashboard') }}">&#127908; Entrenamiento Voz</a>
+        {% endif %}
+        <a class="asn-area {% if nav_area == 'vex' %}active{% endif %}" href="{{ url_for('training.vex_dashboard') }}">&#128200; Vex Predictive</a>
+    </div>
+    <div class="asn-pages">
+        {% if nav_area == 'admin' %}
+            <a class="asn-page {% if nav_page == 'dashboard' %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+            <a class="asn-page {% if nav_page == 'contents' %}active{% endif %}" href="{{ url_for('admin.content_list') }}">Contenidos</a>
+            <a class="asn-page {% if nav_page == 'categories' %}active{% endif %}" href="{{ url_for('admin.category_list') }}">Categor&iacute;as</a>
+            <a class="asn-page {% if nav_page == 'users' %}active{% endif %}" href="{{ url_for('admin.user_list') }}">Usuarios</a>
+            <a class="asn-page {% if nav_page == 'insights' %}active{% endif %}" href="{{ url_for('admin.chat_analytics') }}">Insights AI</a>
+            {% if current_user.is_superadmin %}
+            <a class="asn-page {% if nav_page == 'operativas' %}active{% endif %}" href="{{ url_for('admin.operativa_list') }}">Operativas</a>
+            <a class="asn-page {% if nav_page == 'system_guide' %}active{% endif %}" href="{{ url_for('admin.system_guide') }}">Gu&iacute;a del Sistema</a>
+            {% endif %}
+        {% elif nav_area == 'training' %}
+            <a class="asn-page {% if nav_page == 'cx_dashboard' %}active{% endif %}" href="{{ url_for('training.admin_dashboard') }}">CX Dashboard</a>
+            {% if current_user.can_manage_users %}
+            <a class="asn-page {% if nav_page == 'scenarios' %}active{% endif %}" href="{{ url_for('training.admin_scenarios') }}">Escenarios</a>
+            {% endif %}
+        {% elif nav_area == 'voice' %}
+            <a class="asn-page {% if nav_page == 'voice_dashboard' %}active{% endif %}" href="{{ url_for('voice.admin_dashboard') }}">Dashboard de Voz</a>
+            <a class="asn-page {% if nav_page == 'voice_guide' %}active{% endif %}" href="{{ url_for('voice.voice_guide') }}">Gu&iacute;a de Voz</a>
+        {% elif nav_area == 'vex' %}
+            <a class="asn-page {% if nav_page == 'vex_chat' %}active{% endif %}" href="{{ url_for('training.vex_dashboard') }}">Resultados Chat</a>
+            <a class="asn-page {% if nav_page == 'vex_voice' %}active{% endif %}" href="{{ url_for('voice.vex_voice_dashboard') }}">&#127908; Resultados Voz</a>
+            <a class="asn-page {% if nav_page == 'methodology' %}active{% endif %}" href="{{ url_for('training.vex_methodology') }}">Metodolog&iacute;a</a>
+            <a class="asn-page {% if nav_page == 'modes' %}active{% endif %}" href="{{ url_for('training.vex_modos') }}">Modos de Scoring</a>
+        {% endif %}
+    </div>
+</div>

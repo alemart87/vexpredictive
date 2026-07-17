@@ -31,10 +31,9 @@
 </div>
 
 <div class="admin-container">
-    <div class="admin-nav no-print">
-        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">&larr; Volver</a>
-        <a href="{{ url_for('training.vex_methodology') }}" class="btn btn-secondary">📖 Metodología</a>
-        <button class="btn btn-primary" onclick="window.print()">Exportar PDF</button>
+    <div class="no-print">
+    {% set nav_area = 'vex' %}{% set nav_page = 'vex_chat' %}
+    {% include 'admin/_admin_nav.html' %}
     </div>
 
     <!-- Profile Header -->

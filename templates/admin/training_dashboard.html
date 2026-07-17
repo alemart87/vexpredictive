@@ -10,13 +10,8 @@
     <h1>CX Dashboard — Resultados de Entrenamiento</h1>
     <p style="color:#888;margin-top:-8px;margin-bottom:20px">Análisis de rendimiento y oportunidades de mejora del equipo</p>
 
-    <div class="admin-nav">
-        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
-        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-primary">CX Dashboard</a>
-        {% if current_user.is_superadmin %}
-        <a href="{{ url_for('training.admin_scenarios') }}" class="btn btn-secondary">Escenarios</a>
-        {% endif %}
-    </div>
+    {% set nav_area = 'training' %}{% set nav_page = 'cx_dashboard' %}
+    {% include 'admin/_admin_nav.html' %}
 
     <!-- Guide -->
     <details style="background:#fff;border-radius:12px;padding:14px 20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">

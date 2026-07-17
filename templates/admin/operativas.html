@@ -7,15 +7,8 @@
     <h1>Gestion de Operativas</h1>
     <p style="color:var(--gris-meta);margin-top:-8px;margin-bottom:20px">Administracion de cuentas y operativas del sistema</p>
 
-    <div class="admin-nav">
-        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
-        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
-        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorias</a>
-        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
-        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
-        <a href="{{ url_for('admin.operativa_list') }}" class="btn btn-primary">Operativas</a>
-        <a href="{{ url_for('admin.system_guide') }}" class="btn btn-secondary">Guia del Sistema</a>
-    </div>
+    {% set nav_area = 'admin' %}{% set nav_page = 'operativas' %}
+    {% include 'admin/_admin_nav.html' %}
 
     <!-- Create Form -->
     <h2 style="color:var(--purpura-vex)">Nueva Operativa</h2>

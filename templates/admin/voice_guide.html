@@ -43,6 +43,9 @@
         por voz y cómo se mide el desempeño de los asesores en las llamadas simuladas.
     </p>
 
+    {% set nav_area = 'voice' %}{% set nav_page = 'voice_guide' %}
+    {% include 'admin/_admin_nav.html' %}
+
     <!-- ============ CONFIGURACION ============ -->
     <div class="vg-card">
         <h2>⚙️ Cómo se configuran los casos de voz</h2>
@@ -184,8 +187,6 @@
     <div class="vg-links">
         <a href="{{ url_for('training.admin_scenarios') }}" class="btn btn-primary">Crear Escenarios</a>
         <a href="{{ url_for('voice.index') }}" class="btn btn-secondary">Probar una llamada</a>
-        <a href="{{ url_for('voice.admin_dashboard') }}" class="btn btn-secondary">Dashboard de Voz</a>
-        <a href="{{ url_for('voice.vex_voice_dashboard') }}" class="btn btn-secondary">VEX Voz</a>
     </div>
 </div>
 {% endblock %}

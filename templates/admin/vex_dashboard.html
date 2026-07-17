@@ -7,12 +7,8 @@
     <h1 style="color:#00B2BF">Vex People Skill Predictive</h1>
     <p style="color:#888;margin-top:-8px;margin-bottom:20px">Evaluación predictiva de habilidades para decisiones de capacitación e incorporación</p>
 
-    <div class="admin-nav">
-        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
-        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Entrenamiento</a>
-        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-primary">Vex Predictive</a>
-        <a href="{{ url_for('training.vex_methodology') }}" class="btn btn-secondary" style="border:2px solid #E6332A">📖 Metodología y Documentación</a>
-    </div>
+    {% set nav_area = 'vex' %}{% set nav_page = 'vex_chat' %}
+    {% include 'admin/_admin_nav.html' %}
 
     {% if not profiles %}
     <div style="text-align:center;padding:60px 20px;color:#888">

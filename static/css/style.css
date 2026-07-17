@@ -662,3 +662,36 @@ footer p { margin: 0; font-size: 14px; }
     border-radius: 9px; letter-spacing: .5px; margin-left: 6px; vertical-align: middle;
     display: inline-block;
 }
+
+/* ============================================================
+   Sub-navegacion admin unificada (admin/_admin_nav.html)
+   Fila 1: tabs de area | Fila 2: pildoras de pagina
+   ============================================================ */
+.admin-subnav { margin: 14px 0 22px; }
+.asn-areas {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    border-bottom: 2px solid var(--gris-claro);
+}
+.asn-area {
+    padding: 10px 18px; font-weight: 700; font-size: 14px;
+    color: var(--gris-meta); text-decoration: none;
+    border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent;
+    margin-bottom: -2px; transition: all .15s;
+}
+.asn-area:hover { color: var(--rojo-vex); background: var(--gris-claro); }
+.asn-area.active {
+    color: var(--rojo-vex); border-bottom-color: var(--rojo-vex);
+    background: var(--blanco);
+}
+.asn-pages { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 12px; }
+.asn-page {
+    padding: 7px 16px; border-radius: 16px; font-size: 13px; font-weight: 600;
+    text-decoration: none; background: var(--blanco); color: var(--gris-texto);
+    border: 1px solid var(--gris-claro); box-shadow: var(--sombra-sm);
+    transition: all .15s;
+}
+.asn-page:hover { border-color: var(--cyan-vex); color: var(--cyan-oscuro); }
+.asn-page.active {
+    background: var(--rojo-vex); color: var(--blanco); border-color: var(--rojo-vex);
+}
+.asn-page.active:hover { color: var(--blanco); }

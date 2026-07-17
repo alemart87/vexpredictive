@@ -27,12 +27,8 @@
         Requiere al menos 2 llamadas completadas por asesor.
     </p>
 
-    <div class="admin-nav">
-        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">VEX Chat</a>
-        <a href="{{ url_for('voice.vex_voice_dashboard') }}" class="btn btn-primary">VEX Voz</a>
-        <a href="{{ url_for('voice.admin_dashboard') }}" class="btn btn-secondary">Dashboard de Voz</a>
-        <a href="{{ url_for('training.vex_methodology') }}" class="btn btn-secondary">Metodología</a>
-    </div>
+    {% set nav_area = 'vex' %}{% set nav_page = 'vex_voice' %}
+    {% include 'admin/_admin_nav.html' %}
 
     {% if not profiles %}
     <p style="color:var(--gris-meta);padding:24px;background:var(--blanco);border-radius:10px;">

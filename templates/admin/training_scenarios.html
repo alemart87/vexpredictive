@@ -5,11 +5,8 @@
 <div class="admin-container">
     <h1>Escenarios de Entrenamiento</h1>
 
-    <div class="admin-nav">
-        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
-        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Dashboard</a>
-        <a href="{{ url_for('training.admin_scenarios') }}" class="btn btn-primary">Escenarios</a>
-    </div>
+    {% set nav_area = 'training' %}{% set nav_page = 'scenarios' %}
+    {% include 'admin/_admin_nav.html' %}
 
     <!-- Guide -->
     <details style="background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">

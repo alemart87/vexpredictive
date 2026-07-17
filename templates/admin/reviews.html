@@ -73,17 +73,8 @@
     <h1>Revisiones de Documentos</h1>
     <p style="color:var(--gris-meta);margin-top:-8px;margin-bottom:20px">Solicitudes de revision de contenido por parte de supervisores</p>
 
-    <div class="admin-nav">
-        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Dashboard</a>
-        <a href="{{ url_for('admin.content_list') }}" class="btn btn-secondary">Contenidos</a>
-        <a href="{{ url_for('admin.category_list') }}" class="btn btn-secondary">Categorias</a>
-        <a href="{{ url_for('admin.user_list') }}" class="btn btn-secondary">Usuarios</a>
-        <a href="{{ url_for('admin.chat_analytics') }}" class="btn btn-secondary">Insights AI</a>
-        {% if current_user.is_superadmin %}
-        <a href="{{ url_for('admin.operativa_list') }}" class="btn btn-secondary">Operativas</a>
-        <a href="{{ url_for('admin.system_guide') }}" class="btn btn-secondary">Guia del Sistema</a>
-        {% endif %}
-    </div>
+    {% set nav_area = 'admin' %}{% set nav_page = 'reviews' %}
+    {% include 'admin/_admin_nav.html' %}
 
     {% if reviews %}
     <div class="table-responsive">
