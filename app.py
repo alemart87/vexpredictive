@@ -74,11 +74,13 @@ from admin import admin_bp
 from analytics import analytics_bp
 from chat import chat_bp
 from training import training_bp
+from voice_training import voice_bp
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(analytics_bp)
 app.register_blueprint(chat_bp)
 app.register_blueprint(training_bp)
+app.register_blueprint(voice_bp)
 
 
 # ===== Auth routes =====
@@ -108,6 +110,7 @@ def scenario_json_filter(scenario):
         'difficulty': scenario.difficulty,
         'category': scenario.category or '',
         'scoring_mode': scenario.scoring_mode or 'standard',
+        'voice_name': scenario.voice_name or 'marin',
         'cases': cases
     }, ensure_ascii=False)
 
@@ -147,6 +150,17 @@ def enforce_password_change():
     exempt = {'change_password', 'logout', 'login', 'static', 'serve_image'}
     if request.endpoint is None or request.endpoint in exempt:
         return
+    path = request.path
+    # El tracking (CLAUDE.md: toda pagina lo incluye) y el cierre de una
+    # llamada de voz EN CURSO siguen funcionando; iniciar llamadas nuevas no.
+    if path.startswith('/api/track/'):
+        return
+    if path.startswith('/api/voice/') and not path.startswith('/api/voice/session/start'):
+        return
+    if path.startswith('/api/'):
+        # Los fetch JSON reciben un 401 explicito en vez de un 302 a HTML
+        return jsonify({'error': 'Debes establecer una nueva contrasena para continuar.',
+                        'redirect': url_for('change_password')}), 401
     return redirect(url_for('change_password'))
 
 

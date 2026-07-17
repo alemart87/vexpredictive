@@ -50,6 +50,14 @@
                         <option value="dificil">Difícil</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>🎙 Voz del cliente (entrenamiento por voz)</label>
+                    <select name="voice_name">
+                        {% for v in voices %}
+                        <option value="{{ v.id }}" {% if v.id == 'marin' %}selected{% endif %}>{{ v.label }} — {{ v.desc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
             <div class="form-group">
                 <label>Descripción breve (visible para los asesores)</label>
@@ -215,6 +223,13 @@
                 </div>
             </div>
             <div class="form-group"><label>Descripción</label><input type="text" name="description" id="editDesc"></div>
+            <div class="form-group"><label>🎙 Voz del cliente (entrenamiento por voz)</label>
+                <select name="voice_name" id="editVoice">
+                    {% for v in voices %}
+                    <option value="{{ v.id }}">{{ v.label }} — {{ v.desc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
             <div class="form-group" style="margin:16px 0">
                 <label style="font-weight:700">Modo de Evaluación</label>
@@ -552,6 +567,8 @@ function editScenario(id, data) {
     document.getElementById('editDesc').value = data.description || '';
     document.getElementById('editDiff').value = data.difficulty;
     document.getElementById('editCategory').value = data.category || '';
+    var vSel = document.getElementById('editVoice');
+    if (vSel) vSel.value = data.voice_name || 'marin';
 
     // Preseleccionar modo en el editor
     var mode = data.scoring_mode || 'standard';
