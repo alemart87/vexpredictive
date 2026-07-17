@@ -24,4 +24,5 @@ CMD ["sh", "-c", "\
   python migrate_v8.py && \
   python migrate_v9.py && \
   python migrate_v10.py && \
+  python migrate_v11.py && \
   gunicorn --bind 0.0.0.0:10000 --timeout 120 app:app"]

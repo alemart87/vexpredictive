@@ -654,3 +654,11 @@ footer p { margin: 0; font-size: 14px; }
 
     .search-bar input { width: 350px; }
 }
+
+/* Tag "NUEVO" para items de menu (misma identidad que .ci-new-tag) */
+.nav-new-tag {
+    background: linear-gradient(135deg, var(--rojo-vex), var(--naranja-vex));
+    color: var(--blanco); font-size: 9px; font-weight: 800; padding: 2px 7px;
+    border-radius: 9px; letter-spacing: .5px; margin-left: 6px; vertical-align: middle;
+    display: inline-block;
+}

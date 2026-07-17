@@ -17,7 +17,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload
 
-from models import db, User, TrainingScenario, VoiceSession, VoiceTurn
+from models import db, User, TrainingScenario, VoiceSession, VoiceTurn, VoiceVexProfile
+from decorators import supervisor_or_above
 from training import parse_cases, get_case, safe_elapsed, can_view_training
 from chat import call_openai
 from scoring_modes import get_effective_mode
@@ -330,6 +331,12 @@ def api_end(vs_id):
     vs.status = 'completed'
     db.session.commit()
 
+    # Actualizar el VEX Profile de Voz (nunca rompe el cierre de la llamada)
+    try:
+        voice_scoring.calculate_voice_vex_profile(vs.user_id)
+    except Exception as e:
+        print(f'[VOICE] VEX voz calc error: {e}', flush=True)
+
     return jsonify({'ok': True, 'redirect': url_for('voice.result_view', vs_id=vs.id)})
 
 
@@ -396,3 +403,49 @@ def admin_session_detail(vs_id):
         'turns': [{'role': t.role, 'transcript': t.transcript,
                    'started_at_ms': t.started_at_ms} for t in vs.turns],
     })
+
+
+# ---------- VEX Profile de Voz ----------
+
+@voice_bp.route('/admin/vex-voz')
+@supervisor_or_above
+def vex_voice_dashboard():
+    q = (VoiceVexProfile.query
+         .join(User, VoiceVexProfile.user_id == User.id)
+         .options(joinedload(VoiceVexProfile.user)))
+    if not current_user.is_superadmin and current_user.operativa_id:
+        q = q.filter(User.operativa_id == current_user.operativa_id)
+    profiles = q.order_by(VoiceVexProfile.overall_score.desc()).all()
+    return render_template('admin/vex_voice_dashboard.html', profiles=profiles)
+
+
+@voice_bp.route('/admin/vex-voz/profile/<int:user_id>')
+@supervisor_or_above
+def vex_voice_profile(user_id):
+    target = User.query.get_or_404(user_id)
+    if not current_user.is_superadmin and current_user.operativa_id and \
+            target.operativa_id != current_user.operativa_id:
+        flash('No tenes permiso sobre ese usuario.', 'error')
+        return redirect(url_for('voice.vex_voice_dashboard'))
+
+    # Recalculo al vuelo (mismo criterio que el perfil VEX de chat): asi el
+    # detalle siempre refleja las ultimas llamadas y trae los volatiles
+    # (_cap_reasons, _active_mode, pilares) para el render.
+    profile = voice_scoring.calculate_voice_vex_profile(user_id)
+    sessions = (VoiceSession.query.filter_by(user_id=user_id)
+                .options(joinedload(VoiceSession.scenario))
+                .order_by(VoiceSession.created_at.desc()).limit(20).all())
+    return render_template('admin/vex_voice_profile.html',
+                           target=target, profile=profile, sessions=sessions,
+                           min_sessions=voice_scoring.MIN_SESSIONS_FOR_PROFILE)
+
+
+@voice_bp.route('/admin/voz/guia')
+@supervisor_or_above
+def voice_guide():
+    """Guia: como configurar casos de voz y como se mide. Documentacion
+    estatica para coordinadores y supervisores."""
+    return render_template('admin/voice_guide.html',
+                           voices=realtime_client.VOICES,
+                           max_call_minutes=MAX_CALL_SECONDS // 60,
+                           daily_limit=VOICE_DAILY_LIMIT)

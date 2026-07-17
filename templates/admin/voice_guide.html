@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Guía: Entrenamiento por Voz{% endblock %}
+
+{% block extra_head %}
+<style>
+.vg-container { max-width: 900px; margin: 0 auto; padding: 16px; }
+.vg-new-tag {
+    background: linear-gradient(135deg, var(--rojo-vex), var(--naranja-vex));
+    color: var(--blanco); font-size: 11px; font-weight: 800; padding: 4px 12px;
+    border-radius: 12px; letter-spacing: .5px; vertical-align: middle;
+    box-shadow: 0 2px 6px rgba(230,51,42,.3); animation: vgNewPulse 2s ease-in-out infinite;
+    display: inline-block;
+}
+@keyframes vgNewPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+.vg-card { background: var(--blanco); border-radius: 12px; box-shadow: var(--sombra-sm); padding: 22px; margin-top: 16px; }
+.vg-card h2 { color: var(--purpura-vex); font-size: 18px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.vg-card h3 { color: var(--rojo-vex); font-size: 14px; margin: 16px 0 6px; }
+.vg-card p, .vg-card li { font-size: 14px; line-height: 1.7; color: var(--gris-texto); }
+.vg-card ul, .vg-card ol { padding-left: 22px; margin: 6px 0; }
+.vg-step { display: flex; gap: 12px; margin-bottom: 14px; }
+.vg-step-num {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--cyan-vex); color: var(--blanco); font-weight: 700;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.vg-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+.vg-table th, .vg-table td { padding: 8px 10px; font-size: 13px; text-align: left; border-bottom: 1px solid var(--gris-claro); }
+.vg-table th { background: var(--gris-fondo); }
+.vg-tip { background: #e0f7f8; border-left: 4px solid var(--cyan-vex); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin: 10px 0; }
+.vg-warn { background: #fff4e5; border-left: 4px solid var(--naranja-vex); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin: 10px 0; }
+.vg-voice-chip { display: inline-block; background: var(--gris-fondo); border-radius: 14px; padding: 4px 12px; font-size: 12px; margin: 3px 4px 3px 0; }
+.vg-voice-chip strong { color: var(--purpura-vex); }
+.vg-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vg-container">
+    <h1>🎙 Entrenamiento por Voz <span class="vg-new-tag">✨ NUEVO</span></h1>
+    <p style="color:var(--gris-meta);font-size:14px;max-width:760px;">
+        Guía para coordinadores y supervisores: cómo configurar casos para el entrenamiento
+        por voz y cómo se mide el desempeño de los asesores en las llamadas simuladas.
+    </p>
+
+    <!-- ============ CONFIGURACION ============ -->
+    <div class="vg-card">
+        <h2>⚙️ Cómo se configuran los casos de voz</h2>
+        <p>
+            No hay que crear nada aparte: los escenarios de voz son <strong>los mismos escenarios
+            de siempre</strong> (menú <em>Entrenamiento → Crear Escenarios</em>). Cada escenario que
+            creás sirve automáticamente para los dos canales: el asesor puede entrenarlo por chat
+            o atenderlo como una llamada.
+        </p>
+
+        <div class="vg-step" style="margin-top:14px;">
+            <div class="vg-step-num">1</div>
+            <div>
+                <strong>Escribí la persona del cliente (por caso), pensada para ser HABLADA.</strong>
+                <p>La IA interpreta esa persona con voz en una llamada. Incluí: nombre, motivo del
+                contacto, estado emocional (enojada, confundida, apurada) y los datos que puede
+                dar si se los piden. Cuanto más clara la emoción, más realista suena la llamada.</p>
+            </div>
+        </div>
+        <div class="vg-step">
+            <div class="vg-step-num">2</div>
+            <div>
+                <strong>Definí la respuesta esperada.</strong>
+                <p>Igual que en chat: el procedimiento que el asesor debería cubrir. La evaluación
+                es permisiva — no exige texto literal, sino que se aborde la esencia del caso.</p>
+            </div>
+        </div>
+        <div class="vg-step">
+            <div class="vg-step-num">3</div>
+            <div>
+                <strong>Elegí la voz del cliente 🎙.</strong>
+                <p>En el formulario del escenario está el selector <em>"Voz del cliente"</em>. Esa es
+                la voz con la que la IA habla en TODAS las llamadas de ese escenario. Podés usar
+                voces distintas por escenario (ej.: un reclamo con voz masculina firme, una consulta
+                con voz femenina cálida). Disponibles:</p>
+                <div>
+                    {% for v in voices %}
+                    <span class="vg-voice-chip"><strong>{{ v.label }}</strong> — {{ v.desc }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="vg-step">
+            <div class="vg-step-num">4</div>
+            <div>
+                <strong>Elegí el modo de evaluación.</strong>
+                <p>Flexible / Standard / Exigente funcionan igual que en chat y aplican a los dos
+                canales. El modo queda "congelado" al iniciar cada llamada.</p>
+            </div>
+        </div>
+
+        <div class="vg-warn">
+            ⚠️ <strong>Las imágenes de casos no aplican en voz.</strong> Si tu caso depende de que el
+            cliente "envíe una captura", en la llamada la IA lo describirá verbalmente. Para casos
+            centrados en evidencia visual, recomendá el canal chat.
+        </div>
+        <div class="vg-tip">
+            💡 <strong>Consejo:</strong> probá vos mismo la llamada después de crear el escenario. En
+            2 minutos escuchás cómo suena la persona y ajustás el texto si hace falta.
+        </div>
+    </div>
+
+    <!-- ============ COMO ENTRENA EL ASESOR ============ -->
+    <div class="vg-card">
+        <h2>📞 Cómo entrena el asesor</h2>
+        <ol>
+            <li>Entra a <em>Entrenamiento → 🎙 Entrenamiento por Voz</em> y elige un escenario.</li>
+            <li>Pulsa <strong>"Atender llamada"</strong> y autoriza el micrófono (se recomiendan auriculares).</li>
+            <li>La IA llama como cliente y el asesor atiende <strong>hablando</strong>, como en una llamada real.
+                Puede interrumpir y ser interrumpido; la transcripción se ve en vivo.</li>
+            <li>Corta con <strong>"Finalizar llamada"</strong> y recibe su evaluación al instante.</li>
+        </ol>
+        <p style="color:var(--gris-meta);font-size:13px;">
+            Límites: máximo <strong>{{ max_call_minutes }} minutos</strong> por llamada (aviso a los
+            {{ max_call_minutes - 2 }}), <strong>una</strong> llamada a la vez y
+            <strong>{{ daily_limit }} llamadas por día</strong> por asesor. Si se corta la conexión
+            o se recarga la página, puede <strong>reconectar y continuar</strong> donde quedó.
+        </p>
+    </div>
+
+    <!-- ============ COMO SE MIDE ============ -->
+    <div class="vg-card">
+        <h2>📊 Cómo se mide</h2>
+
+        <h3>1. Métricas automáticas de la llamada</h3>
+        <p>Se calculan solas desde los tiempos y transcripciones, sin intervención de nadie:</p>
+        <div class="table-responsive">
+        <table class="vg-table">
+            <tr><th>Métrica</th><th>Qué mide</th><th>Equivalente en chat</th></tr>
+            <tr><td><strong>Latencia de respuesta</strong></td><td>Segundos entre que el cliente termina de hablar y el asesor responde. Hasta 2s es natural; más de 8s se siente como silencio incómodo.</td><td>ART (tiempo de respuesta)</td></tr>
+            <tr><td><strong>Ritmo de habla</strong></td><td>Palabras por minuto habladas. Lo conversacional en español: 110–160.</td><td>WPM de tipeo</td></tr>
+            <tr><td><strong>Muletillas</strong></td><td>"Este...", "eh", "o sea", "¿viste?" — contadas por la IA sobre la transcripción.</td><td>Errores de ortografía</td></tr>
+            <tr><td><strong>Proporción de habla</strong></td><td>% del tiempo hablado por el asesor vs el cliente.</td><td>—</td></tr>
+            <tr><td><strong>Interrupciones</strong></td><td>Veces que el asesor pisó al cliente mientras hablaba.</td><td>—</td></tr>
+            <tr><td><strong>Silencios largos</strong></td><td>Pausas de más de 5 segundos.</td><td>—</td></tr>
+        </table>
+        </div>
+
+        <h3>2. Evaluación de la IA (analista CX)</h3>
+        <p>Al finalizar, la IA evalúa la transcripción con la <strong>misma rúbrica del chat</strong>:</p>
+        <ul>
+            <li><strong>NPS 0-10</strong> desde la perspectiva del cliente: ¿se sintió escuchado y atendido?</li>
+            <li><strong>Resolución correcta</strong> (sí/no) contra la respuesta esperada del caso.</li>
+            <li><strong>Empatía — 4 pilares</strong>: usó el nombre, comprendió el problema, tono cálido, enfocado en resolver.</li>
+            <li><strong>Calidad de voz — 4 pilares propios del canal</strong>: claridad, tono profesional, ritmo adecuado y escucha activa.</li>
+            <li><strong>Feedback constructivo</strong> con fortalezas y áreas de mejora.</li>
+        </ul>
+        <p style="font-size:13px;color:var(--gris-meta);">
+            La ortografía y puntuación de la transcripción NO se evalúan (las pone el transcriptor
+            automático, no el asesor). Llamadas sin participación mínima (menos de 2 intervenciones
+            o menos de 15 palabras) se califican automáticamente con NPS 1, sin gastar evaluación.
+        </p>
+
+        <h3>3. VEX Profile de Voz (índice predictivo)</h3>
+        <p>
+            Con <strong>2 o más llamadas completadas</strong>, cada asesor genera su
+            <strong>índice predictivo de voz</strong> — paralelo e independiente del VEX de chat,
+            con la misma metodología (6 dimensiones Sten 1-10, pesos del modo activo y límites de
+            seguridad). Se ve en <em>Vex Predictive → 🎙 Resultados de Voz</em>.
+        </p>
+        <div class="table-responsive">
+        <table class="vg-table">
+            <tr><th>Dimensión</th><th>Qué la alimenta en voz</th></tr>
+            <tr><td><strong>Comunicación</strong></td><td>Pocas muletillas + claridad al hablar + NPS</td></tr>
+            <tr><td><strong>Empatía</strong></td><td>Los 4 pilares jerárquicos + NPS (peso según el modo)</td></tr>
+            <tr><td><strong>Resolución</strong></td><td>Tasa de resoluciones correctas + NPS</td></tr>
+            <tr><td><strong>Velocidad</strong></td><td>Latencia de respuesta hablada (70%) + ritmo conversacional (30%)</td></tr>
+            <tr><td><strong>Adaptabilidad</strong></td><td>Tendencia del NPS entre llamadas + variedad de escenarios superados</td></tr>
+            <tr><td><strong>Cumplimiento</strong></td><td>Resoluciones correctas + pocas muletillas + escucha activa</td></tr>
+        </table>
+        </div>
+        <p style="font-size:13px;color:var(--gris-meta);">
+            Límites de seguridad (iguales al chat): más de 40% de llamadas abandonadas/vacías, menos
+            de 50% de resoluciones correctas o NPS promedio menor a 4 bajan la categoría a
+            "Desarrollo" y la recomendación a "Con observaciones", sin importar el puntaje matemático.
+        </p>
+    </div>
+
+    <div class="vg-links">
+        <a href="{{ url_for('training.admin_scenarios') }}" class="btn btn-primary">Crear Escenarios</a>
+        <a href="{{ url_for('voice.index') }}" class="btn btn-secondary">Probar una llamada</a>
+        <a href="{{ url_for('voice.admin_dashboard') }}" class="btn btn-secondary">Dashboard de Voz</a>
+        <a href="{{ url_for('voice.vex_voice_dashboard') }}" class="btn btn-secondary">VEX Voz</a>
+    </div>
+</div>
+{% endblock %}

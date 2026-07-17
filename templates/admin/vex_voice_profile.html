@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}VEX Voz - {{ target.name }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice_training.css') }}">
+<style>
+.vvp-grid { display:grid; grid-template-columns:1fr; gap:14px; margin-top:16px; }
+@media (min-width:768px) { .vvp-grid { grid-template-columns:1fr 1fr; } }
+.vvp-card { background:var(--blanco); border-radius:10px; box-shadow:var(--sombra-sm); padding:18px; }
+.vvp-card h3 { margin:0 0 12px; color:var(--purpura-vex); font-size:15px; }
+.vvp-dim { margin-bottom:10px; }
+.vvp-dim .vvp-dim-head { display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; }
+.vvp-bar { background:var(--gris-claro); border-radius:6px; height:10px; overflow:hidden; }
+.vvp-bar > div { height:100%; background:linear-gradient(90deg, var(--cyan-vex), var(--purpura-vex)); border-radius:6px; }
+.vvp-big { text-align:center; }
+.vvp-big .n { font-size:42px; font-weight:700; color:var(--purpura-vex); }
+.vvp-big .l { font-size:12px; color:var(--gris-meta); }
+.vvp-cap { background:#fff3cd; border-left:4px solid var(--naranja-vex); border-radius:8px; padding:10px 14px; margin-bottom:8px; font-size:13px; }
+.vvx-cat { padding:3px 12px; border-radius:12px; font-size:11px; font-weight:700; text-transform:uppercase; }
+.vvx-cat-elite { background:#d4edda; color:#155724; }
+.vvx-cat-alto { background:#cce5ff; color:#004085; }
+.vvx-cat-desarrollo { background:#fff3cd; color:#856404; }
+.vvx-cat-refuerzo { background:#f8d7da; color:#721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>🎙 VEX Voz — {{ target.name }}</h1>
+    <div style="font-size:13px;color:var(--gris-meta);">
+        {{ target.email }} · Rol: {{ target.role|capitalize }}
+        {% if target.operativa %} · Operativa: {{ target.operativa.name }}{% endif %}
+    </div>
+    <div class="admin-nav" style="margin-top:10px;">
+        <a href="{{ url_for('voice.vex_voice_dashboard') }}" class="btn btn-secondary">← VEX Voz</a>
+    </div>
+
+    {% if not profile %}
+    <p style="color:var(--gris-meta);padding:24px;background:var(--blanco);border-radius:10px;margin-top:16px;">
+        Este usuario todavía no tiene perfil de voz: se necesitan al menos {{ min_sessions }}
+        llamadas completadas. Lleva {{ sessions|selectattr('status','equalto','completed')|list|length }}.
+    </p>
+    {% else %}
+    <div class="vvp-grid">
+        <div class="vvp-card vvp-big">
+            <div class="n">{{ profile.predictive_index }}%</div>
+            <div class="l">Índice Predictivo de Voz</div>
+            <div style="margin-top:10px;">
+                <span class="vvx-cat vvx-cat-{{ profile.profile_category }}">{{ profile.profile_category|capitalize }}</span>
+            </div>
+            <div style="margin-top:8px;font-size:13px;">
+                Recomendación: <strong>{{ {'recomendado':'Recomendado','observaciones':'Con observaciones','no_recomendado':'No recomendado'}.get(profile.recommendation, profile.recommendation) }}</strong>
+            </div>
+            <div style="margin-top:6px;font-size:12px;color:var(--gris-meta);">
+                Overall {{ profile.overall_score }}/10 · {{ profile.sessions_analyzed }} llamadas analizadas
+                · Modo: {{ profile._active_mode|capitalize if profile._active_mode else '-' }}
+            </div>
+        </div>
+
+        <div class="vvp-card">
+            <h3>Dimensiones (Sten 1-10)</h3>
+            {% for label, val in [('Comunicación', profile.communication_score), ('Empatía', profile.empathy_score),
+                                  ('Resolución', profile.resolution_score), ('Velocidad', profile.speed_score),
+                                  ('Adaptabilidad', profile.adaptability_score), ('Cumplimiento', profile.compliance_score)] %}
+            <div class="vvp-dim">
+                <div class="vvp-dim-head"><span>{{ label }}</span><span><strong>{{ val|int }}</strong>/10</span></div>
+                <div class="vvp-bar"><div style="width:{{ (val * 10)|int }}%"></div></div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="vvp-card">
+            <h3>Métricas del canal voz</h3>
+            <div class="voice-stat-row"><span>Latencia media de respuesta</span><span>{{ profile.avg_response_latency }}s</span></div>
+            <div class="voice-stat-row"><span>Ritmo de habla promedio</span><span>{{ profile.avg_speech_rate }} palabras/min</span></div>
+            <div class="voice-stat-row"><span>Muletillas por 100 palabras</span><span>{{ profile.filler_rate }}</span></div>
+            <div class="voice-stat-row"><span>Tasa de abandono</span><span>{{ (profile.abandonment_rate * 100)|round|int }}%</span></div>
+            {% if profile._voice_pillars %}
+            <div style="margin-top:10px;">
+                {% for key, label in [('claridad','Claridad'), ('tono','Tono'), ('ritmo','Ritmo'), ('escucha','Escucha activa')] %}
+                <span class="voice-pill {% if profile._voice_pillars[key] >= 0.6 %}voice-pill-ok{% else %}voice-pill-no{% endif %}">
+                    {{ label }}: {{ (profile._voice_pillars[key] * 100)|round|int }}%
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="vvp-card">
+            <h3>Alertas del perfil</h3>
+            {% if profile._cap_reasons %}
+                {% for cap in profile._cap_reasons %}
+                <div class="vvp-cap"><strong>{{ cap.detail }}</strong><br><span style="color:var(--gris-meta);">{{ cap.effect }}</span></div>
+                {% endfor %}
+            {% else %}
+                <p style="font-size:13px;color:var(--gris-meta);">Sin alertas: la muestra es confiable y no se aplicaron límites.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="vvp-card" style="margin-top:14px;">
+        <h3>Últimas llamadas</h3>
+        {% if not sessions %}
+        <p style="font-size:13px;color:var(--gris-meta);">Sin llamadas registradas.</p>
+        {% else %}
+        <div class="table-responsive">
+        <table class="admin-table">
+            <thead><tr><th>Fecha</th><th>Escenario</th><th>Estado</th><th>NPS</th><th>Correcta</th><th>Latencia</th><th>Duración</th></tr></thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td>{{ s.created_at.strftime('%d/%m %H:%M') if s.created_at else '-' }}</td>
+                    <td>{{ s.scenario.title if s.scenario else '-' }}</td>
+                    <td><span class="voice-badge voice-badge-{{ s.status }}">{{ {'completed':'Completada','abandoned':'Abandonada','active':'En curso','error':'Error'}.get(s.status, s.status) }}</span></td>
+                    <td>{{ s.nps_score if s.nps_score is not none else '-' }}</td>
+                    <td>{% if s.status == 'completed' %}{{ '✔' if s.response_correct else '✘' }}{% else %}-{% endif %}</td>
+                    <td>{{ s.avg_response_latency or '-' }}{% if s.avg_response_latency %}s{% endif %}</td>
+                    <td>{{ (s.duration_seconds or 0) // 60 }}m {{ (s.duration_seconds or 0) % 60 }}s</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -67,6 +67,9 @@
                     <div class="nav-dropdown-menu">
                         <a href="{{ url_for('training.index') }}">Mis Entrenamientos</a>
                         <a href="{{ url_for('voice.index') }}">&#127908; Entrenamiento por Voz</a>
+                        {% if current_user.is_superadmin or current_user.role in ('coordinador', 'supervisor') %}
+                        <a href="{{ url_for('voice.voice_guide') }}">Guia de Voz<span class="nav-new-tag">&#10024; NUEVO</span></a>
+                        {% endif %}
                         {% if current_user.is_superadmin or current_user.role == 'coordinador' %}
                         <a href="{{ url_for('training.admin_scenarios') }}">Crear Escenarios</a>
                         <a href="{{ url_for('training.admin_dashboard') }}">CX Dashboard</a>
@@ -81,6 +84,7 @@
                     <button class="nav-dropdown-btn">Vex Predictive &#9662;</button>
                     <div class="nav-dropdown-menu">
                         <a href="{{ url_for('training.vex_dashboard') }}">Resultados</a>
+                        <a href="{{ url_for('voice.vex_voice_dashboard') }}">&#127908; Resultados de Voz</a>
                         <a href="{{ url_for('training.vex_methodology') }}">Metodologia</a>
                         <a href="{{ url_for('training.vex_modos') }}">Modos de Scoring</a>
                     </div>

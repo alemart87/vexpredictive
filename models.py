@@ -413,3 +413,35 @@ class VoiceTurn(db.Model):
     ended_at_ms = db.Column(db.BigInteger, default=0)
     word_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class VoiceVexProfile(db.Model):
+    """Indice predictivo del canal VOZ. Paralelo a VexProfile (chat) y con la
+    misma metodologia (6 dimensiones Sten, pesos por modo, hard caps), pero
+    calculado SOLO desde voice_sessions para no mezclar canales."""
+    __tablename__ = 'voice_vex_profiles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
+
+    communication_score = db.Column(db.Float, default=0)
+    empathy_score = db.Column(db.Float, default=0)
+    resolution_score = db.Column(db.Float, default=0)
+    speed_score = db.Column(db.Float, default=0)
+    adaptability_score = db.Column(db.Float, default=0)
+    compliance_score = db.Column(db.Float, default=0)
+    overall_score = db.Column(db.Float, default=0)          # Sten 1-10
+    predictive_index = db.Column(db.Float, default=0)       # 0-100 %
+    profile_category = db.Column(db.String(30))             # elite/alto/desarrollo/refuerzo
+    recommendation = db.Column(db.String(30))               # recomendado/observaciones/no_recomendado
+    sessions_analyzed = db.Column(db.Integer, default=0)
+    abandonment_rate = db.Column(db.Float, default=0)
+
+    # Extras propios del canal voz
+    avg_response_latency = db.Column(db.Float, default=0)   # seg
+    avg_speech_rate = db.Column(db.Float, default=0)        # palabras/min
+    filler_rate = db.Column(db.Float, default=0)            # muletillas por 100 palabras
+
+    last_updated = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref=db.backref('voice_vex_profile', uselist=False))
