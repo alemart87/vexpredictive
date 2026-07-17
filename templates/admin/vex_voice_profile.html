@@ -32,9 +32,8 @@
         {{ target.email }} · Rol: {{ target.role|capitalize }}
         {% if target.operativa %} · Operativa: {{ target.operativa.name }}{% endif %}
     </div>
-    <div class="admin-nav" style="margin-top:10px;">
-        <a href="{{ url_for('voice.vex_voice_dashboard') }}" class="btn btn-secondary">← VEX Voz</a>
-    </div>
+    {% set nav_area = 'vex' %}{% set nav_page = 'vex_voice' %}
+    {% include 'admin/_admin_nav.html' %}
 
     {% if not profile %}
     <p style="color:var(--gris-meta);padding:24px;background:var(--blanco);border-radius:10px;margin-top:16px;">

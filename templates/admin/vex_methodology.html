@@ -37,9 +37,13 @@
             <p style="color:#888;margin:4px 0 0">Documentación completa del sistema de evaluación predictiva</p>
         </div>
         <div>
-            <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">&larr; Dashboard</a>
             <button class="btn btn-primary" onclick="window.print()">Imprimir / PDF</button>
         </div>
+    </div>
+
+    <div class="no-print">
+        {% set nav_area = 'vex' %}{% set nav_page = 'methodology' %}
+        {% include 'admin/_admin_nav.html' %}
     </div>
 
     <!-- 0. Modos -->

@@ -155,10 +155,12 @@
         </div>
     </div>
 
+    {% set nav_area = 'vex' %}{% set nav_page = 'modes' %}
+    {% include 'admin/_admin_nav.html' %}
+
     <div class="modos-intro">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px">
             <h1>Modos de Scoring Vex Predictive</h1>
-            <a href="{{ url_for('training.vex_methodology') }}" class="btn btn-secondary">Metodología completa →</a>
         </div>
         <p>Cada escenario de entrenamiento usa uno de 3 modos. El modo define la severidad con la que se evalúa. Al iniciar un entrenamiento, el batch hereda el modo y queda fijo (snapshot).</p>
         <p style="margin-top:14px">

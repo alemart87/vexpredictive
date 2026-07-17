@@ -18,13 +18,8 @@
 <div class="admin-container">
     <h1>🎙 Dashboard de Entrenamiento por Voz</h1>
 
-    <div class="admin-nav">
-        <a href="{{ url_for('training.admin_dashboard') }}" class="btn btn-secondary">CX Entrenamiento</a>
-        <a href="{{ url_for('training.vex_dashboard') }}" class="btn btn-secondary">Vex Predictive</a>
-        <a href="{{ url_for('voice.admin_dashboard') }}" class="btn btn-primary">Voz</a>
-        <a href="{{ url_for('voice.vex_voice_dashboard') }}" class="btn btn-secondary">VEX Voz</a>
-        <a href="{{ url_for('voice.voice_guide') }}" class="btn btn-secondary">Guia de Voz</a>
-    </div>
+    {% set nav_area = 'voice' %}{% set nav_page = 'voice_dashboard' %}
+    {% include 'admin/_admin_nav.html' %}
 
     <div class="vd-stats">
         <div class="vd-stat"><div class="n">{{ stats.completed }}</div><div class="l">Llamadas completadas</div></div>
