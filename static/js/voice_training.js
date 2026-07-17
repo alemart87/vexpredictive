@@ -52,6 +52,8 @@
     var usage = { input_tokens: 0, output_tokens: 0 };
     var userSpeech = { start: 0, end: 0 };
     var clientSpeech = { start: 0 };
+    var pendingClient = null;   // transcript del cliente esperando el fin del AUDIO
+    var clientAudioEndedAt = 0;
     var timerInt = null, hbInt = null;
 
     function nowMs() {
@@ -91,9 +93,22 @@
         }).catch(function () { /* si falla un turno no cortamos la llamada */ });
     }
 
+    /* El transcript del cliente llega ANTES de que su audio termine de
+       reproducirse (se genera mas rapido de lo que se habla). Si lo
+       persistieramos ahi, la duracion del turno quedaria corta y la latencia
+       del asesor inflada. Por eso se bufferea y se postea cuando el AUDIO
+       termina (output_audio_buffer.stopped/cleared), con dos redes de
+       seguridad: si el asesor arranca a hablar, o al finalizar la llamada. */
+    function flushClientTurn(endMs) {
+        if (!pendingClient) return;
+        postTurn('client', pendingClient.text, pendingClient.start, endMs || nowMs());
+        pendingClient = null;
+    }
+
     function handleEvent(ev) {
         switch (ev.type) {
             case 'input_audio_buffer.speech_started':
+                flushClientTurn(nowMs());  // barge-in: el cliente quedo interrumpido
                 userSpeech.start = nowMs();
                 setStatus('speaking', 'Te esta escuchando...');
                 break;
@@ -112,10 +127,13 @@
 
             case 'output_audio_buffer.started':
                 clientSpeech.start = nowMs();
+                clientAudioEndedAt = 0;
                 setStatus('client', 'El cliente esta hablando...');
                 break;
             case 'output_audio_buffer.stopped':
             case 'output_audio_buffer.cleared':
+                clientAudioEndedAt = nowMs();
+                flushClientTurn(clientAudioEndedAt);
                 setStatus('listening', 'Tu turno — habla con naturalidad');
                 break;
 
@@ -123,7 +141,11 @@
                 var ct = (ev.transcript || '').trim();
                 if (ct) {
                     addLine('client', ct);
-                    postTurn('client', ct, clientSpeech.start || nowMs(), nowMs());
+                    pendingClient = { text: ct, start: clientSpeech.start || nowMs() };
+                    // Si el audio de esta respuesta ya termino, posteamos ya
+                    if (clientAudioEndedAt >= (clientSpeech.start || 0) && clientAudioEndedAt > 0) {
+                        flushClientTurn(clientAudioEndedAt);
+                    }
                 }
                 break;
 
@@ -152,13 +174,23 @@
             if (s >= WARN_SECONDS && els.warn) els.warn.style.display = 'block';
             if (s >= MAX_SECONDS) endCall('timeout');
         }, 1000);
+    }
+
+    function stopTimers() {
+        if (timerInt) { clearInterval(timerInt); timerInt = null; }
+    }
+
+    // Heartbeat desde que la pagina carga (aun sin atender): sin esto, el
+    // barrido de abandonadas del servidor mata la sesion mientras el usuario
+    // busca los auriculares o espera para reconectar.
+    function startHeartbeat() {
+        if (hbInt) return;
         hbInt = setInterval(function () {
             fetch('/api/voice/heartbeat/' + SESSION_ID, { method: 'POST' }).catch(function () {});
         }, 30000);
     }
 
-    function stopTimers() {
-        if (timerInt) { clearInterval(timerInt); timerInt = null; }
+    function stopHeartbeat() {
         if (hbInt) { clearInterval(hbInt); hbInt = null; }
     }
 
@@ -188,7 +220,10 @@
     }
 
     function onConnectionLost() {
-        if (ended || connecting) return;
+        if (ended) return;
+        // Tambien cubre fallos de ICE DURANTE el connect (post-SDP, pre-datachannel):
+        // sin resetear connecting aca, la UI quedaba colgada sin boton.
+        connecting = false;
         teardownConnection();
         showAnswerButton('🔁 Reconectar llamada', 'error',
             'Se corto la conexion. Podes reconectar y continuar donde quedaste.');
@@ -197,7 +232,10 @@
     function endCall(reason) {
         if (ended) return;
         ended = true;
+        flushClientTurn(nowMs());
+        var callMs = nowMs();
         teardownConnection();
+        stopHeartbeat();
         setStatus('ended', 'Finalizando y evaluando la llamada...');
         if (els.answerBtn) els.answerBtn.style.display = 'none';
         if (els.endBtn) {
@@ -208,13 +246,31 @@
         fetch('/api/voice/end/' + SESSION_ID, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usage: usage, reason: reason || 'user' })
+            body: JSON.stringify({ usage: usage, call_ms: callMs, reason: reason || 'user' })
         })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                window.location.href = data.redirect || '/voice-training';
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                if (!res.ok || res.data.error) {
+                    // La evaluacion fallo (p.ej. OpenAI caido): la sesion sigue
+                    // activa en el servidor, dejamos reintentar el cierre.
+                    ended = false;
+                    setStatus('error', res.data.error || 'No se pudo evaluar. Reintenta.');
+                    if (els.endBtn) {
+                        els.endBtn.disabled = false;
+                        els.endBtn.textContent = '🔁 Reintentar finalizar';
+                    }
+                    return;
+                }
+                window.location.href = res.data.redirect || '/voice-training';
             })
-            .catch(function () { window.location.href = '/voice-training'; });
+            .catch(function () {
+                ended = false;
+                setStatus('error', 'No se pudo finalizar. Verifica tu conexion y reintenta.');
+                if (els.endBtn) {
+                    els.endBtn.disabled = false;
+                    els.endBtn.textContent = '🔁 Reintentar finalizar';
+                }
+            });
     }
 
     function connect() {
@@ -284,11 +340,14 @@
             .catch(function (e) {
                 connecting = false;
                 teardownConnection();
-                var msg;
+                var msg = (e && e.message) || 'No se pudo conectar la llamada.';
                 if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')) {
                     msg = 'Necesitamos acceso al microfono. Habilitalo en el navegador y volve a intentar.';
-                } else {
-                    msg = (e && e.message) || 'No se pudo conectar la llamada.';
+                } else if (msg.indexOf('Sesion invalida') !== -1) {
+                    // La sesion ya no esta activa (expiro o se cerro en otro lado)
+                    setStatus('error', 'Esta sesion ya no esta disponible. Volviendo al inicio...');
+                    setTimeout(function () { window.location.href = '/voice-training'; }, 2000);
+                    return;
                 }
                 showAnswerButton('🔁 Reintentar', 'error', msg);
             });
@@ -301,4 +360,8 @@
         });
     }
     window.addEventListener('beforeunload', function () { teardownConnection(); });
+
+    // La sesion queda "viva" para el servidor desde que la pagina abre,
+    // aunque el usuario todavia no haya atendido.
+    startHeartbeat();
 })();

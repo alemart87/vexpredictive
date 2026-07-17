@@ -10,12 +10,14 @@ El audio viaja navegador<->OpenAI por WebRTC con un token efimero; Flask solo
 acuna el token, persiste transcripciones y evalua al cierre.
 """
 import json
+import os
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload
 
 from models import db, User, TrainingScenario, VoiceSession, VoiceTurn
-from decorators import coordinador_or_above
 from training import parse_cases, get_case, safe_elapsed, can_view_training
 from chat import call_openai
 from scoring_modes import get_effective_mode
@@ -26,17 +28,21 @@ voice_bp = Blueprint('voice', __name__)
 
 HEARTBEAT_STALE_MINUTES = 3
 MAX_CALL_SECONDS = realtime_client.MAX_CALL_SECONDS
+VOICE_DAILY_LIMIT = int(os.environ.get('VOICE_DAILY_LIMIT', '20'))
 
 
 def _sweep_abandoned(user_id=None):
-    """Marca abandoned las sesiones activas sin heartbeat reciente."""
+    """Marca abandoned las sesiones activas sin heartbeat reciente.
+    El frontend manda heartbeat desde que la pantalla de llamada carga
+    (aun sin atender), asi que solo caen sesiones con pestana cerrada."""
     cutoff = datetime.utcnow() - timedelta(minutes=HEARTBEAT_STALE_MINUTES)
-    q = VoiceSession.query.filter(VoiceSession.status == 'active')
+    q = VoiceSession.query.filter(
+        VoiceSession.status == 'active',
+        or_(VoiceSession.last_heartbeat < cutoff,
+            and_(VoiceSession.last_heartbeat.is_(None), VoiceSession.started_at < cutoff)))
     if user_id:
         q = q.filter(VoiceSession.user_id == user_id)
-    stale = [s for s in q.all()
-             if (s.last_heartbeat or s.started_at) and
-                (s.last_heartbeat or s.started_at).replace(tzinfo=None) < cutoff]
+    stale = q.all()
     for s in stale:
         s.status = 'abandoned'
         s.ended_at = datetime.utcnow()
@@ -47,6 +53,14 @@ def _sweep_abandoned(user_id=None):
 
 def _own_active_session():
     return VoiceSession.query.filter_by(user_id=current_user.id, status='active').first()
+
+
+def _feedback_dict(vs):
+    """ai_feedback (JSON string) -> dict, con fallback si esta corrupto."""
+    try:
+        return json.loads(vs.ai_feedback) if vs.ai_feedback else {}
+    except (json.JSONDecodeError, TypeError):
+        return {'feedback': vs.ai_feedback or ''}
 
 
 # ---------- Vistas de usuario ----------
@@ -90,22 +104,20 @@ def session_view(vs_id):
 @login_required
 def result_view(vs_id):
     vs = VoiceSession.query.get_or_404(vs_id)
-    if vs.user_id != current_user.id and not current_user.can_manage_users:
-        flash('No tenes acceso a esa sesion.', 'error')
-        return redirect(url_for('voice.index'))
-    feedback = {}
-    try:
-        feedback = json.loads(vs.ai_feedback) if vs.ai_feedback else {}
-    except (json.JSONDecodeError, TypeError):
-        feedback = {'feedback': vs.ai_feedback or ''}
-    return render_template('voice/result.html', vs=vs, feedback=feedback,
+    if vs.user_id != current_user.id:
+        # Un coordinador solo ve resultados de SU operativa (mismo criterio
+        # que admin_session_detail); sin esto se filtran transcripts entre tenants
+        allowed = current_user.is_superadmin or (
+            current_user.can_manage_users and vs.user is not None and
+            vs.user.operativa_id == current_user.operativa_id)
+        if not allowed:
+            flash('No tenes acceso a esa sesion.', 'error')
+            return redirect(url_for('voice.index'))
+    return render_template('voice/result.html', vs=vs, feedback=_feedback_dict(vs),
                            turns=vs.turns)
 
 
 # ---------- API de sesion ----------
-
-VOICE_DAILY_LIMIT = int(__import__('os').environ.get('VOICE_DAILY_LIMIT', '20'))
-
 
 @voice_bp.route('/api/voice/session/start/<int:scenario_id>', methods=['POST'])
 @login_required
@@ -142,7 +154,7 @@ def api_start(scenario_id):
         scenario_id=scenario.id,
         case_index=case_idx,
         scoring_mode=scenario.scoring_mode,
-        voice_name=realtime_client.valid_voice(scenario.voice_name or realtime_client.DEFAULT_VOICE),
+        voice_name=realtime_client.valid_voice(scenario.voice_name),
         status='active',
         started_at=datetime.utcnow(),
         last_heartbeat=datetime.utcnow(),
@@ -254,9 +266,16 @@ def api_end(vs_id):
     data = request.get_json(silent=True) or {}
 
     vs.ended_at = datetime.utcnow()
-    vs.duration_seconds = min(int(safe_elapsed(vs.started_at)), MAX_CALL_SECONDS * 2)
-
     turns = VoiceTurn.query.filter_by(session_id=vs.id).order_by(VoiceTurn.started_at_ms).all()
+
+    # Duracion = tiempo de llamada REAL (reloj del cliente o ultimo turno),
+    # no el reloj de pared desde que se creo la sesion: el tiempo esperando
+    # en "Atender" o entre reconexiones no es llamada ni consume audio.
+    wall_seconds = int(safe_elapsed(vs.started_at))
+    call_seconds = int((data.get('call_ms') or 0) / 1000)
+    if not call_seconds and turns:
+        call_seconds = int(max((t.ended_at_ms or 0) for t in turns) / 1000)
+    vs.duration_seconds = max(0, min(call_seconds or wall_seconds, wall_seconds, MAX_CALL_SECONDS * 2))
     metrics = voice_scoring.compute_conversation_metrics(turns)
     for field in ('total_turns', 'total_words_user', 'talk_ratio', 'avg_response_latency',
                   'speech_rate_wpm', 'interruptions', 'long_silences'):
@@ -284,12 +303,25 @@ def api_end(vs_id):
             vs.scenario, case, turns, metrics,
             eff_cfg.get('label', 'Standard'), eff_cfg.get('ai_hint', ''),
             vs.duration_seconds)
-        raw, eval_tokens = call_openai([
+        eval_messages = [
             {'role': 'system', 'content': voice_scoring.EVAL_SYSTEM_PROMPT},
             {'role': 'user', 'content': prompt},
-        ])
-        vs.tokens_used += eval_tokens
-        result = voice_scoring.parse_eval_response(raw)
+        ]
+        # Hasta 2 intentos; si la evaluacion no llega (OpenAI caido, JSON roto)
+        # NO cerramos la sesion con una nota inventada: queda activa y el
+        # frontend puede reintentar el cierre.
+        result = None
+        for _attempt in range(2):
+            raw, eval_tokens = call_openai(eval_messages)
+            vs.tokens_used += eval_tokens
+            parsed = voice_scoring.parse_eval_response(raw)
+            if not parsed.pop('_parse_failed', False):
+                result = parsed
+                break
+        if result is None:
+            db.session.rollback()
+            return jsonify({'error': 'No se pudo evaluar la llamada en este momento. '
+                                     'Reintenta finalizar en unos segundos.'}), 502
 
     vs.nps_score = result['nps_score']
     vs.response_correct = result['response_correct']
@@ -307,10 +339,12 @@ def api_end(vs_id):
 @can_view_training
 def admin_dashboard():
     _sweep_abandoned()
-    q = VoiceSession.query
+    # joinedload evita el N+1 del template (s.user.name / s.scenario.title)
+    q = (VoiceSession.query
+         .options(joinedload(VoiceSession.user), joinedload(VoiceSession.scenario)))
     if not current_user.is_superadmin and current_user.operativa_id:
-        op_user_ids = [u.id for u in User.query.filter_by(operativa_id=current_user.operativa_id).all()]
-        q = q.filter(VoiceSession.user_id.in_(op_user_ids))
+        q = q.join(User, VoiceSession.user_id == User.id) \
+             .filter(User.operativa_id == current_user.operativa_id)
 
     sessions = q.order_by(VoiceSession.created_at.desc()).limit(50).all()
     completed = [s for s in sessions if s.status == 'completed']
@@ -338,11 +372,7 @@ def admin_session_detail(vs_id):
     if not current_user.is_superadmin and current_user.operativa_id:
         if not vs.user or vs.user.operativa_id != current_user.operativa_id:
             return jsonify({'error': 'Sin permiso sobre esta sesion.'}), 403
-    feedback = {}
-    try:
-        feedback = json.loads(vs.ai_feedback) if vs.ai_feedback else {}
-    except (json.JSONDecodeError, TypeError):
-        feedback = {'feedback': vs.ai_feedback or ''}
+    feedback = _feedback_dict(vs)
     return jsonify({
         'id': vs.id,
         'user': vs.user.name if vs.user else '-',

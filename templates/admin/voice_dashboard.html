@@ -63,26 +63,50 @@
 
 {% block extra_scripts %}
 <script>
+// Los transcripts y nombres vienen de datos escritos por usuarios: SIEMPRE
+// construir con textContent (nunca concatenar en innerHTML) para evitar XSS.
 function vdShowDetail(id) {
     fetch('/admin/voice/session/' + id + '/detail')
         .then(function (r) { return r.json(); })
         .then(function (d) {
             if (d.error) { alert(d.error); return; }
             var fb = d.feedback || {};
-            var html = '<h3>Llamada #' + d.id + ' — ' + d.user + ' · ' + d.scenario + '</h3>' +
-                '<p style="font-size:13px;color:#888">Voz: ' + (d.voice || '-') + ' · NPS: ' + (d.nps_score ?? '-') +
-                ' · Correcta: ' + (d.response_correct ? 'Sí' : 'No') + ' · Muletillas: ' + (d.filler_words ?? 0) +
-                ' · Costo est.: $' + (d.estimated_cost_usd || 0).toFixed(4) + '</p>' +
-                '<p style="font-size:14px">' + (fb.feedback || '') + '</p>';
-            html += '<div style="max-height:300px;overflow-y:auto;background:#f9f9f9;border-radius:8px;padding:12px;margin-top:8px">';
-            (d.turns || []).forEach(function (t) {
-                html += '<div style="margin-bottom:8px;font-size:13px"><strong style="color:' +
-                    (t.role === 'user' ? '#009BA8' : '#E6332A') + '">' +
-                    (t.role === 'user' ? 'ASESOR' : 'CLIENTE') + ':</strong> ' + t.transcript + '</div>';
-            });
-            html += '</div>';
             var box = document.getElementById('vdDetail');
-            box.innerHTML = html;
+            box.textContent = '';
+
+            var h = document.createElement('h3');
+            h.textContent = 'Llamada #' + d.id + ' — ' + (d.user || '-') + ' · ' + (d.scenario || '-');
+            box.appendChild(h);
+
+            var meta = document.createElement('p');
+            meta.style.cssText = 'font-size:13px;color:var(--gris-meta)';
+            meta.textContent = 'Voz: ' + (d.voice || '-') + ' · NPS: ' + (d.nps_score ?? '-') +
+                ' · Correcta: ' + (d.response_correct ? 'Sí' : 'No') +
+                ' · Muletillas: ' + (d.filler_words ?? 0) +
+                ' · Costo est.: $' + (d.estimated_cost_usd || 0).toFixed(4);
+            box.appendChild(meta);
+
+            var fbP = document.createElement('p');
+            fbP.style.fontSize = '14px';
+            fbP.textContent = fb.feedback || '';
+            box.appendChild(fbP);
+
+            var list = document.createElement('div');
+            list.className = 'voice-transcript';
+            list.style.maxHeight = '300px';
+            (d.turns || []).forEach(function (t) {
+                var line = document.createElement('div');
+                line.className = 'voice-line voice-line-' + (t.role === 'user' ? 'user' : 'client');
+                var who = document.createElement('span');
+                who.className = 'voice-line-who';
+                who.textContent = t.role === 'user' ? 'ASESOR' : 'CLIENTE';
+                var body = document.createElement('span');
+                body.textContent = t.transcript || '';
+                line.appendChild(who);
+                line.appendChild(body);
+                list.appendChild(line);
+            });
+            box.appendChild(list);
             box.style.display = 'block';
             box.scrollIntoView({ behavior: 'smooth' });
         });

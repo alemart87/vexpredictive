@@ -239,7 +239,9 @@ def parse_eval_response(raw):
         }
     except (json.JSONDecodeError, ValueError, TypeError) as e:
         print(f'[VOICE] Eval parse error: {e}', flush=True)
+        # _parse_failed le indica al caller que NO persista esto como nota real
         return {
+            '_parse_failed': True,
             'nps_score': 5,
             'response_correct': False,
             'filler_words': 0,

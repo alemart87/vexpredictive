@@ -150,6 +150,17 @@ def enforce_password_change():
     exempt = {'change_password', 'logout', 'login', 'static', 'serve_image'}
     if request.endpoint is None or request.endpoint in exempt:
         return
+    path = request.path
+    # El tracking (CLAUDE.md: toda pagina lo incluye) y el cierre de una
+    # llamada de voz EN CURSO siguen funcionando; iniciar llamadas nuevas no.
+    if path.startswith('/api/track/'):
+        return
+    if path.startswith('/api/voice/') and not path.startswith('/api/voice/session/start'):
+        return
+    if path.startswith('/api/'):
+        # Los fetch JSON reciben un 401 explicito en vez de un 302 a HTML
+        return jsonify({'error': 'Debes establecer una nueva contrasena para continuar.',
+                        'redirect': url_for('change_password')}), 401
     return redirect(url_for('change_password'))
 
 
