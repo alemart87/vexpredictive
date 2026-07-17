@@ -183,6 +183,11 @@ def debug_check():
 
 @app.route('/imagenes/<path:filename>')
 def serve_image(filename):
+    # Las grabaciones de voz viven en un subdirectorio de UPLOAD_DIR pero
+    # requieren autenticacion: solo se sirven por /api/voice/recording/<id>.
+    if filename.startswith('voice_recordings/'):
+        from flask import abort
+        abort(404)
     return send_from_directory(app.config['UPLOAD_DIR'], filename)
 
 

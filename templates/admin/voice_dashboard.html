@@ -88,6 +88,15 @@ function vdShowDetail(id) {
             fbP.textContent = fb.feedback || '';
             box.appendChild(fbP);
 
+            if (d.has_recording) {
+                var player = document.createElement('audio');
+                player.controls = true;
+                player.preload = 'none';
+                player.style.width = '100%';
+                player.src = '/api/voice/recording/' + d.id;
+                box.appendChild(player);
+            }
+
             var list = document.createElement('div');
             list.className = 'voice-transcript';
             list.style.maxHeight = '300px';

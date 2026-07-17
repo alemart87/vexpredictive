@@ -56,6 +56,61 @@
     var clientAudioEndedAt = 0;
     var timerInt = null, hbInt = null;
 
+    /* ---- Grabacion de la llamada ----
+       Mezclamos el microfono y el audio remoto del cliente en un solo
+       stream (Web Audio) y lo grabamos con MediaRecorder. El AudioContext
+       vive durante TODA la sesion (sobrevive reconexiones: cada conexion
+       nueva vuelve a enchufar sus fuentes al mismo destino). Al finalizar
+       se sube el archivo al servidor. Si el navegador no soporta grabar,
+       la llamada funciona igual, solo que sin audio guardado. */
+    var rec = { ctx: null, dest: null, recorder: null, chunks: [], mime: '', uploaded: false };
+
+    function recEnsure() {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC || !window.MediaRecorder || rec.recorder) return;
+        try {
+            rec.ctx = new AC();
+            rec.dest = rec.ctx.createMediaStreamDestination();
+            if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                rec.mime = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) {
+                rec.mime = 'audio/mp4';  // Safari
+            }
+            rec.recorder = rec.mime ? new MediaRecorder(rec.dest.stream, { mimeType: rec.mime })
+                                    : new MediaRecorder(rec.dest.stream);
+            rec.recorder.ondataavailable = function (e) {
+                if (e.data && e.data.size) rec.chunks.push(e.data);
+            };
+            rec.recorder.start(1000);
+        } catch (e) {
+            rec.recorder = null;
+        }
+    }
+
+    function recAttach(stream) {
+        if (!rec.ctx || !rec.dest || !stream) return;
+        try { rec.ctx.createMediaStreamSource(stream).connect(rec.dest); } catch (e) {}
+    }
+
+    function recStopAndUpload() {
+        if (!rec.recorder || rec.uploaded) return Promise.resolve();
+        rec.uploaded = true;
+        return new Promise(function (resolve) {
+            var finish = function () {
+                var blob = new Blob(rec.chunks, { type: rec.mime || 'audio/webm' });
+                if (!blob.size) return resolve();
+                var fd = new FormData();
+                fd.append('audio', blob, 'llamada.' + (rec.mime.indexOf('mp4') !== -1 ? 'mp4' : 'webm'));
+                fetch('/api/voice/recording/' + SESSION_ID, { method: 'POST', body: fd })
+                    .catch(function () { /* sin grabacion no se corta el cierre */ })
+                    .finally(resolve);
+            };
+            if (rec.recorder.state === 'inactive') return finish();
+            rec.recorder.onstop = finish;
+            try { rec.recorder.stop(); } catch (e) { resolve(); }
+        });
+    }
+
     function nowMs() {
         return elapsedBase + (callStart ? Math.round(performance.now() - callStart) : 0);
     }
@@ -243,10 +298,12 @@
             els.endBtn.disabled = true;
             els.endBtn.textContent = 'Evaluando...';
         }
-        fetch('/api/voice/end/' + SESSION_ID, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usage: usage, call_ms: callMs, reason: reason || 'user' })
+        recStopAndUpload().then(function () {
+            return fetch('/api/voice/end/' + SESSION_ID, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usage: usage, call_ms: callMs, reason: reason || 'user' })
+            });
         })
             .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
             .then(function (res) {
@@ -294,9 +351,15 @@
                 micStream = stream;
                 setStatus('connecting', 'Conectando la llamada...');
 
+                recEnsure();
+                recAttach(micStream);
+
                 pc = new RTCPeerConnection();
                 pc.addTrack(stream.getTracks()[0], stream);
-                pc.ontrack = function (e) { if (els.audio) els.audio.srcObject = e.streams[0]; };
+                pc.ontrack = function (e) {
+                    if (els.audio) els.audio.srcObject = e.streams[0];
+                    recAttach(e.streams[0]);
+                };
                 pc.onconnectionstatechange = function () {
                     if (pc && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) {
                         onConnectionLost();
