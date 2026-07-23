@@ -41,9 +41,31 @@
         transcript: document.getElementById('voiceTranscript'),
         answerBtn: document.getElementById('voiceAnswerBtn'),
         endBtn: document.getElementById('voiceEndBtn'),
+        holdBtn: document.getElementById('voiceHoldBtn'),
         audio: document.getElementById('voiceRemoteAudio'),
-        warn: document.getElementById('voiceWarn')
+        warn: document.getElementById('voiceWarn'),
+        silenceWarn: document.getElementById('voiceSilenceWarn')
     };
+
+    // Corte automatico por silencio: si NADIE habla (ni asesor ni cliente)
+    // durante SILENCE_CUT_S segundos, la llamada se finaliza sola. El tiempo
+    // en espera no cuenta como silencio.
+    var SILENCE_WARN_S = 45;
+    var SILENCE_CUT_S = 60;
+    var lastActivityMs = -1;
+    var connected = false;
+
+    function markActivity() { lastActivityMs = nowMs(); }
+
+    // Pausas (cliente en espera): se trackean localmente y se reportan al
+    // servidor (incremental al retomar + payload autoritativo en el cierre).
+    var holdState = { active: false, startMs: 0, intervals: [] };
+
+    function holdIntervalsForPayload() {
+        var list = holdState.intervals.slice();
+        if (holdState.active) list.push([holdState.startMs, nowMs()]);
+        return list;
+    }
 
     var pc = null, dc = null, micStream = null;
     var connecting = false, ended = false;
@@ -69,11 +91,39 @@
     var headphonesMode = localStorage.getItem('voice_headphones') !== '0';
 
     function updateMicGate(clientSpeaking) {
-        // En modo parlante cortamos el mic mientras la IA habla (half-duplex):
-        // fisicamente no puede haber eco. Con auriculares queda full-duplex
-        // (se puede interrumpir al cliente).
+        // En espera el mic queda SIEMPRE cerrado. Fuera de espera: en modo
+        // parlante cortamos el mic mientras la IA habla (half-duplex, evita
+        // eco); con auriculares queda full-duplex (se puede interrumpir).
         if (!micTrack) return;
+        if (holdState.active) { micTrack.enabled = false; return; }
         micTrack.enabled = headphonesMode ? true : !clientSpeaking;
+    }
+
+    function toggleHold() {
+        if (ended || !connected) return;
+        if (!holdState.active) {
+            holdState.active = true;
+            holdState.startMs = nowMs();
+            if (els.audio) els.audio.muted = true;
+            updateMicGate(false);
+            if (els.holdBtn) els.holdBtn.textContent = '▶ Retomar llamada';
+            setStatus('hold', 'Cliente en espera');
+        } else {
+            var endMs = nowMs();
+            holdState.intervals.push([holdState.startMs, endMs]);
+            holdState.active = false;
+            if (els.audio) els.audio.muted = false;
+            updateMicGate(false);
+            markActivity();
+            if (els.holdBtn) els.holdBtn.textContent = '⏸ Poner en espera';
+            setStatus('listening', 'Llamada retomada — segui la conversacion');
+            // Registro incremental (el payload del cierre es el autoritativo)
+            fetch('/api/voice/hold/' + SESSION_ID, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ started_at_ms: holdState.startMs, ended_at_ms: endMs })
+            }).catch(function () {});
+        }
     }
 
     function looksLikeEcho(text) {
@@ -197,16 +247,19 @@
     function handleEvent(ev) {
         switch (ev.type) {
             case 'input_audio_buffer.speech_started':
+                markActivity();
                 flushClientTurn(nowMs());  // barge-in: el cliente quedo interrumpido
                 userSpeech.start = nowMs();
-                setStatus('speaking', 'Te esta escuchando...');
+                if (!holdState.active) setStatus('speaking', 'Te esta escuchando...');
                 break;
             case 'input_audio_buffer.speech_stopped':
+                markActivity();
                 userSpeech.end = nowMs();
-                setStatus('thinking', 'El cliente esta pensando...');
+                if (!holdState.active) setStatus('thinking', 'El cliente esta pensando...');
                 break;
 
             case 'conversation.item.input_audio_transcription.completed':
+                markActivity();
                 var t = (ev.transcript || '').trim();
                 if (t) {
                     if (looksLikeEcho(t)) {
@@ -219,20 +272,23 @@
                 break;
 
             case 'output_audio_buffer.started':
+                markActivity();
                 clientSpeech.start = nowMs();
                 clientAudioEndedAt = 0;
                 updateMicGate(true);
-                setStatus('client', 'El cliente esta hablando...');
+                if (!holdState.active) setStatus('client', 'El cliente esta hablando...');
                 break;
             case 'output_audio_buffer.stopped':
             case 'output_audio_buffer.cleared':
+                markActivity();
                 clientAudioEndedAt = nowMs();
                 updateMicGate(false);
                 flushClientTurn(clientAudioEndedAt);
-                setStatus('listening', 'Tu turno — habla con naturalidad');
+                if (!holdState.active) setStatus('listening', 'Tu turno — habla con naturalidad');
                 break;
 
             case 'response.output_audio_transcript.done':
+                markActivity();
                 var ct = (ev.transcript || '').trim();
                 if (ct) {
                     addLine('client', ct);
@@ -268,7 +324,29 @@
                 els.timer.textContent = mm + ':' + ss;
             }
             if (s >= WARN_SECONDS && els.warn) els.warn.style.display = 'block';
-            if (s >= MAX_SECONDS) endCall('timeout');
+            if (s >= MAX_SECONDS) { endCall('timeout'); return; }
+
+            if (holdState.active) {
+                // El silencio en espera no corta la llamada; mostramos cuanto lleva
+                var hs = Math.floor((nowMs() - holdState.startMs) / 1000);
+                if (els.statusText) els.statusText.textContent = 'Cliente en espera (' + hs + 's)';
+                if (els.silenceWarn) els.silenceWarn.style.display = 'none';
+                return;
+            }
+
+            // Corte automatico por silencio total
+            if (connected && lastActivityMs >= 0) {
+                var idle = Math.floor((nowMs() - lastActivityMs) / 1000);
+                if (idle >= SILENCE_CUT_S) {
+                    endCall('silence');
+                } else if (idle >= SILENCE_WARN_S && els.silenceWarn) {
+                    els.silenceWarn.textContent = '🔇 Nadie habla hace ' + idle + 's. La llamada se cortara sola a los ' +
+                        SILENCE_CUT_S + 's — habla, o pone al cliente en espera.';
+                    els.silenceWarn.style.display = 'block';
+                } else if (els.silenceWarn) {
+                    els.silenceWarn.style.display = 'none';
+                }
+            }
         }, 1000);
     }
 
@@ -293,6 +371,7 @@
     function teardownConnection() {
         elapsedBase = nowMs();
         callStart = 0;
+        connected = false;
         stopTimers();
         try { if (dc) dc.close(); } catch (e) {}
         try { if (pc) pc.close(); } catch (e) {}
@@ -308,12 +387,15 @@
             els.answerBtn.textContent = label;
         }
         if (els.endBtn) els.endBtn.style.display = 'none';
+        if (els.holdBtn) els.holdBtn.style.display = 'none';
+        if (els.silenceWarn) els.silenceWarn.style.display = 'none';
         setStatus(statusKind, statusText);
     }
 
     function showCallUI() {
         if (els.answerBtn) els.answerBtn.style.display = 'none';
         if (els.endBtn) { els.endBtn.style.display = 'inline-block'; els.endBtn.disabled = false; }
+        if (els.holdBtn) els.holdBtn.style.display = 'inline-block';
     }
 
     function onConnectionLost() {
@@ -331,10 +413,15 @@
         ended = true;
         flushClientTurn(nowMs());
         var callMs = nowMs();
+        var holds = holdIntervalsForPayload();  // incluye una pausa abierta al cortar
         teardownConnection();
         stopHeartbeat();
-        setStatus('ended', 'Finalizando y evaluando la llamada...');
+        setStatus('ended', reason === 'silence'
+            ? 'Llamada finalizada por silencio prolongado. Evaluando...'
+            : 'Finalizando y evaluando la llamada...');
         if (els.answerBtn) els.answerBtn.style.display = 'none';
+        if (els.holdBtn) els.holdBtn.style.display = 'none';
+        if (els.silenceWarn) els.silenceWarn.style.display = 'none';
         if (els.endBtn) {
             els.endBtn.style.display = 'inline-block';
             els.endBtn.disabled = true;
@@ -344,7 +431,7 @@
             return fetch('/api/voice/end/' + SESSION_ID, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ usage: usage, call_ms: callMs, reason: reason || 'user' })
+                body: JSON.stringify({ usage: usage, call_ms: callMs, holds: holds, reason: reason || 'user' })
             });
         })
             .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
@@ -415,11 +502,20 @@
                 };
                 dc.onopen = function () {
                     connecting = false;
+                    connected = true;
                     callStart = performance.now();
+                    markActivity();
                     showCallUI();
-                    setStatus('client', boot.resumed
-                        ? 'Llamada retomada — segui la conversacion'
-                        : 'Llamada conectada — el cliente va a hablar');
+                    if (holdState.active) {
+                        // Reconexion durante una espera: se mantiene el estado
+                        updateMicGate(false);
+                        if (els.audio) els.audio.muted = true;
+                        setStatus('hold', 'Cliente en espera');
+                    } else {
+                        setStatus('client', boot.resumed
+                            ? 'Llamada retomada — segui la conversacion'
+                            : 'Llamada conectada — el cliente va a hablar');
+                    }
                     startTimer();
                 };
 
@@ -472,6 +568,7 @@
     }
 
     if (els.answerBtn) els.answerBtn.addEventListener('click', connect);
+    if (els.holdBtn) els.holdBtn.addEventListener('click', toggleHold);
     if (els.endBtn) {
         els.endBtn.addEventListener('click', function () {
             if (!ended && confirm('¿Finalizar la llamada? Se evaluara tu desempeño.')) endCall('user');

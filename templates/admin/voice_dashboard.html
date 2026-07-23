@@ -80,6 +80,8 @@ function vdShowDetail(id) {
             meta.textContent = 'Voz: ' + (d.voice || '-') + ' · NPS: ' + (d.nps_score ?? '-') +
                 ' · Correcta: ' + (d.response_correct ? 'Sí' : 'No') +
                 ' · Muletillas: ' + (d.filler_words ?? 0) +
+                ' · Pausas: ' + ((d.metrics && d.metrics.hold_count) || 0) +
+                ((d.metrics && d.metrics.hold_count) ? ' (' + d.metrics.hold_seconds + 's)' : '') +
                 ' · Costo est.: $' + (d.estimated_cost_usd || 0).toFixed(4);
             box.appendChild(meta);
 
