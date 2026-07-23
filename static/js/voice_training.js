@@ -54,7 +54,41 @@
     var clientSpeech = { start: 0 };
     var pendingClient = null;   // transcript del cliente esperando el fin del AUDIO
     var clientAudioEndedAt = 0;
+    var lastClientText = '';    // ultimo parlamento del cliente (para filtrar eco)
+    var micTrack = null;
     var timerInt = null, hbInt = null;
+
+    /* ---- Anti-eco ----
+       Sin auriculares, la voz del cliente sale por el parlante, reentra por
+       el microfono y el VAD la toma como habla del asesor: la IA "se
+       responde sola". Defensas:
+       1) constraints de audio (echoCancellation/autoGainControl),
+       2) modo parlante (toggle): silencia el mic mientras el cliente habla,
+       3) filtro de eco: si el "turno del asesor" es casi identico al ultimo
+          parlamento del cliente, se descarta (no ensucia transcript/metricas). */
+    var headphonesMode = localStorage.getItem('voice_headphones') !== '0';
+
+    function updateMicGate(clientSpeaking) {
+        // En modo parlante cortamos el mic mientras la IA habla (half-duplex):
+        // fisicamente no puede haber eco. Con auriculares queda full-duplex
+        // (se puede interrumpir al cliente).
+        if (!micTrack) return;
+        micTrack.enabled = headphonesMode ? true : !clientSpeaking;
+    }
+
+    function looksLikeEcho(text) {
+        if (!lastClientText) return false;
+        var norm = function (s) {
+            return s.toLowerCase().replace(/[^a-z0-9áéíóúüñ ]+/gi, ' ').split(/\s+/).filter(Boolean);
+        };
+        var words = norm(text);
+        if (words.length < 3) return false;
+        var clientSet = {};
+        norm(lastClientText).forEach(function (w) { clientSet[w] = 1; });
+        var hits = 0;
+        words.forEach(function (w) { if (clientSet[w]) hits++; });
+        return (hits / words.length) >= 0.7;
+    }
 
     /* ---- Grabacion de la llamada ----
        Mezclamos el microfono y el audio remoto del cliente en un solo
@@ -175,6 +209,10 @@
             case 'conversation.item.input_audio_transcription.completed':
                 var t = (ev.transcript || '').trim();
                 if (t) {
+                    if (looksLikeEcho(t)) {
+                        console.warn('[VOICE] turno descartado por eco:', t);
+                        break;
+                    }
                     addLine('user', t);
                     postTurn('user', t, userSpeech.start, userSpeech.end || nowMs());
                 }
@@ -183,11 +221,13 @@
             case 'output_audio_buffer.started':
                 clientSpeech.start = nowMs();
                 clientAudioEndedAt = 0;
+                updateMicGate(true);
                 setStatus('client', 'El cliente esta hablando...');
                 break;
             case 'output_audio_buffer.stopped':
             case 'output_audio_buffer.cleared':
                 clientAudioEndedAt = nowMs();
+                updateMicGate(false);
                 flushClientTurn(clientAudioEndedAt);
                 setStatus('listening', 'Tu turno — habla con naturalidad');
                 break;
@@ -196,6 +236,7 @@
                 var ct = (ev.transcript || '').trim();
                 if (ct) {
                     addLine('client', ct);
+                    lastClientText = ct;
                     pendingClient = { text: ct, start: clientSpeech.start || nowMs() };
                     // Si el audio de esta respuesta ya termino, posteamos ya
                     if (clientAudioEndedAt >= (clientSpeech.start || 0) && clientAudioEndedAt > 0) {
@@ -257,6 +298,7 @@
         try { if (pc) pc.close(); } catch (e) {}
         dc = null; pc = null;
         if (micStream) { micStream.getTracks().forEach(function (tr) { tr.stop(); }); micStream = null; }
+        micTrack = null;
     }
 
     function showAnswerButton(label, statusKind, statusText) {
@@ -344,11 +386,12 @@
                 boot = data;
                 setStatus('connecting', 'Pidiendo acceso al microfono...');
                 return navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true }
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
                 });
             })
             .then(function (stream) {
                 micStream = stream;
+                micTrack = stream.getAudioTracks()[0] || null;
                 setStatus('connecting', 'Conectando la llamada...');
 
                 recEnsure();
@@ -414,6 +457,18 @@
                 }
                 showAnswerButton('🔁 Reintentar', 'error', msg);
             });
+    }
+
+    // Toggle auriculares/parlante (persistido). Sin auriculares activamos el
+    // modo half-duplex que evita que la IA se escuche a si misma.
+    var hpToggle = document.getElementById('voiceHeadphones');
+    if (hpToggle) {
+        hpToggle.checked = headphonesMode;
+        hpToggle.addEventListener('change', function () {
+            headphonesMode = hpToggle.checked;
+            localStorage.setItem('voice_headphones', headphonesMode ? '1' : '0');
+            updateMicGate(false);
+        });
     }
 
     if (els.answerBtn) els.answerBtn.addEventListener('click', connect);
