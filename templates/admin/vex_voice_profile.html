@@ -97,6 +97,72 @@
             {% endif %}
         </div>
     </div>
+
+    {# ============ Baremo de aprobacion (umbrales del modo activo) ============ #}
+    {% if profile._mode_cfg %}
+    {% set th = profile._mode_cfg['thresholds'] %}
+    {% set rec = profile._mode_cfg['recommendation'] %}
+    {% set dims = [profile.communication_score, profile.empathy_score, profile.resolution_score,
+                   profile.speed_score, profile.adaptability_score, profile.compliance_score] %}
+    {% set dmin = dims|min %}
+    <div class="vvp-card" style="margin-top:14px;">
+        <h3>📏 Baremo de aprobación — Modo {{ profile._active_mode|capitalize }}</h3>
+        <p style="font-size:12px;color:var(--gris-meta);margin:0 0 10px;">
+            Umbrales con los que se aprueba a este asesor. Su overall es
+            <strong>{{ profile.overall_score }}/10</strong>, su dimensión más baja es
+            <strong>{{ dmin|int }}/10</strong> y su Índice Predictivo es
+            <strong>{{ profile.predictive_index }}%</strong>.
+        </p>
+        <div class="table-responsive">
+        <table class="admin-table">
+            <thead><tr><th>Categoría</th><th>Requisito del baremo</th><th>Situación del asesor</th></tr></thead>
+            <tbody>
+                <tr {% if profile.profile_category == 'elite' %}style="background:#d4edda;"{% endif %}>
+                    <td><span class="vvx-cat vvx-cat-elite">Elite</span></td>
+                    <td>Overall ≥ {{ th['elite_overall'] }} y todas las habilidades ≥ {{ th['elite_min_dim'] }}</td>
+                    <td>{% if profile.overall_score >= th['elite_overall'] and dmin >= th['elite_min_dim'] %}✔ Cumple{% else %}✘ No cumple{% if profile.overall_score < th['elite_overall'] %} (overall {{ profile.overall_score }}){% endif %}{% if dmin < th['elite_min_dim'] %} (hay habilidad en {{ dmin|int }}){% endif %}{% endif %}</td>
+                </tr>
+                <tr {% if profile.profile_category == 'alto' %}style="background:#cce5ff;"{% endif %}>
+                    <td><span class="vvx-cat vvx-cat-alto">Alto</span></td>
+                    <td>Overall ≥ {{ th['alto_overall'] }} y todas las habilidades ≥ {{ th['alto_min_dim'] }}</td>
+                    <td>{% if profile.overall_score >= th['alto_overall'] and dmin >= th['alto_min_dim'] %}✔ Cumple{% else %}✘ No cumple{% endif %}</td>
+                </tr>
+                <tr {% if profile.profile_category == 'desarrollo' %}style="background:#fff3cd;"{% endif %}>
+                    <td><span class="vvx-cat vvx-cat-desarrollo">Desarrollo</span></td>
+                    <td>Overall ≥ {{ th['desarrollo_overall'] }}</td>
+                    <td>{% if profile.overall_score >= th['desarrollo_overall'] %}✔ Cumple{% else %}✘ No cumple{% endif %}</td>
+                </tr>
+                <tr {% if profile.profile_category == 'refuerzo' %}style="background:#f8d7da;"{% endif %}>
+                    <td><span class="vvx-cat vvx-cat-refuerzo">Refuerzo</span></td>
+                    <td>Overall &lt; {{ th['desarrollo_overall'] }}</td>
+                    <td>{{ '←' if profile.profile_category == 'refuerzo' else '—' }}</td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div style="margin-top:14px;">
+            <strong style="font-size:13px;">Recomendación por Índice Predictivo:</strong>
+            <div style="position:relative;height:34px;margin-top:8px;background:linear-gradient(90deg, #f8d7da 0%, #f8d7da {{ rec['observaciones'] }}%, #fff3cd {{ rec['observaciones'] }}%, #fff3cd {{ rec['recomendado'] }}%, #d4edda {{ rec['recomendado'] }}%, #d4edda 100%);border-radius:8px;">
+                <div style="position:absolute;left:{{ [profile.predictive_index, 100]|min }}%;top:-4px;transform:translateX(-50%);text-align:center;">
+                    <div style="font-size:16px;">▼</div>
+                </div>
+                <div style="position:absolute;left:{{ [profile.predictive_index, 100]|min }}%;bottom:-18px;transform:translateX(-50%);font-size:11px;font-weight:700;color:var(--purpura-vex);white-space:nowrap;">{{ profile.predictive_index }}%</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gris-meta);margin-top:22px;">
+                <span>No recomendado (&lt; {{ rec['observaciones'] }}%)</span>
+                <span>Con observaciones ({{ rec['observaciones'] }}–{{ rec['recomendado'] }}%)</span>
+                <span>Recomendado (≥ {{ rec['recomendado'] }}%)</span>
+            </div>
+            {% if profile._cap_reasons %}
+            <p style="font-size:12px;color:#856404;background:#fff3cd;border-radius:8px;padding:8px 12px;margin-top:10px;">
+                ⚠ Este perfil tiene límites de seguridad aplicados (ver "Alertas"): aunque el puntaje
+                matemático supere un umbral, la categoría y recomendación quedan acotadas.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 
     <div class="vvp-card" style="margin-top:14px;">
