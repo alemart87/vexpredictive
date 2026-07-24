@@ -73,23 +73,38 @@ def mint_client_secret(instructions, voice=DEFAULT_VOICE, max_output_tokens=800)
                 },
                 'output': {'voice': valid_voice(voice)},
             },
+            # Rol-play conversacional: el esfuerzo minimo de razonamiento
+            # da la menor latencia de respuesta (el personaje no necesita
+            # razonar, necesita contestar rapido y en rol).
+            'reasoning': {'effort': 'minimal'},
             'max_output_tokens': max_output_tokens,
         },
     }
 
-    req = Request(
-        'https://api.openai.com/v1/realtime/client_secrets',
-        data=json.dumps(payload).encode('utf-8'),
-        headers={
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {OPENAI_API_KEY}',
-        },
-        method='POST',
-    )
+    def _post(body):
+        req = Request(
+            'https://api.openai.com/v1/realtime/client_secrets',
+            data=json.dumps(body).encode('utf-8'),
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {OPENAI_API_KEY}',
+            },
+            method='POST',
+        )
+        with urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode('utf-8'))
 
     try:
-        with urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+        try:
+            data = _post(payload)
+        except HTTPError as e:
+            # Si la API rechazara el campo reasoning (400), reintentamos sin el
+            if e.code == 400 and 'reasoning' in payload['session']:
+                print('[VOICE] client_secrets 400 con reasoning; reintento sin el campo')
+                payload['session'].pop('reasoning', None)
+                data = _post(payload)
+            else:
+                raise
         session_obj = data.get('session') or {}
         return {
             'client_secret': data.get('value', ''),
