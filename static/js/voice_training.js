@@ -107,13 +107,18 @@
         n.style.display = 'block';
     }
 
-    function onEchoDetected() {
+    function onEchoDetected(itemId) {
         // El eco YA llego a OpenAI (el audio va directo por WebRTC), asi que
-        // ademas de limpiar el transcript: 1) cancelamos la auto-respuesta en
-        // curso, 2) pasamos AUTOMATICAMENTE a modo parlante para que no se
-        // repita, 3) avisamos al asesor.
+        // ademas de limpiar el transcript: 1) BORRAMOS el turno envenenado de
+        // la conversacion del modelo (sin esto, el modelo "escucho" al asesor
+        // decir las frases del cliente y termina invirtiendo los roles),
+        // 2) cancelamos la auto-respuesta en curso, 3) pasamos automaticamente
+        // a modo parlante, 4) avisamos al asesor.
         try {
             if (dc && dc.readyState === 'open') {
+                if (itemId) {
+                    dc.send(JSON.stringify({ type: 'conversation.item.delete', item_id: itemId }));
+                }
                 dc.send(JSON.stringify({ type: 'response.cancel' }));
             }
         } catch (e) {}
@@ -294,7 +299,7 @@
                 if (t) {
                     if (looksLikeEcho(t)) {
                         console.warn('[VOICE] turno descartado por eco:', t);
-                        onEchoDetected();
+                        onEchoDetected(ev.item_id);
                         break;
                     }
                     addLine('user', t);
