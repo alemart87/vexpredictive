@@ -89,8 +89,9 @@
        3) filtro de eco: si el "turno del asesor" es casi identico al ultimo
           parlamento del cliente, se descarta (no ensucia transcript/metricas). */
     var headphonesMode = localStorage.getItem('voice_headphones') !== '0';
+    var clientSpeaking = false;   // la IA esta reproduciendo audio ahora
 
-    function updateMicGate(clientSpeaking) {
+    function updateMicGate() {
         // En espera el mic queda SIEMPRE cerrado. Fuera de espera: en modo
         // parlante cortamos el mic mientras la IA habla (half-duplex, evita
         // eco); con auriculares queda full-duplex (se puede interrumpir).
@@ -99,13 +100,42 @@
         micTrack.enabled = headphonesMode ? true : !clientSpeaking;
     }
 
+    function showEchoNotice(msg) {
+        var n = document.getElementById('voiceEchoNotice');
+        if (!n) return;
+        n.textContent = msg;
+        n.style.display = 'block';
+    }
+
+    function onEchoDetected() {
+        // El eco YA llego a OpenAI (el audio va directo por WebRTC), asi que
+        // ademas de limpiar el transcript: 1) cancelamos la auto-respuesta en
+        // curso, 2) pasamos AUTOMATICAMENTE a modo parlante para que no se
+        // repita, 3) avisamos al asesor.
+        try {
+            if (dc && dc.readyState === 'open') {
+                dc.send(JSON.stringify({ type: 'response.cancel' }));
+            }
+        } catch (e) {}
+        if (headphonesMode) {
+            headphonesMode = false;
+            localStorage.setItem('voice_headphones', '0');
+            var hp = document.getElementById('voiceHeadphones');
+            if (hp) hp.checked = false;
+            updateMicGate();
+            showEchoNotice('🔊 Detectamos eco de parlantes: el cliente se estaba escuchando a si mismo. ' +
+                'Activamos el modo parlante automaticamente (tu microfono se silencia mientras el cliente habla). ' +
+                'Si usas auriculares, volve a marcar la casilla.');
+        }
+    }
+
     function toggleHold() {
         if (ended || !connected) return;
         if (!holdState.active) {
             holdState.active = true;
             holdState.startMs = nowMs();
             if (els.audio) els.audio.muted = true;
-            updateMicGate(false);
+            updateMicGate();
             if (els.holdBtn) els.holdBtn.textContent = '▶ Retomar llamada';
             setStatus('hold', 'Cliente en espera');
         } else {
@@ -113,7 +143,7 @@
             holdState.intervals.push([holdState.startMs, endMs]);
             holdState.active = false;
             if (els.audio) els.audio.muted = false;
-            updateMicGate(false);
+            updateMicGate();
             markActivity();
             if (els.holdBtn) els.holdBtn.textContent = '⏸ Poner en espera';
             setStatus('listening', 'Llamada retomada — segui la conversacion');
@@ -264,6 +294,7 @@
                 if (t) {
                     if (looksLikeEcho(t)) {
                         console.warn('[VOICE] turno descartado por eco:', t);
+                        onEchoDetected();
                         break;
                     }
                     addLine('user', t);
@@ -275,14 +306,16 @@
                 markActivity();
                 clientSpeech.start = nowMs();
                 clientAudioEndedAt = 0;
-                updateMicGate(true);
+                clientSpeaking = true;
+                updateMicGate();
                 if (!holdState.active) setStatus('client', 'El cliente esta hablando...');
                 break;
             case 'output_audio_buffer.stopped':
             case 'output_audio_buffer.cleared':
                 markActivity();
                 clientAudioEndedAt = nowMs();
-                updateMicGate(false);
+                clientSpeaking = false;
+                updateMicGate();
                 flushClientTurn(clientAudioEndedAt);
                 if (!holdState.active) setStatus('listening', 'Tu turno — habla con naturalidad');
                 break;
@@ -508,7 +541,7 @@
                     showCallUI();
                     if (holdState.active) {
                         // Reconexion durante una espera: se mantiene el estado
-                        updateMicGate(false);
+                        updateMicGate();
                         if (els.audio) els.audio.muted = true;
                         setStatus('hold', 'Cliente en espera');
                     } else {
@@ -563,7 +596,7 @@
         hpToggle.addEventListener('change', function () {
             headphonesMode = hpToggle.checked;
             localStorage.setItem('voice_headphones', headphonesMode ? '1' : '0');
-            updateMicGate(false);
+            updateMicGate();
         });
     }
 
