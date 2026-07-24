@@ -288,8 +288,22 @@ def api_turn():
     )
     db.session.add(turn)
     vs.last_heartbeat = datetime.utcnow()
+
+    # Control de jailbreak "por detras": detectamos en ambos sentidos y el
+    # navegador re-ancla el personaje via data channel con la correccion.
+    resp = {'ok': True}
+    if role == 'user' and voice_scoring.detect_jailbreak_attempt(transcript):
+        vs.jailbreak_attempts = (vs.jailbreak_attempts or 0) + 1
+        resp['jailbreak_detected'] = True
+        resp['shield'] = voice_scoring.JAILBREAK_SHIELD
+    elif role == 'client' and voice_scoring.detect_role_break(transcript):
+        vs.role_breaks = (vs.role_breaks or 0) + 1
+        resp['role_break'] = True
+        resp['correction'] = voice_scoring.ROLE_BREAK_CORRECTION
+
     db.session.commit()
-    return jsonify({'ok': True, 'turn_id': turn.id})
+    resp['turn_id'] = turn.id
+    return jsonify(resp)
 
 
 @voice_bp.route('/api/voice/hold/<int:vs_id>', methods=['POST'])
@@ -380,6 +394,7 @@ def api_end(vs_id):
     metrics = voice_scoring.compute_conversation_metrics(turns, holds=holds_for_metrics)
     metrics['hold_count'] = vs.hold_count or 0
     metrics['hold_seconds'] = vs.hold_seconds or 0
+    metrics['jailbreak_attempts'] = vs.jailbreak_attempts or 0
     for field in ('total_turns', 'total_words_user', 'talk_ratio', 'avg_response_latency',
                   'speech_rate_wpm', 'interruptions', 'long_silences'):
         setattr(vs, field, metrics[field])
@@ -552,6 +567,8 @@ def admin_session_detail(vs_id):
             'long_silences': vs.long_silences,
             'hold_count': vs.hold_count or 0,
             'hold_seconds': vs.hold_seconds or 0,
+            'jailbreak_attempts': vs.jailbreak_attempts or 0,
+            'role_breaks': vs.role_breaks or 0,
         },
         'feedback': feedback,
         'estimated_cost_usd': vs.estimated_cost_usd,

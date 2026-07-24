@@ -264,7 +264,29 @@
                 started_at_ms: Math.max(0, startMs || 0),
                 ended_at_ms: Math.max(0, endMs || 0)
             })
-        }).catch(function () { /* si falla un turno no cortamos la llamada */ });
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                // Control de jailbreak: si el servidor detecto que el asesor
+                // intenta romper el ejercicio (shield) o que el cliente rompio
+                // el personaje (correction), inyectamos la correccion como
+                // mensaje de sistema en la conversacion del modelo.
+                if (!d) return;
+                var inject = d.role_break ? d.correction : (d.jailbreak_detected ? d.shield : null);
+                if (inject && dc && dc.readyState === 'open') {
+                    try {
+                        dc.send(JSON.stringify({
+                            type: 'conversation.item.create',
+                            item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: inject }] }
+                        }));
+                        if (d.role_break) {
+                            dc.send(JSON.stringify({ type: 'response.cancel' }));
+                            console.warn('[VOICE] personaje re-anclado por el control de jailbreak');
+                        }
+                    } catch (e) {}
+                }
+            })
+            .catch(function () { /* si falla un turno no cortamos la llamada */ });
     }
 
     /* El transcript del cliente llega ANTES de que su audio termine de

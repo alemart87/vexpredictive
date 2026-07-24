@@ -38,6 +38,9 @@
             <div class="voice-stat-row"><span>Interrupciones al cliente</span><span>{{ vs.interruptions or 0 }}</span></div>
             <div class="voice-stat-row"><span>Silencios largos</span><span>{{ vs.long_silences or 0 }}</span></div>
             <div class="voice-stat-row"><span>Pausas en espera</span><span>{{ vs.hold_count or 0 }}{% if vs.hold_count %} ({{ vs.hold_seconds or 0 }}s){% endif %}</span></div>
+            {% if vs.jailbreak_attempts %}
+            <div class="voice-stat-row" style="color:#721c24;"><span>⚠ Intentos de manipular al cliente simulado</span><span>{{ vs.jailbreak_attempts }}</span></div>
+            {% endif %}
         </div>
 
         <div class="voice-result-card">

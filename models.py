@@ -384,6 +384,10 @@ class VoiceSession(db.Model):
     hold_count = db.Column(db.Integer, default=0)
     hold_seconds = db.Column(db.Integer, default=0)
     holds = db.Column(db.Text, nullable=True)
+    # Control de jailbreak: intentos del asesor de romper el ejercicio y
+    # rupturas de personaje del cliente IA detectadas y corregidas
+    jailbreak_attempts = db.Column(db.Integer, default=0)
+    role_breaks = db.Column(db.Integer, default=0)
 
     # Metricas de conversacion (calculadas desde voice_turns + cliente)
     total_turns = db.Column(db.Integer, default=0)          # turnos del asesor

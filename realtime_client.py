@@ -24,6 +24,11 @@ AUDIO_OUTPUT_PRICE_PER_M = 20.0
 # establece el WebRTC; la sesion ya iniciada continua aunque expire.
 CLIENT_SECRET_TTL_SECONDS = 120
 
+# Esfuerzo de razonamiento de la sesion Realtime. 'low' (default del modelo,
+# recomendado): balancea latencia con adherencia a las instrucciones del
+# personaje; 'minimal' responde mas rapido pero sigue peor las reglas.
+REASONING_EFFORT = os.environ.get('VOICE_REASONING_EFFORT', 'low')
+
 # Duracion maxima de una llamada (el frontend corta; esto es el tope informativo)
 MAX_CALL_SECONDS = 600
 
@@ -73,10 +78,7 @@ def mint_client_secret(instructions, voice=DEFAULT_VOICE, max_output_tokens=800)
                 },
                 'output': {'voice': valid_voice(voice)},
             },
-            # Rol-play conversacional: el esfuerzo minimo de razonamiento
-            # da la menor latencia de respuesta (el personaje no necesita
-            # razonar, necesita contestar rapido y en rol).
-            'reasoning': {'effort': 'minimal'},
+            'reasoning': {'effort': REASONING_EFFORT},
             'max_output_tokens': max_output_tokens,
         },
     }
