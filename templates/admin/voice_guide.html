@@ -120,6 +120,10 @@
                 automáticamente mientras el cliente habla y el problema desaparece (a cambio, no podrá interrumpirlo).</li>
             <li>La IA llama como cliente y el asesor atiende <strong>hablando</strong>, como en una llamada real.
                 Puede interrumpir y ser interrumpido; la transcripción se ve en vivo.</li>
+            <li>Puede <strong>⏸ poner al cliente en espera</strong> y retomar cuando quiera: el micrófono y el audio
+                se silencian, y la plataforma registra cuántas pausas hizo y cuánto duraron.</li>
+            <li>Si <strong>nadie habla durante 60 segundos</strong> (fuera de una espera), la llamada se corta y
+                evalúa sola — con aviso en pantalla a los 45.</li>
             <li>Corta con <strong>"Finalizar llamada"</strong> y recibe su evaluación al instante.</li>
         </ol>
         <p style="color:var(--gris-meta);font-size:13px;">
@@ -151,7 +155,8 @@
             <tr><td><strong>Muletillas</strong></td><td>"Este...", "eh", "o sea", "¿viste?" — contadas por la IA sobre la transcripción.</td><td>Errores de ortografía</td></tr>
             <tr><td><strong>Proporción de habla</strong></td><td>% del tiempo hablado por el asesor vs el cliente.</td><td>—</td></tr>
             <tr><td><strong>Interrupciones</strong></td><td>Veces que el asesor pisó al cliente mientras hablaba.</td><td>—</td></tr>
-            <tr><td><strong>Silencios largos</strong></td><td>Pausas de más de 5 segundos.</td><td>—</td></tr>
+            <tr><td><strong>Silencios largos</strong></td><td>Pausas de más de 5 segundos sin que nadie hable (el tiempo en espera NO cuenta).</td><td>—</td></tr>
+            <tr><td><strong>Pausas en espera</strong></td><td>Cuántas veces puso al cliente en espera y cuánto tiempo total. Una espera breve y anunciada es práctica normal; esperas largas o repetidas afectan la evaluación del cliente.</td><td>—</td></tr>
         </table>
         </div>
 

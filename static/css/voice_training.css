@@ -46,6 +46,15 @@
 .voice-status-speaking::before { animation: voicePulse .7s infinite; }
 .voice-status-thinking  { background: var(--gris-claro); color: var(--gris-meta); }
 .voice-status-ended, .voice-status-error { background: #fff3cd; color: #856404; }
+.voice-status-hold { background: #fff3cd; color: #856404; }
+.voice-status-hold::before { animation: voicePulse 1.6s infinite; }
+
+.voice-hold-btn {
+    background: var(--naranja-vex); color: var(--blanco); border: none; border-radius: 24px;
+    padding: 13px 26px; font-size: 15px; font-weight: 700; cursor: pointer;
+    margin: 10px 8px 0 0;
+}
+.voice-hold-btn:hover { filter: brightness(.92); }
 @keyframes voicePulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 
 .voice-timer { font-size: 34px; font-weight: 700; color: var(--gris-texto); font-variant-numeric: tabular-nums; margin: 6px 0; }

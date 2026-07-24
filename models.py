@@ -379,6 +379,11 @@ class VoiceSession(db.Model):
     # Grabacion de la llamada (archivo en el disco persistente, retencion
     # limitada; null = sin grabacion o ya expirada)
     recording_path = db.Column(db.String(500), nullable=True)
+    # Pausas (cliente en espera): cantidad, segundos totales e intervalos
+    # [[start_ms, end_ms], ...] relativos al inicio de la llamada
+    hold_count = db.Column(db.Integer, default=0)
+    hold_seconds = db.Column(db.Integer, default=0)
+    holds = db.Column(db.Text, nullable=True)
 
     # Metricas de conversacion (calculadas desde voice_turns + cliente)
     total_turns = db.Column(db.Integer, default=0)          # turnos del asesor

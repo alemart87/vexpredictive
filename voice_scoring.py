@@ -43,10 +43,25 @@ REGLAS DURAS
 Empezá la llamada ahora presentándote y describiendo tu problema."""
 
 
-def compute_conversation_metrics(turns):
+def _hold_overlap_ms(start_ms, end_ms, holds):
+    """Milisegundos del intervalo [start,end] que caen dentro de pausas."""
+    total = 0
+    for h in holds or []:
+        try:
+            hs, he = int(h[0]), int(h[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        total += max(0, min(end_ms, he) - max(start_ms, hs))
+    return total
+
+
+def compute_conversation_metrics(turns, holds=None):
     """Metricas de conversacion desde los turnos persistidos.
 
     turns: lista de VoiceTurn ordenados por started_at_ms.
+    holds: intervalos [[start_ms, end_ms], ...] de cliente en espera; el
+    tiempo en pausa se DESCUENTA de los gaps para que una espera legitima
+    no cuente como silencio largo ni infle la latencia de respuesta.
     Devuelve dict con total_turns, total_words_user, talk_ratio,
     avg_response_latency, speech_rate_wpm, interruptions, long_silences.
     """
@@ -75,7 +90,10 @@ def compute_conversation_metrics(turns):
     long_silences = 0
     ordered = sorted(turns, key=lambda t: t.started_at_ms or 0)
     for prev, curr in zip(ordered, ordered[1:]):
-        gap_s = ((curr.started_at_ms or 0) - (prev.ended_at_ms or 0)) / 1000.0
+        prev_end = prev.ended_at_ms or 0
+        curr_start = curr.started_at_ms or 0
+        # El tiempo en espera dentro del gap no es silencio del asesor
+        gap_s = (curr_start - prev_end - _hold_overlap_ms(prev_end, curr_start, holds)) / 1000.0
         if prev.role == 'client' and curr.role == 'user':
             if gap_s < -0.3:
                 interruptions += 1  # el asesor arranco antes de que el cliente terminara
@@ -142,6 +160,8 @@ DATOS DE LA LLAMADA:
 - Latencia media de respuesta del asesor: {metrics['avg_response_latency']} segundos
 - Interrupciones al cliente: {metrics['interruptions']}
 - Proporción de habla del asesor: {round(metrics['talk_ratio'] * 100)}%
+- Veces que puso al cliente en espera: {metrics.get('hold_count', 0)} (total {metrics.get('hold_seconds', 0)} seg)
+  (una espera breve y anunciada es práctica normal; esperas largas, repetidas o sin aviso dañan la experiencia)
 
 TRANSCRIPCIÓN DE LA LLAMADA:
 {transcript}

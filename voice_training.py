@@ -292,6 +292,35 @@ def api_turn():
     return jsonify({'ok': True, 'turn_id': turn.id})
 
 
+@voice_bp.route('/api/voice/hold/<int:vs_id>', methods=['POST'])
+@login_required
+def api_hold(vs_id):
+    """Registra una pausa (cliente en espera) apenas se retoma la llamada.
+    Redundante con el payload final de /end (que es autoritativo), pero
+    protege el dato si la pestana muere antes de finalizar."""
+    vs = VoiceSession.query.get_or_404(vs_id)
+    if vs.user_id != current_user.id or vs.status != 'active':
+        return jsonify({'error': 'Sesion invalida.'}), 400
+    data = request.get_json(silent=True) or {}
+    try:
+        start_ms = max(0, int(data.get('started_at_ms') or 0))
+        end_ms = max(start_ms, int(data.get('ended_at_ms') or 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Datos invalidos.'}), 400
+
+    try:
+        intervals = json.loads(vs.holds) if vs.holds else []
+    except (json.JSONDecodeError, TypeError):
+        intervals = []
+    intervals.append([start_ms, end_ms])
+    vs.holds = json.dumps(intervals)
+    vs.hold_count = len(intervals)
+    vs.hold_seconds = int(sum(max(0, h[1] - h[0]) for h in intervals) / 1000)
+    vs.last_heartbeat = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'ok': True, 'hold_count': vs.hold_count})
+
+
 @voice_bp.route('/api/voice/heartbeat/<int:vs_id>', methods=['POST'])
 @login_required
 def api_heartbeat(vs_id):
@@ -326,7 +355,31 @@ def api_end(vs_id):
     if not call_seconds and turns:
         call_seconds = int(max((t.ended_at_ms or 0) for t in turns) / 1000)
     vs.duration_seconds = max(0, min(call_seconds or wall_seconds, wall_seconds, MAX_CALL_SECONDS * 2))
-    metrics = voice_scoring.compute_conversation_metrics(turns)
+
+    # Pausas: el payload final del cliente es autoritativo (incluye una
+    # pausa abierta al momento de cortar); fallback a lo ya registrado
+    # incrementalmente por /api/voice/hold.
+    hold_intervals = data.get('holds')
+    if isinstance(hold_intervals, list):
+        clean = []
+        for h in hold_intervals:
+            try:
+                s, e = max(0, int(h[0])), int(h[1])
+                if e > s:
+                    clean.append([s, e])
+            except (TypeError, ValueError, IndexError):
+                continue
+        vs.holds = json.dumps(clean) if clean else None
+        vs.hold_count = len(clean)
+        vs.hold_seconds = int(sum(h[1] - h[0] for h in clean) / 1000)
+    try:
+        holds_for_metrics = json.loads(vs.holds) if vs.holds else []
+    except (json.JSONDecodeError, TypeError):
+        holds_for_metrics = []
+
+    metrics = voice_scoring.compute_conversation_metrics(turns, holds=holds_for_metrics)
+    metrics['hold_count'] = vs.hold_count or 0
+    metrics['hold_seconds'] = vs.hold_seconds or 0
     for field in ('total_turns', 'total_words_user', 'talk_ratio', 'avg_response_latency',
                   'speech_rate_wpm', 'interruptions', 'long_silences'):
         setattr(vs, field, metrics[field])
@@ -497,6 +550,8 @@ def admin_session_detail(vs_id):
             'speech_rate_wpm': vs.speech_rate_wpm,
             'interruptions': vs.interruptions,
             'long_silences': vs.long_silences,
+            'hold_count': vs.hold_count or 0,
+            'hold_seconds': vs.hold_seconds or 0,
         },
         'feedback': feedback,
         'estimated_cost_usd': vs.estimated_cost_usd,
