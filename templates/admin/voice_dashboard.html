@@ -82,6 +82,8 @@ function vdShowDetail(id) {
                 ' · Muletillas: ' + (d.filler_words ?? 0) +
                 ' · Pausas: ' + ((d.metrics && d.metrics.hold_count) || 0) +
                 ((d.metrics && d.metrics.hold_count) ? ' (' + d.metrics.hold_seconds + 's)' : '') +
+                ((d.metrics && d.metrics.jailbreak_attempts) ? ' · ⚠ Manipulación: ' + d.metrics.jailbreak_attempts : '') +
+                ((d.metrics && d.metrics.role_breaks) ? ' · Personaje re-anclado: ' + d.metrics.role_breaks : '') +
                 ' · Costo est.: $' + (d.estimated_cost_usd || 0).toFixed(4);
             box.appendChild(meta);
 
